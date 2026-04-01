@@ -12,16 +12,39 @@
             --warn: #fdcb6e; 
             --glass: rgba(255, 255, 255, 0.9);
             --shadow: 0 8px 30px rgba(0,0,0,0.08);
+            --popup-shadow: 0 15px 40px rgba(0,0,0,0.25);
         }
         
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8f9fa; margin: 0; overflow-x: hidden; color: var(--dark); }
         
         .header { background: var(--dark); color: white; padding: 15px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 
+        /* 🔍 Search Bar Styles (Moved to Top & Pop-up Setup) */
+        .search-container { position: relative; margin: 15px 15px 0 15px; z-index: 999; }
+        .search-box { 
+            width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 14px; 
+            font-size: 16px; box-sizing: border-box; outline: none; transition: all 0.3s;
+            font-family: inherit; color: var(--dark); background: #fff; box-shadow: var(--shadow);
+        }
+        .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0,184,148,0.15); }
+        
+        /* Pop-up Results over Scanner */
+        .search-results { 
+            position: absolute; top: 100%; left: 0; right: 0; background: white; 
+            border-radius: 14px; box-shadow: var(--popup-shadow); z-index: 1000; 
+            max-height: 250px; overflow-y: auto; display: none; margin-top: 8px;
+            border: 1px solid #eee;
+        }
+        .search-item { padding: 14px 18px; border-bottom: 1px solid #f1f2f6; cursor: pointer; display: flex; justify-content: space-between; align-items: center;}
+        .search-item:hover { background: #f8f9fa; }
+        .search-item:last-child { border-bottom: none; }
+        .search-item-stock { font-size: 11px; font-weight: bold; background: #eee; padding: 4px 10px; border-radius: 10px; color: #7f8c8d; }
+
         /* 📸 Modern Scanner Container */
         #scannerContainer { 
             position: relative; margin: 15px; height: 200px; background: #000; 
             border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: var(--shadow);
+            z-index: 1; /* Kept lower than search pop-up */
         }
         #reader { width: 100% !important; height: 100% !important; }
         .focus-guide {
@@ -30,7 +53,7 @@
             box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6); z-index: 5; pointer-events: none;
         }
 
-        .card { background: white; margin: 12px; padding: 15px; border-radius: 18px; box-shadow: var(--shadow); }
+        .card { background: white; margin: 12px 15px; padding: 15px; border-radius: 18px; box-shadow: var(--shadow); }
         
         /* 📊 Premium Dashboard Stats */
         .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; background: #f1f2f6; padding: 12px; border-radius: 15px; }
@@ -53,15 +76,13 @@
         .btn-main { background: var(--accent); color: white; box-shadow: 0 6px 20px rgba(0, 184, 148, 0.3); }
         .btn-reset { background: var(--err); color: white; box-shadow: 0 6px 20px rgba(255, 118, 117, 0.3); }
         
-        .btn-outline { 
-            background: white; color: var(--dark); border: 2px solid #eee; font-size: 14px; padding: 12px;
-        }
+        .btn-outline { background: white; color: var(--dark); border: 2px solid #eee; font-size: 14px; padding: 12px; }
         .btn-outline:active { background: #f1f2f6; transform: scale(0.98); }
 
         .bill-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
         .bill-table td { padding: 12px 5px; border-bottom: 1px solid #f1f2f6; font-size: 15px; font-weight: 500; }
         
-        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 0 12px 10px; border-radius: 10px; font-size: 12px; text-align: center; font-weight: bold; }
+        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 0 15px 10px; border-radius: 10px; font-size: 12px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -71,10 +92,15 @@
     <div id="netBadge" style="font-size:10px; padding:4px 12px; border-radius:20px; background:#55efc4; font-weight:bold;">● ONLINE</div>
 </div>
 
-<div class="card" id="startCard" style="text-align:center; padding:40px 20px;">
+<div class="card" id="startCard" style="text-align:center; padding:40px 20px; margin-top:20px;">
     <h2 style="margin-top:0">Welcome Back</h2>
     <p style="color:#7f8c8d; margin-bottom:25px">Ready to start your sales session?</p>
     <button class="btn btn-main" id="startBtn">OPEN TERMINAL</button>
+</div>
+
+<div id="searchArea" class="search-container" style="display:none;">
+    <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search loose items by name..." autocomplete="off">
+    <div id="searchResults" class="search-results"></div>
 </div>
 
 <div id="scannerContainer" style="display:none;">
@@ -111,8 +137,8 @@
     <button class="btn btn-reset" onclick="resetBill()">NEXT CUSTOMER</button>
 
     <div class="btn-group">
-        <button class="btn btn-outline" onclick="window.location.href='https://iamhasnainyousaf.github.io/Analytics-Dashboard/'">📊 Analytics</button>
-        <button class="btn btn-outline" onclick="window.location.href='https://iamhasnainyousaf.github.io/Stock-Manager/'">📦 Stocks</button>
+        <button class="btn btn-outline" onclick="window.location.href='https://www.google.com'">📊 Analytics</button>
+        <button class="btn btn-outline" onclick="window.location.href='https://www.google.com'">📦 Stocks</button>
     </div>
 </div>
 
@@ -172,12 +198,19 @@ function setQueue(q) {
 async function syncData() {
     if (!navigator.onLine || isSyncing) return;
     let queue = getQueue();
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+        document.getElementById("syncAlert").style.display = "none";
+        return;
+    }
 
     isSyncing = true;
     let item = queue[0];
 
     try {
+        if (isNaN(item.price) || isNaN(item.newStock)) {
+            throw new Error("Invalid Price or Stock data (NaN).");
+        }
+
         const profit = item.price - item.cost;
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
@@ -200,17 +233,38 @@ async function syncData() {
         updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
         
         await update(ref(db), updates);
+        
         let newQueue = getQueue();
-        newQueue.shift(); setQueue(newQueue);
-    } catch (e) { console.error(e); } finally {
+        newQueue.shift(); 
+        setQueue(newQueue);
+        
+        document.getElementById("syncAlert").innerText = "🔄 SYNCING TO CLOUD...";
+        document.getElementById("syncAlert").style.background = "var(--warn)";
+        document.getElementById("syncAlert").style.color = "#856404";
+
+    } catch (e) { 
+        console.error("🔥 Firebase Sync Error:", e.message);
+        document.getElementById("syncAlert").innerText = "⚠️ SYNC FAILED: " + e.message;
+        document.getElementById("syncAlert").style.background = "var(--err)";
+        document.getElementById("syncAlert").style.color = "white";
+        document.getElementById("syncAlert").style.display = "block";
+        
+        let newQueue = getQueue();
+        newQueue.shift(); 
+        setQueue(newQueue);
+        
+    } finally {
         isSyncing = false;
-        if (getQueue().length > 0) setTimeout(syncData, 400);
+        if (getQueue().length > 0) setTimeout(syncData, 1000);
     }
 }
 
 window.startApp = function() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     document.getElementById("startCard").style.display = "none";
+    
+    // Show new Search Area at the top
+    document.getElementById("searchArea").style.display = "block";
     document.getElementById("scannerContainer").style.display = "block";
     document.getElementById("mainPOS").style.display = "block";
     
@@ -218,14 +272,9 @@ window.startApp = function() {
     setInterval(syncData, 5000);
     onValue(ref(db, 'Products'), (snap) => { localInventory = snap.val() || {}; });
 
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start({ facingMode: "environment" }, { fps: 25, qrbox: null, aspectRatio: 1.0 }, (code) => {
-        if (scanningLock) return;
-        const cleanCode = code.trim();
-        const product = localInventory[cleanCode];
-
+    window.processItem = function(code) {
+        const product = localInventory[code];
         if (product && Number(product.Stock) > 0) {
-            scanningLock = true;
             playFeedback(true);
             let price = Number(product.Price);
             let cost = Number(product.Cost || 0);
@@ -237,16 +286,67 @@ window.startApp = function() {
             document.getElementById("status").innerText = "ADDED: " + product.Name;
 
             let q = getQueue();
-            q.push({ code: cleanCode, name: product.Name, price: price, cost: cost, newStock: newStock });
+            q.push({ code: code, name: product.Name, price: price, cost: cost, newStock: newStock });
             setQueue(q);
-            localInventory[cleanCode].Stock = newStock;
+            localInventory[code].Stock = newStock;
             syncData();
-            setTimeout(() => { scanningLock = false; }, 1800);
         } else {
             playFeedback(false);
             document.getElementById("status").innerText = "NOT FOUND / NO STOCK";
-            setTimeout(() => { scanningLock = false; }, 1800);
         }
+    };
+
+    // Search Box Logic
+    document.getElementById("searchBox").addEventListener("input", function(e) {
+        const query = e.target.value.toLowerCase().trim();
+        const resultsDiv = document.getElementById("searchResults");
+        resultsDiv.innerHTML = "";
+        
+        if (query.length < 2) {
+            resultsDiv.style.display = "none";
+            return;
+        }
+
+        let matches = 0;
+        for (let code in localInventory) {
+            let p = localInventory[code];
+            if (p.Name && p.Name.toLowerCase().includes(query)) {
+                matches++;
+                let div = document.createElement("div");
+                div.className = "search-item";
+                div.innerHTML = `<span>${p.Name} - <b>RS ${p.Price}</b></span> <span class="search-item-stock">Stock: ${p.Stock}</span>`;
+                
+                div.onclick = function() {
+                    if (Number(p.Stock) > 0) {
+                        processItem(code);
+                        document.getElementById("searchBox").value = "";
+                        resultsDiv.style.display = "none";
+                    } else {
+                        playFeedback(false);
+                        document.getElementById("status").innerText = "OUT OF STOCK: " + p.Name;
+                    }
+                };
+                resultsDiv.appendChild(div);
+            }
+        }
+        resultsDiv.style.display = matches > 0 ? "block" : "none";
+    });
+
+    document.addEventListener("click", function(e) {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById("searchResults").style.display = "none";
+        }
+    });
+
+    // Scanner Logic
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, { fps: 25, qrbox: null, aspectRatio: 1.0 }, (code) => {
+        if (scanningLock) return;
+        const cleanCode = code.trim();
+        
+        scanningLock = true;
+        processItem(cleanCode);
+        setTimeout(() => { scanningLock = false; }, 1800);
     });
 };
 
