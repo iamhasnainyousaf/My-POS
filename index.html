@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root { 
+            --accent: #00b894; 
+            --dark: #1e272e; 
+            --err: #ff7675; 
+            --warn: #fdcb6e; 
+            --glass: rgba(255, 255, 255, 0.9);
+            --shadow: 0 8px 30px rgba(0,0,0,0.08);
+        }
+        
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8f9fa; margin: 0; overflow-x: hidden; color: var(--dark); }
+        
+        .header { background: var(--dark); color: white; padding: 15px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+
+        /* 📸 Modern Scanner Container */
+        #scannerContainer { 
+            position: relative; margin: 15px; height: 200px; background: #000; 
+            border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: var(--shadow);
+        }
+        #reader { width: 100% !important; height: 100% !important; }
+        .focus-guide {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 240px; height: 100px; border: 2px solid var(--accent); border-radius: 12px;
+            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6); z-index: 5; pointer-events: none;
+        }
+
+        .card { background: white; margin: 12px; padding: 15px; border-radius: 18px; box-shadow: var(--shadow); }
+        
+        /* 📊 Premium Dashboard Stats */
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; background: #f1f2f6; padding: 12px; border-radius: 15px; }
+        .stat-item { text-align: center; }
+        .stat-label { font-size: 10px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-value { font-size: 14px; font-weight: 800; color: var(--dark); }
+        .profit-val { color: var(--accent); }
+
+        .total-box { font-size: 38px; font-weight: 900; color: var(--dark); text-align: center; margin: 10px 0; }
+        
+        /* 🔘 Modern Premium Buttons */
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+        
+        .btn { 
+            padding: 16px; width: 100%; border: none; border-radius: 14px; 
+            font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        
+        .btn-main { background: var(--accent); color: white; box-shadow: 0 6px 20px rgba(0, 184, 148, 0.3); }
+        .btn-reset { background: var(--err); color: white; box-shadow: 0 6px 20px rgba(255, 118, 117, 0.3); }
+        
+        .btn-outline { 
+            background: white; color: var(--dark); border: 2px solid #eee; font-size: 14px; padding: 12px;
+        }
+        .btn-outline:active { background: #f1f2f6; transform: scale(0.98); }
+
+        .bill-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .bill-table td { padding: 12px 5px; border-bottom: 1px solid #f1f2f6; font-size: 15px; font-weight: 500; }
+        
+        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 0 12px 10px; border-radius: 10px; font-size: 12px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <span>💎 PRESTIGE POS</span>
+    <div id="netBadge" style="font-size:10px; padding:4px 12px; border-radius:20px; background:#55efc4; font-weight:bold;">● ONLINE</div>
+</div>
+
+<div class="card" id="startCard" style="text-align:center; padding:40px 20px;">
+    <h2 style="margin-top:0">Welcome Back</h2>
+    <p style="color:#7f8c8d; margin-bottom:25px">Ready to start your sales session?</p>
+    <button class="btn btn-main" id="startBtn">OPEN TERMINAL</button>
+</div>
+
+<div id="scannerContainer" style="display:none;">
+    <div id="reader"></div>
+    <div class="focus-guide"></div>
+</div>
+
+<div id="syncAlert">🔄 SYNCING TO CLOUD...</div>
+
+<div class="card" id="mainPOS" style="display:none;">
+    <div class="dashboard">
+        <div class="stat-item">
+            <div class="stat-label">Sales</div>
+            <div class="stat-value" id="todaySales">RS 0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Cost</div>
+            <div class="stat-value" id="todayCost">RS 0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">Profit</div>
+            <div class="stat-value profit-val" id="todayProfit">RS 0</div>
+        </div>
+    </div>
+
+    <div id="status" style="text-align:center; font-size:13px; color:#95a5a6; margin-bottom:10px; font-weight:bold;">STANDBY</div>
+    
+    <div style="max-height: 20vh; overflow-y: auto; margin-bottom:10px;">
+        <table class="bill-table"><tbody id="billBody"></tbody></table>
+    </div>
+
+    <div class="total-box" id="totalDisplay">RS 0</div>
+    
+    <button class="btn btn-reset" onclick="resetBill()">NEXT CUSTOMER</button>
+
+    <div class="btn-group">
+        <button class="btn btn-outline" onclick="window.location.href='https://www.google.com'">📊 Analytics</button>
+        <button class="btn btn-outline" onclick="window.location.href='https://www.google.com'">📦 Stocks</button>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, update, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAbdQcBsj5-DWyo7VZhUCtDbnT6CeJAt90",
+  authDomain: "shop-pos-59971.firebaseapp.com",
+  databaseURL: "https://shop-pos-59971-default-rtdb.firebaseio.com",
+  projectId: "shop-pos-59971",
+  storageBucket: "shop-pos-59971.firebasestorage.app",
+  messagingSenderId: "624757293899",
+  appId: "1:624757293899:web:a4e633cfe629eb0ac6dece"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let localInventory = {}; 
+let currentBill = 0;
+let scanningLock = false;
+let audioCtx = null;
+let isSyncing = false;
+
+// Real-time listener for Dashboard
+function listenToStats() {
+    const today = new Date().toISOString().split('T')[0];
+    onValue(ref(db, `Stats/Daily/${today}`), (snap) => {
+        const data = snap.val() || { Total_Sales: 0, Total_Cost: 0, Total_Profit: 0 };
+        document.getElementById("todaySales").innerText = "RS " + (data.Total_Sales || 0).toLocaleString();
+        document.getElementById("todayCost").innerText = "RS " + (data.Total_Cost || 0).toLocaleString();
+        document.getElementById("todayProfit").innerText = "RS " + (data.Total_Profit || 0).toLocaleString();
+    });
+}
+
+function playFeedback(isSuccess) {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (navigator.vibrate) isSuccess ? navigator.vibrate(60) : navigator.vibrate([100, 50, 100]);
+    if (audioCtx) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(isSuccess ? 1400 : 200, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
+}
+
+function getQueue() { return JSON.parse(localStorage.getItem('pos_sync_queue') || '[]'); }
+function setQueue(q) { 
+    localStorage.setItem('pos_sync_queue', JSON.stringify(q)); 
+    document.getElementById("syncAlert").style.display = q.length > 0 ? "block" : "none";
+}
+
+async function syncData() {
+    if (!navigator.onLine || isSyncing) return;
+    let queue = getQueue();
+    if (queue.length === 0) return;
+
+    isSyncing = true;
+    let item = queue[0];
+
+    try {
+        const profit = item.price - item.cost;
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const monthStr = dateStr.substring(0, 7);
+        const updates = {};
+        
+        updates[`Stats/Lifetime/Total_Sales`] = increment(item.price);
+        updates[`Stats/Lifetime/Total_Cost`] = increment(item.cost);
+        updates[`Stats/Lifetime/Total_Profit`] = increment(profit);
+        updates[`Stats/Monthly/${monthStr}/Total_Sales`] = increment(item.price);
+        updates[`Stats/Monthly/${monthStr}/Total_Cost`] = increment(item.cost);
+        updates[`Stats/Monthly/${monthStr}/Total_Profit`] = increment(profit);
+        updates[`Stats/Daily/${dateStr}/Total_Sales`] = increment(item.price);
+        updates[`Stats/Daily/${dateStr}/Total_Cost`] = increment(item.cost);
+        updates[`Stats/Daily/${dateStr}/Total_Profit`] = increment(profit);
+        updates[`Products/${item.code}/Stock`] = item.newStock;
+        updates[`Sales_Log/${item.code}/Name`] = item.name;
+        updates[`Sales_Log/${item.code}/Qty_Sold`] = increment(1);
+        updates[`Sales_Log/${item.code}/Total_Profit`] = increment(profit);
+        updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
+        
+        await update(ref(db), updates);
+        let newQueue = getQueue();
+        newQueue.shift(); setQueue(newQueue);
+    } catch (e) { console.error(e); } finally {
+        isSyncing = false;
+        if (getQueue().length > 0) setTimeout(syncData, 400);
+    }
+}
+
+window.startApp = function() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    document.getElementById("startCard").style.display = "none";
+    document.getElementById("scannerContainer").style.display = "block";
+    document.getElementById("mainPOS").style.display = "block";
+    
+    listenToStats();
+    setInterval(syncData, 5000);
+    onValue(ref(db, 'Products'), (snap) => { localInventory = snap.val() || {}; });
+
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, { fps: 25, qrbox: null, aspectRatio: 1.0 }, (code) => {
+        if (scanningLock) return;
+        const cleanCode = code.trim();
+        const product = localInventory[cleanCode];
+
+        if (product && Number(product.Stock) > 0) {
+            scanningLock = true;
+            playFeedback(true);
+            let price = Number(product.Price);
+            let cost = Number(product.Cost || 0);
+            let newStock = Number(product.Stock) - 1;
+
+            document.getElementById("billBody").innerHTML += `<tr><td>${product.Name}</td><td align="right"><b>RS ${price}</b></td></tr>`;
+            currentBill += price;
+            document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
+            document.getElementById("status").innerText = "ADDED: " + product.Name;
+
+            let q = getQueue();
+            q.push({ code: cleanCode, name: product.Name, price: price, cost: cost, newStock: newStock });
+            setQueue(q);
+            localInventory[cleanCode].Stock = newStock;
+            syncData();
+            setTimeout(() => { scanningLock = false; }, 1800);
+        } else {
+            playFeedback(false);
+            document.getElementById("status").innerText = "NOT FOUND / NO STOCK";
+            setTimeout(() => { scanningLock = false; }, 1800);
+        }
+    });
+};
+
+window.resetBill = function() {
+    document.getElementById("billBody").innerHTML = "";
+    currentBill = 0;
+    document.getElementById("totalDisplay").innerText = "RS 0";
+    document.getElementById("status").innerText = "READY";
+};
+
+document.getElementById("startBtn").addEventListener("click", startApp);
+</script>
+</body>
+</html>
