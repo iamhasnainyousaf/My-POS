@@ -19,47 +19,45 @@
         
         .header { background: var(--dark); color: white; padding: 12px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0; }
 
+        /* 🔍 SEARCH */
         .search-container { position: relative; margin: 12px 12px 8px 12px; z-index: 1001; flex-shrink: 0; }
         .search-box { width: 100%; padding: 15px; border: none; border-radius: 15px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         
         .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: 15px; box-shadow: var(--popup-shadow); z-index: 1002; max-height: 350px; overflow-y: auto; display: none; margin-top: 8px; border: 1px solid #eee; }
         .search-header { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #eee; font-size: 10px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
-        .search-item { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 12px 15px; border-bottom: 1px solid #f1f2f6; align-items: center; }
+        .search-item { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 14px 15px; border-bottom: 1px solid #f1f2f6; align-items: center; }
         .calc-input { width: 100%; padding: 8px 2px; border: 1px solid #eee; border-radius: 8px; text-align: center; font-weight: bold; font-size: 13px; outline: none; background: #f9f9f9; }
 
+        /* 🍬 COUNTER */
         .shop-counter { margin: 0 0 10px 0; padding: 0; flex-shrink: 0; }
         .counter-label-top { padding-left: 15px; font-size: 10px; font-weight: 800; color: #a4b0be; text-transform: uppercase; margin-bottom: 5px; }
         .counter-shelf { display: flex; gap: 10px; overflow-x: auto; padding: 0 15px 10px 15px; scrollbar-width: none; }
         .counter-shelf::-webkit-scrollbar { display: none; }
-        
-        .counter-item { min-width: 90px; height: 120px; background: white; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
-        .counter-item:active { transform: scale(0.95); }
-        .counter-img { width: 55px; height: 55px; object-fit: contain; margin-bottom: 5px; }
-        .counter-price-badge { position: absolute; top: 5px; right: 5px; background: var(--accent); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; z-index: 5; }
-        .counter-stock-badge { position: absolute; top: 5px; left: 5px; background: var(--err); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; z-index: 5; }
+        .counter-item { min-width: 85px; height: 110px; background: white; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
+        .counter-img { width: 50px; height: 50px; object-fit: contain; margin-bottom: 5px; }
+        .counter-price-badge { position: absolute; top: 5px; right: 5px; background: var(--accent); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; }
+        .counter-stock-badge { position: absolute; top: 5px; left: 5px; background: var(--err); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; }
         .counter-name { font-size: 10px; font-weight: 700; text-align: center; height: 24px; overflow: hidden; padding: 0 4px; line-height: 1.1; }
 
+        /* 📜 BILL AREA */
         #mainPOS { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; margin: 0; background: white; border-radius: 25px 25px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
         .bill-header-row { display: grid; grid-template-columns: 1fr 100px 50px; padding: 12px 20px; background: #f8f9fa; border-bottom: 2px solid #eee; font-size: 12px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; }
         .bill-scroll-area { flex-grow: 1; overflow-y: auto; padding: 0; background: #fff; }
-        
         .bill-table { width: 100%; border-collapse: collapse; }
         .bill-table tr { border-bottom: 1px solid #f1f2f6; }
-        .bill-table tr:nth-child(even) { background: #fafafa; }
         .bill-table td { padding: 16px 20px; font-size: 16px; font-weight: 700; color: var(--dark); }
         .item-qty-tag { color: var(--accent); font-size: 13px; font-weight: 800; display: block; margin-top: 2px; }
 
         @keyframes newItem { from { background: #55efc4; transform: translateX(-10px); } to { background: transparent; transform: translateX(0); } }
         .new-row-anim { animation: newItem 0.8s ease-out; }
 
+        /* 💰 CONTROLS */
         .bottom-controls { background: white; padding: 15px 20px; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); flex-shrink: 0; z-index: 10; }
         .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
         .stat-item { background: #f8f9fa; padding: 8px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
         .stat-label { font-size: 8px; font-weight: 800; color: #a4b0be; text-transform: uppercase; }
         .stat-value { font-size: 13px; font-weight: 800; color: var(--dark); }
-
         .total-box { font-size: 42px; font-weight: 900; color: var(--dark); text-align: center; margin: 5px 0; border-top: 1px dashed #eee; padding-top: 5px; }
-        
         .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .btn { padding: 18px; border: none; border-radius: 18px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
         .btn-main { background: var(--accent); color: white; width: 100%; }
@@ -67,11 +65,15 @@
         .btn-credit { background: var(--dark); color: white; }
         .btn-del { background: #fff0f0; color: var(--err); border: 2px solid #ffebeb; padding: 10px 12px; border-radius: 12px; font-size: 18px; cursor: pointer; }
 
-        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 5px 15px; border-radius: 12px; font-size: 11px; text-align: center; font-weight: bold; flex-shrink: 0; }
+        /* 🖼️ MODALS & CUSTOM POPUPS */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 6000; backdrop-filter: blur(8px); }
+        .modal { background: white; width: 88%; max-width: 400px; padding: 25px; border-radius: 25px; position: relative; box-shadow: var(--popup-shadow); text-align: center; }
+        .modal h3 { margin: 0 0 15px 0; }
+        .cust-input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 15px; margin-bottom: 15px; font-size: 18px; outline: none; box-sizing: border-box; }
+        .cust-input.error { border-color: var(--err); background: #fff5f5; }
 
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 6000; backdrop-filter: blur(10px); }
-        .modal { background: white; width: 92%; max-width: 450px; max-height: 85vh; padding: 25px; border-radius: 30px; overflow-y: auto; position: relative; }
-        .modal-close { position: absolute; top: 20px; right: 20px; font-size: 28px; cursor: pointer; color: #a4b0be; }
+        /* Sync Alert */
+        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 5px 15px; border-radius: 12px; font-size: 11px; text-align: center; font-weight: bold; flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -81,7 +83,7 @@
     <div id="netBadge" style="font-size:10px; padding:4px 12px; border-radius:20px; background:#55efc4; font-weight:bold; color:black;">● ONLINE</div>
 </div>
 
-<div class="card" id="startCard" style="text-align:center; padding:60px 20px; margin: 30px 15px; background:white; border-radius:25px; box-shadow: var(--shadow);">
+<div class="card" id="startCard" style="text-align:center; padding:60px 20px; margin: 30px 15px; background:white; border-radius:25px; box-shadow: var(--shadow); flex-shrink: 0;">
     <h2 style="font-size:28px;">Welcome</h2>
     <p style="color:#7f8c8d; margin-bottom:30px">Terminal Ready</p>
     <button class="btn btn-main" id="startBtn" onclick="startApp()">OPEN TERMINAL</button>
@@ -119,7 +121,29 @@
     </div>
 </div>
 
-<div class="modal-overlay" id="creditModal"><div class="modal" style="height:auto;"><h3>Credit Bill</h3><input type="text" id="custName" placeholder="Enter Customer Name" style="width:100%; padding:15px; border:2px solid #f1f2f6; border-radius:15px; margin-bottom:20px; font-size:16px; outline:none;"><div style="display:flex; gap:12px;"><button class="btn btn-reset" style="flex:1;" onclick="closeModals()">Cancel</button><button id="saveCreditBtn" class="btn btn-credit" style="flex:1;" onclick="saveCreditBill()">WhatsApp</button></div></div></div>
+<div class="modal-overlay" id="creditModal">
+    <div class="modal">
+        <h3>Credit Bill</h3>
+        <input type="text" id="custName" class="cust-input" placeholder="Enter Customer Name" oninput="this.classList.remove('error')">
+        <div id="nameError" style="color:red; font-size:12px; margin-bottom:10px; display:none;">Please enter a name first!</div>
+        <div style="display:flex; gap:12px;">
+            <button class="btn btn-reset" style="flex:1;" onclick="closeModals()">CANCEL</button>
+            <button id="saveCreditBtn" class="btn btn-credit" style="flex:1;" onclick="saveCreditBill()">WHATSAPP</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+        <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+        <h3>Reverse Item?</h3>
+        <p style="color:#7f8c8d; margin-bottom: 20px;">Do you want to remove this item from the bill?</p>
+        <div style="display:flex; gap:12px;">
+            <button class="btn btn-reset" style="flex:1;" onclick="closeModals()">NO</button>
+            <button id="confirmBtn" class="btn btn-credit" style="flex:1; background:var(--err);">YES, REMOVE</button>
+        </div>
+    </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -186,7 +210,7 @@ function playFeedback(s) {
 
 function getQueue() { return JSON.parse(localStorage.getItem('pos_sync_queue') || '[]'); }
 function setQueue(q) { localStorage.setItem('pos_sync_queue', JSON.stringify(q)); document.getElementById("syncAlert").style.display = q.length > 0 ? "block" : "none"; }
-window.forceClearQueue = () => { if(confirm("Clear stuck sync?")) { localStorage.removeItem('pos_sync_queue'); document.getElementById("syncAlert").style.display = "none"; isSyncing = false; } };
+window.forceClearQueue = () => { localStorage.removeItem('pos_sync_queue'); document.getElementById("syncAlert").style.display = "none"; isSyncing = false; };
 
 async function syncData() {
     if (!navigator.onLine || !isFirebaseConnected || isSyncing) return;
@@ -232,33 +256,44 @@ window.startApp = () => {
                 const row = document.getElementById(item.id); row.className = "new-row-anim"; row.cells[0].innerHTML = `<div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${item.qty}</span>`; row.cells[1].innerHTML = `<div style="text-align:right; font-size:18px;">RS ${item.price}</div>`; setTimeout(() => row.className = "", 800);
             } else {
                 let rid = "r"+Date.now();
-                const newRow = document.createElement("tr"); newRow.id = rid; newRow.className = "new-row-anim"; newRow.innerHTML = `<td><div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${qty}</span></td><td align="right" style="font-size:18px;">RS ${tP}</td><td width="50" align="center"><button class="btn-del" onclick="reverseItem('${rid}','${code}')">🗑️</button></td>`;
+                const newRow = document.createElement("tr"); newRow.id = rid; newRow.className = "new-row-anim"; newRow.innerHTML = `<td><div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${qty}</span></td><td align="right" style="font-size:18px;">RS ${tP}</td><td width="50" align="center"><button class="btn-del" onclick="askReverseItem('${rid}')">🗑️</button></td>`;
                 document.getElementById("billBody").appendChild(newRow); billItems.push({ id: rid, code, name: p.Name, qty, price: tP, cost: tC }); setTimeout(() => newRow.className = "", 800);
             }
-            currentBill = Number((currentBill + tP).toFixed(3)); document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString(); document.getElementById("status").innerText = "ADDED: " + p.Name.replace(/cnt\d*/gi,"");
+            currentBill = Number((currentBill + tP).toFixed(3)); document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
             let tid = "TXN-"+Date.now()+"-"+Math.floor(Math.random()*1000);
             let q = getQueue(); q.push({ code, name: p.Name, price: tP, cost: tC, qty, txnId: tid, type: 'sale' }); setQueue(q); syncData();
             const scroll = document.querySelector('.bill-scroll-area'); scroll.scrollTop = scroll.scrollHeight;
         } else { playFeedback(false); }
     };
 
-    window.reverseItem = (rid, code) => {
-        if(!confirm("Reverse item?")) return;
-        let idx = billItems.findIndex(i => i.id === rid); if (idx === -1) return;
-        let item = billItems[idx]; document.getElementById(rid).remove(); currentBill = Number((currentBill - item.price).toFixed(3)); document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
-        let q = getQueue(); q.push({ code, name: item.name, price: -item.price, cost: -item.cost, qty: -item.qty, txnId: "REV-"+Date.now(), type: 'sale' }); billItems.splice(idx, 1); setQueue(q); syncData();
+    // 🔥 FIX: CUSTOM CONFIRMATION DIALOGUE FOR REVERSE
+    window.askReverseItem = (rid) => {
+        document.getElementById("confirmModal").style.display = "flex";
+        document.getElementById("confirmBtn").onclick = () => {
+            let idx = billItems.findIndex(i => i.id === rid);
+            if (idx > -1) {
+                let item = billItems[idx];
+                document.getElementById(rid).remove();
+                currentBill = Number((currentBill - item.price).toFixed(3));
+                document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
+                let q = getQueue(); q.push({ code: item.code, name: item.name, price: -item.price, cost: -item.cost, qty: -item.qty, txnId: "REV-"+Date.now(), type: 'sale' });
+                billItems.splice(idx, 1); setQueue(q); syncData();
+            }
+            closeModals();
+        };
     };
 
     window.addSearchItem = (c) => { let q = parseFloat(document.getElementById("qty_"+c).value) || 1; processItem(c, q); document.getElementById("searchBox").value = ""; document.getElementById("searchResults").style.display = "none"; };
 
     document.getElementById("searchBox").addEventListener("input", e => {
         const val = e.target.value.toLowerCase().trim(), res = document.getElementById("searchResults"); res.innerHTML = ""; if (val.length < 2) { res.style.display="none"; return; }
-        const header = document.createElement("div"); header.className = "search-header"; header.innerHTML = `<span>Name</span><span>Qty</span><span></span><span>Price</span><span></span>`; res.appendChild(header);
+        const header = document.createElement("div"); header.className = "search-header";
+        header.innerHTML = `<span>Name</span><span>Qty</span><span></span><span>Price</span><span></span>`; res.appendChild(header);
         for (let c in localInventory) {
             let p = localInventory[c];
             if (p.Name && p.Name.toLowerCase().includes(val)) {
                 let d = document.createElement("div"); d.className="search-item";
-                d.innerHTML = `<div style="font-weight:700; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.Name.replace(/cnt\d*/gi,"")}</div><input type="number" id="qty_${c}" value="1" step="0.001" class="calc-input" oninput="syncInputs('${c}','qty',${p.Price})" onclick="this.select()"><div style="text-align:center; color:#ccc; font-weight:bold;">=</div><input type="number" id="amt_${c}" value="${p.Price}" step="0.001" class="calc-input" oninput="syncInputs('${c}','amt',${p.Price})" onclick="this.select()"><button class="btn-add-mini" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:8px 5px;" onclick="addSearchItem('${c}')">ADD</button>`;
+                d.innerHTML = `<div style="font-weight:700; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.Name.replace(/cnt\d*/gi,"")}</div><input type="number" id="qty_${c}" value="1" step="0.001" class="calc-input" oninput="syncInputs('${c}','qty',${p.Price})" onclick="this.select()"><div style="text-align:center; color:#ccc; font-weight:bold;">=</div><input type="number" id="amt_${c}" value="${p.Price}" step="0.001" class="calc-input" oninput="syncInputs('${c}','amt',${p.Price})" onclick="this.select()"><button class="btn-add-mini" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:8px 5px; font-size:10px;" onclick="addSearchItem('${c}')">ADD</button>`;
                 res.appendChild(d);
             }
         }
@@ -266,13 +301,25 @@ window.startApp = () => {
     });
 };
 
-window.closeModals = () => document.querySelectorAll(".modal-overlay").forEach(m => m.style.display="none");
+window.closeModals = () => {
+    document.querySelectorAll(".modal-overlay").forEach(m => m.style.display="none");
+    document.getElementById("custName").classList.remove('error');
+    document.getElementById("nameError").style.display = "none";
+};
+
 window.openCreditModal = () => { if(currentBill>0) document.getElementById("creditModal").style.display="flex"; };
 
-// 🔥 WHATSAPP DIRECT FIX (Bypass "Open App" screen)
+// 🔥 FIX: CUSTOM ERROR HANDLING FOR WHATSAPP
 window.saveCreditBill = function() {
-    let n = document.getElementById("custName").value.trim(); if(!n) return alert("Enter name!");
-    let btn = document.getElementById("saveCreditBtn"); btn.innerText = "Processing...";
+    let n = document.getElementById("custName").value.trim();
+    if(!n) {
+        // UI Feedback instead of alert()
+        document.getElementById("custName").classList.add('error');
+        document.getElementById("nameError").style.display = "block";
+        return;
+    }
+
+    let btn = document.getElementById("saveCreditBtn"); btn.innerText = "Opening..."; btn.disabled = true;
     let tid = "CRD-"+Date.now(), items = billItems.map(i=>({name:i.name.replace(/cnt\d*/gi,"").trim(), qty:i.qty, price:i.price}));
     let q = getQueue(); q.push({ type: 'credit', customer: n, amount: currentBill, details: items, txnId: tid });
     setQueue(q); syncData();
@@ -282,13 +329,11 @@ window.saveCreditBill = function() {
     items.forEach(it => { msg += `• ${it.name}  (x${it.qty}) = RS ${it.price}%0A`; });
     msg += `----------------------------%0A*TOTAL: RS ${currentBill}*%0A----------------------------%0A_Thank you!_`;
 
-    // 🔥 whatsapp:// protocol SKIP bypass screen
     window.location.href = `whatsapp://send?phone=923362267577&text=${msg}`;
-
-    setTimeout(() => { btn.innerText = "WhatsApp"; resetBill(); closeModals(); }, 800);
+    setTimeout(() => { btn.innerText = "WhatsApp"; btn.disabled = false; resetBill(); closeModals(); }, 1200);
 };
 
-window.resetBill = () => { document.getElementById("billBody").innerHTML = ""; currentBill = 0; billItems = []; document.getElementById("totalDisplay").innerText = "RS 0"; document.getElementById("custName").value = ""; document.getElementById("status").innerText = "READY"; };
+window.resetBill = () => { document.getElementById("billBody").innerHTML = ""; currentBill = 0; billItems = []; document.getElementById("totalDisplay").innerText = "RS 0"; document.getElementById("custName").value = ""; };
 </script>
 </body>
 </html>
