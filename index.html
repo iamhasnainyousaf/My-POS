@@ -17,10 +17,10 @@
         
         body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f1f2f6; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; color: var(--dark); }
         
-        .header { background: var(--dark); color: white; padding: 15px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0; }
+        .header { background: var(--dark); color: white; padding: 12px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0; }
 
         .search-container { position: relative; margin: 12px 12px 8px 12px; z-index: 1001; flex-shrink: 0; }
-        .search-box { width: 100%; padding: 16px; border: none; border-radius: 15px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .search-box { width: 100%; padding: 15px; border: none; border-radius: 15px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         
         .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: 15px; box-shadow: var(--popup-shadow); z-index: 1002; max-height: 350px; overflow-y: auto; display: none; margin-top: 8px; border: 1px solid #eee; }
         .search-header { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #eee; font-size: 10px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
@@ -97,19 +97,14 @@
     <div class="counter-shelf" id="counterShelf"></div>
 </div>
 
-<div id="syncAlert" onclick="forceClearQueue()">SYNCING TO CLOUD... (Tap to clear)</div>
+<div id="syncAlert" onclick="forceClearQueue()">SYNCING... (Tap to clear)</div>
 
 <div id="mainPOS" style="display:none;">
-    <div class="bill-header-row">
-        <span>Item Description</span>
-        <span style="text-align:right;">Amount</span>
-        <span style="text-align:center;">Action</span>
-    </div>
+    <div class="bill-header-row"><span>Item</span><span style="text-align:right;">Amount</span><span style="text-align:center;">Del</span></div>
     <div class="bill-scroll-area">
-        <div id="status" style="text-align:center; font-size:11px; color:var(--accent); margin:15px 0; font-weight:900; letter-spacing:1px; text-transform:uppercase;">READY FOR BILLING</div>
+        <div id="status" style="text-align:center; font-size:11px; color:var(--accent); margin:15px 0; font-weight:900; letter-spacing:1px; text-transform:uppercase;">READY</div>
         <table class="bill-table"><tbody id="billBody"></tbody></table>
     </div>
-    
     <div class="bottom-controls">
         <div class="dashboard">
             <div class="stat-item"><div class="stat-label">Today Sale</div><div class="stat-value" id="todaySales">0</div></div>
@@ -143,18 +138,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let localInventory = {}; 
-let currentBill = 0;
-let billItems = []; 
-let audioCtx = null;
-let isSyncing = false;
-let isFirebaseConnected = false; 
+let localInventory = {}, currentBill = 0, billItems = [], audioCtx = null, isSyncing = false, isFirebaseConnected = false; 
 
-onValue(ref(db, ".info/connected"), (snap) => {
-    isFirebaseConnected = snap.val() === true;
-    let badge = document.getElementById("netBadge");
-    badge.innerText = isFirebaseConnected ? "● ONLINE" : "● OFFLINE";
-    badge.style.background = isFirebaseConnected ? "#55efc4" : "#ff7675";
+onValue(ref(db, ".info/connected"), s => {
+    isFirebaseConnected = s.val() === true;
+    let b = document.getElementById("netBadge");
+    b.innerText = isFirebaseConnected ? "● ONLINE" : "● OFFLINE";
+    b.style.background = isFirebaseConnected ? "#55efc4" : "#ff7675";
 });
 
 function listenToStats() {
@@ -168,59 +158,44 @@ function listenToStats() {
 }
 
 function renderCounter() {
-    const shelf = document.getElementById("counterShelf");
-    shelf.innerHTML = "";
-    let counterItems = [];
-    for (let code in localInventory) {
-        const p = localInventory[code];
+    const shelf = document.getElementById("counterShelf"); shelf.innerHTML = "";
+    let items = [];
+    for (let c in localInventory) {
+        const p = localInventory[c];
         if (p.Name && p.Name.toLowerCase().includes("cnt")) {
-            const match = p.Name.toLowerCase().match(/cnt(\d+)/);
-            const order = match ? parseInt(match[1]) : 999;
-            counterItems.push({ ...p, code, order });
+            const m = p.Name.toLowerCase().match(/cnt(\d+)/);
+            items.push({ ...p, code: c, order: m ? parseInt(m[1]) : 999 });
         }
     }
-    counterItems.sort((a, b) => a.order - b.order);
-    counterItems.forEach(p => {
-        const div = document.createElement("div");
-        div.className = "counter-item";
-        const imgSrc = p.Img || "https://cdn-icons-png.flaticon.com/512/679/679821.png";
-        div.innerHTML = `<div class="counter-price-badge">RS ${p.Price}</div><div class="counter-stock-badge">Stk: ${p.Stock}</div><img src="${imgSrc}" class="counter-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'"><span class="counter-name">${p.Name.replace(/cnt\d*/gi,"").trim()}</span>`;
+    items.sort((a, b) => a.order - b.order).forEach(p => {
+        const div = document.createElement("div"); div.className = "counter-item";
+        div.innerHTML = `<div class="counter-price-badge">RS ${p.Price}</div><div class="counter-stock-badge">Stk: ${p.Stock}</div><img src="${p.Img || 'https://cdn-icons-png.flaticon.com/512/679/679821.png'}" class="counter-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'"><span class="counter-name">${p.Name.replace(/cnt\d*/gi,"").trim()}</span>`;
         div.onclick = () => window.processItem(p.code, 1);
         shelf.appendChild(div);
     });
 }
 
-function playFeedback(isSuccess) {
+function playFeedback(s) {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
-    if (isSuccess) {
-        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        if (navigator.vibrate) navigator.vibrate(40);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-    } else {
-        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-    }
+    if (s) { osc.frequency.setValueAtTime(1200, audioCtx.currentTime); if (navigator.vibrate) navigator.vibrate(40); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
+    else { osc.frequency.setValueAtTime(100, audioCtx.currentTime); if (navigator.vibrate) navigator.vibrate([100, 50, 100]); osc.start(); osc.stop(audioCtx.currentTime + 0.3); }
 }
 
 function getQueue() { return JSON.parse(localStorage.getItem('pos_sync_queue') || '[]'); }
 function setQueue(q) { localStorage.setItem('pos_sync_queue', JSON.stringify(q)); document.getElementById("syncAlert").style.display = q.length > 0 ? "block" : "none"; }
-
-window.forceClearQueue = function() { if(confirm("Clear stuck sync data?")) { localStorage.removeItem('pos_sync_queue'); document.getElementById("syncAlert").style.display = "none"; isSyncing = false; } };
+window.forceClearQueue = () => { if(confirm("Clear stuck sync?")) { localStorage.removeItem('pos_sync_queue'); document.getElementById("syncAlert").style.display = "none"; isSyncing = false; } };
 
 async function syncData() {
     if (!navigator.onLine || !isFirebaseConnected || isSyncing) return;
-    let queue = getQueue(); if (queue.length === 0) return;
+    let queue = getQueue(); if (!queue.length) return;
     isSyncing = true; let item = queue[0];
     try {
         if (item.txnId) {
-            const txnCheck = await get(child(ref(db), `Processed_Transactions/${item.txnId}`));
-            if (txnCheck.exists()) { let nq = getQueue(); nq.shift(); setQueue(nq); isSyncing = false; setTimeout(syncData, 100); return; }
+            const check = await get(child(ref(db), `Processed_Transactions/${item.txnId}`));
+            if (check.exists()) { let nq = getQueue(); nq.shift(); setQueue(nq); isSyncing = false; setTimeout(syncData, 100); return; }
         }
         const today = new Date().toISOString().split('T')[0], month = today.substring(0, 7), updates = {};
         if (item.type === 'credit') {
@@ -228,106 +203,62 @@ async function syncData() {
             updates[`Credit/Today_Credit_Bills/${item.txnId}`] = { customer: item.customer, amount: item.amount, items: item.details, timestamp: serverTimestamp() };
         } else {
             const profit = Number((item.price - item.cost).toFixed(3));
-            ['Daily/' + today, 'Monthly/' + month, 'Lifetime'].forEach(n => {
-                updates[`Stats/${n}/Total_Sales`] = increment(item.price);
-                updates[`Stats/${n}/Total_Cost`] = increment(item.cost);
-                updates[`Stats/${n}/Total_Profit`] = increment(profit);
-            });
-            updates[`Products/${item.code}/Stock`] = increment(-item.qty);
-            updates[`Sales_Log/${item.code}/Name`] = item.name;
-            updates[`Sales_Log/${item.code}/Qty_Sold`] = increment(item.qty);
-            updates[`Sales_Log/${item.code}/Total_Profit`] = increment(profit);
-            updates[`Sales_Log/${item.code}/Total_Sale`] = increment(item.price);
-            updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
+            ['Daily/' + today, 'Monthly/' + month, 'Lifetime'].forEach(n => { updates[`Stats/${n}/Total_Sales`] = increment(item.price); updates[`Stats/${n}/Total_Cost`] = increment(item.cost); updates[`Stats/${n}/Total_Profit`] = increment(profit); });
+            updates[`Products/${item.code}/Stock`] = increment(-item.qty); updates[`Sales_Log/${item.code}/Name`] = item.name; updates[`Sales_Log/${item.code}/Qty_Sold`] = increment(item.qty); updates[`Sales_Log/${item.code}/Total_Profit`] = increment(profit); updates[`Sales_Log/${item.code}/Total_Sale`] = increment(item.price); updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
         }
         if (item.txnId) updates[`Processed_Transactions/${item.txnId}`] = serverTimestamp();
         await update(ref(db), updates);
         let nq = getQueue(); nq.shift(); setQueue(nq);
-    } catch (e) { console.error(e); } finally { isSyncing = false; if (getQueue().length > 0) setTimeout(syncData, 1000); }
+    } catch (e) { console.error(e); } finally { isSyncing = false; if (getQueue().length) setTimeout(syncData, 1000); }
 }
 
-window.syncInputs = function(code, src, base) {
-    let qI = document.getElementById("qty_"+code), aI = document.getElementById("amt_"+code);
-    if(src==='qty') aI.value = Number((parseFloat(qI.value||0)*base).toFixed(3));
-    else qI.value = Number((parseFloat(aI.value||0)/base).toFixed(3));
-};
+window.syncInputs = (c, s, b) => { let q = document.getElementById("qty_"+c), a = document.getElementById("amt_"+c); if(s==='qty') a.value = Number((parseFloat(q.value||0)*b).toFixed(3)); else q.value = Number((parseFloat(a.value||0)/b).toFixed(3)); };
 
-window.startApp = function() {
+window.startApp = () => {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    document.getElementById("startCard").style.display = "none";
-    document.getElementById("counterArea").style.display = "block";
-    document.getElementById("searchArea").style.display = "block";
-    document.getElementById("mainPOS").style.display = "flex";
-    listenToStats();
-    setInterval(syncData, 5000);
+    document.getElementById("startCard").style.display = "none"; document.getElementById("counterArea").style.display = "block"; document.getElementById("searchArea").style.display = "block"; document.getElementById("mainPOS").style.display = "flex";
+    listenToStats(); setInterval(syncData, 5000);
     onValue(ref(db, 'Products'), snap => { localInventory = snap.val() || {}; renderCounter(); });
 
-    window.processItem = function(code, qty = 1) {
+    window.processItem = (code, qty = 1) => {
         qty = parseFloat(qty); const p = localInventory[code];
         if (p && Number(p.Stock) >= qty) {
             let tP = Number((Number(p.Price)*qty).toFixed(3)), tC = Number((Number(p.Cost||0)*qty).toFixed(3));
             if (tP <= 0) return;
             playFeedback(true);
-            let existingIndex = billItems.findIndex(i => i.code === code);
-            if (existingIndex > -1) {
-                let item = billItems[existingIndex];
-                item.qty = Number((item.qty + qty).toFixed(3));
-                item.price = Number((item.price + tP).toFixed(3));
-                item.cost = Number((item.cost + tC).toFixed(3));
-                const row = document.getElementById(item.id);
-                row.className = "new-row-anim";
-                row.cells[0].innerHTML = `<div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">Quantity: x${item.qty}</span>`;
-                row.cells[1].innerHTML = `<div style="text-align:right; font-size:18px;">RS ${item.price}</div>`;
-                setTimeout(() => row.className = "", 800);
+            let existing = billItems.findIndex(i => i.code === code);
+            if (existing > -1) {
+                let item = billItems[existing]; item.qty = Number((item.qty + qty).toFixed(3)); item.price = Number((item.price + tP).toFixed(3)); item.cost = Number((item.cost + tC).toFixed(3));
+                const row = document.getElementById(item.id); row.className = "new-row-anim"; row.cells[0].innerHTML = `<div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${item.qty}</span>`; row.cells[1].innerHTML = `<div style="text-align:right; font-size:18px;">RS ${item.price}</div>`; setTimeout(() => row.className = "", 800);
             } else {
                 let rid = "r"+Date.now();
-                const newRow = document.createElement("tr");
-                newRow.id = rid;
-                newRow.className = "new-row-anim";
-                newRow.innerHTML = `<td><div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">Quantity: x${qty}</span></td><td align="right" style="font-size:18px;">RS ${tP}</td><td width="50" align="center"><button class="btn-del" onclick="reverseItem('${rid}','${code}')">🗑️</button></td>`;
-                document.getElementById("billBody").appendChild(newRow);
-                billItems.push({ id: rid, code, name: p.Name, qty, price: tP, cost: tC });
-                setTimeout(() => newRow.className = "", 800);
+                const newRow = document.createElement("tr"); newRow.id = rid; newRow.className = "new-row-anim"; newRow.innerHTML = `<td><div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${qty}</span></td><td align="right" style="font-size:18px;">RS ${tP}</td><td width="50" align="center"><button class="btn-del" onclick="reverseItem('${rid}','${code}')">🗑️</button></td>`;
+                document.getElementById("billBody").appendChild(newRow); billItems.push({ id: rid, code, name: p.Name, qty, price: tP, cost: tC }); setTimeout(() => newRow.className = "", 800);
             }
-            currentBill = Number((currentBill + tP).toFixed(3));
-            document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
-            document.getElementById("status").innerText = "ADDED: " + p.Name.replace(/cnt\d*/gi,"");
+            currentBill = Number((currentBill + tP).toFixed(3)); document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString(); document.getElementById("status").innerText = "ADDED: " + p.Name.replace(/cnt\d*/gi,"");
             let tid = "TXN-"+Date.now()+"-"+Math.floor(Math.random()*1000);
-            let q = getQueue(); q.push({ code, name: p.Name, price: tP, cost: tC, qty, txnId: tid, type: 'sale' });
-            setQueue(q); syncData();
-            const scrollArea = document.querySelector('.bill-scroll-area');
-            scrollArea.scrollTop = scrollArea.scrollHeight;
+            let q = getQueue(); q.push({ code, name: p.Name, price: tP, cost: tC, qty, txnId: tid, type: 'sale' }); setQueue(q); syncData();
+            const scroll = document.querySelector('.bill-scroll-area'); scroll.scrollTop = scroll.scrollHeight;
         } else { playFeedback(false); }
     };
 
-    window.reverseItem = function(rid, code) {
-        if(!confirm("Reverse entire item?")) return;
-        let index = billItems.findIndex(i => i.id === rid);
-        if (index === -1) return;
-        let item = billItems[index];
-        document.getElementById(rid).remove();
-        currentBill = Number((currentBill - item.price).toFixed(3));
-        document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
-        let q = getQueue(); q.push({ code, name: item.name, price: -item.price, cost: -item.cost, qty: -item.qty, txnId: "REV-"+Date.now(), type: 'sale' });
-        billItems.splice(index, 1); setQueue(q); syncData();
+    window.reverseItem = (rid, code) => {
+        if(!confirm("Reverse item?")) return;
+        let idx = billItems.findIndex(i => i.id === rid); if (idx === -1) return;
+        let item = billItems[idx]; document.getElementById(rid).remove(); currentBill = Number((currentBill - item.price).toFixed(3)); document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
+        let q = getQueue(); q.push({ code, name: item.name, price: -item.price, cost: -item.cost, qty: -item.qty, txnId: "REV-"+Date.now(), type: 'sale' }); billItems.splice(idx, 1); setQueue(q); syncData();
     };
 
-    window.addSearchItem = function(code) {
-        let q = parseFloat(document.getElementById("qty_"+code).value) || 1;
-        processItem(code, q); document.getElementById("searchBox").value = ""; document.getElementById("searchResults").style.display = "none";
-    };
+    window.addSearchItem = (c) => { let q = parseFloat(document.getElementById("qty_"+c).value) || 1; processItem(c, q); document.getElementById("searchBox").value = ""; document.getElementById("searchResults").style.display = "none"; };
 
     document.getElementById("searchBox").addEventListener("input", e => {
-        const val = e.target.value.toLowerCase().trim(), res = document.getElementById("searchResults");
-        res.innerHTML = ""; if (val.length < 2) { res.style.display="none"; return; }
-        const header = document.createElement("div"); header.className = "search-header";
-        header.innerHTML = `<span>Name</span><span>Qty</span><span></span><span>Price</span><span></span>`;
-        res.appendChild(header);
+        const val = e.target.value.toLowerCase().trim(), res = document.getElementById("searchResults"); res.innerHTML = ""; if (val.length < 2) { res.style.display="none"; return; }
+        const header = document.createElement("div"); header.className = "search-header"; header.innerHTML = `<span>Name</span><span>Qty</span><span></span><span>Price</span><span></span>`; res.appendChild(header);
         for (let c in localInventory) {
             let p = localInventory[c];
             if (p.Name && p.Name.toLowerCase().includes(val)) {
                 let d = document.createElement("div"); d.className="search-item";
-                d.innerHTML = `<div class="counter-name" style="text-align:left; padding:0; height:auto;">${p.Name.replace(/cnt\d*/gi,"")}</div><input type="number" id="qty_${c}" value="1" step="0.001" class="calc-input" oninput="syncInputs('${c}','qty',${p.Price})" onclick="this.select()"><div style="text-align:center; color:#ccc; font-weight:bold;">=</div><input type="number" id="amt_${c}" value="${p.Price}" step="0.001" class="calc-input" oninput="syncInputs('${c}','amt',${p.Price})" onclick="this.select()"><button class="btn-add-mini" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:8px 5px;" onclick="addSearchItem('${c}')">ADD</button>`;
+                d.innerHTML = `<div style="font-weight:700; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.Name.replace(/cnt\d*/gi,"")}</div><input type="number" id="qty_${c}" value="1" step="0.001" class="calc-input" oninput="syncInputs('${c}','qty',${p.Price})" onclick="this.select()"><div style="text-align:center; color:#ccc; font-weight:bold;">=</div><input type="number" id="amt_${c}" value="${p.Price}" step="0.001" class="calc-input" oninput="syncInputs('${c}','amt',${p.Price})" onclick="this.select()"><button class="btn-add-mini" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:8px 5px;" onclick="addSearchItem('${c}')">ADD</button>`;
                 res.appendChild(d);
             }
         }
@@ -338,29 +269,26 @@ window.startApp = function() {
 window.closeModals = () => document.querySelectorAll(".modal-overlay").forEach(m => m.style.display="none");
 window.openCreditModal = () => { if(currentBill>0) document.getElementById("creditModal").style.display="flex"; };
 
+// 🔥 WHATSAPP DIRECT FIX (Bypass "Open App" screen)
 window.saveCreditBill = function() {
     let n = document.getElementById("custName").value.trim(); if(!n) return alert("Enter name!");
-    let btn = document.getElementById("saveCreditBtn"); btn.innerText = "Opening..."; btn.disabled = true;
-    let tid = "CRD-"+Date.now(), itemsForDB = billItems.map(i=>({name:i.name.replace(/cnt\d*/gi,""), qty:i.qty, price:i.price}));
-    let q = getQueue(); q.push({ type: 'credit', customer: n, amount: currentBill, details: itemsForDB, txnId: tid });
+    let btn = document.getElementById("saveCreditBtn"); btn.innerText = "Processing...";
+    let tid = "CRD-"+Date.now(), items = billItems.map(i=>({name:i.name.replace(/cnt\d*/gi,"").trim(), qty:i.qty, price:i.price}));
+    let q = getQueue(); q.push({ type: 'credit', customer: n, amount: currentBill, details: items, txnId: tid });
     setQueue(q); syncData();
 
     const now = new Date();
-    const dateStr = now.toLocaleDateString();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-
-    let msg = `*Sunny Kiryana Store*%0A----------------------------%0A*Customer:* ${n}%0A*Date:* ${dateStr}   ${timeStr}%0A----------------------------%0A`;
-    itemsForDB.forEach(item => { msg += `• ${item.name}  (x${item.qty}) = RS ${item.price}%0A`; });
+    let msg = `*Sunny Kiryana Store*%0A----------------------------%0A*Customer:* ${n}%0A*Date:* ${now.toLocaleDateString()}   ${now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true})}%0A----------------------------%0A`;
+    items.forEach(it => { msg += `• ${it.name}  (x${it.qty}) = RS ${it.price}%0A`; });
     msg += `----------------------------%0A*TOTAL: RS ${currentBill}*%0A----------------------------%0A_Thank you!_`;
 
-    // 🔥 API link for WebView Compatibility
-    const waLink = `https://api.whatsapp.com/send?phone=923362267577&text=${msg}`;
-    window.location.href = waLink;
+    // 🔥 whatsapp:// protocol SKIP bypass screen
+    window.location.href = `whatsapp://send?phone=923362267577&text=${msg}`;
 
-    setTimeout(() => { btn.innerText = "WhatsApp"; btn.disabled = false; resetBill(); closeModals(); }, 1000);
+    setTimeout(() => { btn.innerText = "WhatsApp"; resetBill(); closeModals(); }, 800);
 };
 
-window.resetBill = () => { document.getElementById("billBody").innerHTML = ""; currentBill = 0; billItems = []; document.getElementById("totalDisplay").innerText = "RS 0"; document.getElementById("custName").value = ""; document.getElementById("status").innerText = "CLEARED"; };
+window.resetBill = () => { document.getElementById("billBody").innerHTML = ""; currentBill = 0; billItems = []; document.getElementById("totalDisplay").innerText = "RS 0"; document.getElementById("custName").value = ""; document.getElementById("status").innerText = "READY"; };
 </script>
 </body>
 </html>
