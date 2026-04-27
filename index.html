@@ -3,148 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root { 
             --accent: #00b894; 
             --dark: #1e272e; 
             --err: #ff7675; 
             --warn: #fdcb6e; 
-            --glass: rgba(255, 255, 255, 0.9);
-            --shadow: 0 8px 30px rgba(0,0,0,0.08);
-            --popup-shadow: 0 15px 40px rgba(0,0,0,0.25);
+            --info: #0984e3;
+            --glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 8px 30px rgba(0,0,0,0.1);
+            --popup-shadow: 0 20px 50px rgba(0,0,0,0.3);
         }
         
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8f9fa; margin: 0; overflow-x: hidden; color: var(--dark); }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f1f2f6; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; color: var(--dark); }
         
-        .header { background: var(--dark); color: white; padding: 15px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .header { background: var(--dark); color: white; padding: 12px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0; }
 
-        /* 🔍 Search Bar Styles (Moved to Top & Pop-up Setup) */
-        .search-container { position: relative; margin: 15px 15px 0 15px; z-index: 999; }
-        .search-box { 
-            width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 14px; 
-            font-size: 16px; box-sizing: border-box; outline: none; transition: all 0.3s;
-            font-family: inherit; color: var(--dark); background: #fff; box-shadow: var(--shadow);
-        }
-        .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0,184,148,0.15); }
+        /* 🔍 SEARCH AT TOP */
+        .search-container { position: relative; margin: 12px 12px 8px 12px; z-index: 1001; flex-shrink: 0; }
+        .search-box { width: 100%; padding: 15px; border: none; border-radius: 15px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         
-        /* Pop-up Results over Scanner */
-        .search-results { 
-            position: absolute; top: 100%; left: 0; right: 0; background: white; 
-            border-radius: 14px; box-shadow: var(--popup-shadow); z-index: 1000; 
-            max-height: 250px; overflow-y: auto; display: none; margin-top: 8px;
-            border: 1px solid #eee;
-        }
-        .search-item { padding: 14px 18px; border-bottom: 1px solid #f1f2f6; cursor: pointer; display: flex; justify-content: space-between; align-items: center;}
-        .search-item:hover { background: #f8f9fa; }
-        .search-item:last-child { border-bottom: none; }
-        .search-item-stock { font-size: 11px; font-weight: bold; background: #eee; padding: 4px 10px; border-radius: 10px; color: #7f8c8d; }
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: 15px; box-shadow: var(--popup-shadow); z-index: 1002; max-height: 350px; overflow-y: auto; display: none; margin-top: 8px; border: 1px solid #eee; }
+        .search-header { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #eee; font-size: 10px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
+        .search-item { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 12px 15px; border-bottom: 1px solid #f1f2f6; align-items: center; }
+        .calc-input { width: 100%; padding: 8px 2px; border: 1px solid #eee; border-radius: 8px; text-align: center; font-weight: bold; font-size: 13px; outline: none; background: #f9f9f9; }
 
-        /* 📸 Modern Scanner Container */
-        #scannerContainer { 
-            position: relative; margin: 15px; height: 200px; background: #000; 
-            border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: var(--shadow);
-            z-index: 1; /* Kept lower than search pop-up */
-        }
-        #reader { width: 100% !important; height: 100% !important; }
-        .focus-guide {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 240px; height: 100px; border: 2px solid var(--accent); border-radius: 12px;
-            box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6); z-index: 5; pointer-events: none;
-        }
+        /* 🍬 COUNTER */
+        .shop-counter { margin: 0 0 10px 0; padding: 0; flex-shrink: 0; }
+        .counter-label-top { padding-left: 15px; font-size: 10px; font-weight: 800; color: #a4b0be; text-transform: uppercase; margin-bottom: 5px; }
+        .counter-shelf { display: flex; gap: 10px; overflow-x: auto; padding: 0 15px 10px 15px; scrollbar-width: none; }
+        .counter-shelf::-webkit-scrollbar { display: none; }
+        
+        .counter-item { min-width: 90px; height: 120px; background: white; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
+        .counter-item:active { transform: scale(0.95); }
+        .counter-img { width: 55px; height: 55px; object-fit: contain; margin-bottom: 5px; }
+        
+        /* Badges */
+        .counter-price-badge { position: absolute; top: 5px; right: 5px; background: var(--accent); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; z-index: 5; }
+        .counter-stock-badge { position: absolute; top: 5px; left: 5px; background: var(--err); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        .counter-name { font-size: 10px; font-weight: 700; text-align: center; height: 24px; overflow: hidden; padding: 0 4px; line-height: 1.1; }
 
-        .card { background: white; margin: 12px 15px; padding: 15px; border-radius: 18px; box-shadow: var(--shadow); }
+        /* 📜 BILL AREA */
+        #mainPOS { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; margin: 0; background: white; border-radius: 25px 25px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .bill-header-row { display: grid; grid-template-columns: 1fr 100px 50px; padding: 12px 20px; background: #f8f9fa; border-bottom: 2px solid #eee; font-size: 12px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; }
+        .bill-scroll-area { flex-grow: 1; overflow-y: auto; padding: 0; background: #fff; }
         
-        /* 📊 Premium Dashboard Stats */
-        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; background: #f1f2f6; padding: 12px; border-radius: 15px; }
-        .stat-item { text-align: center; }
-        .stat-label { font-size: 10px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; margin-bottom: 4px; }
-        .stat-value { font-size: 14px; font-weight: 800; color: var(--dark); }
-        .profit-val { color: var(--accent); }
+        .bill-table { width: 100%; border-collapse: collapse; }
+        .bill-table tr { border-bottom: 1px solid #f1f2f6; }
+        .bill-table tr:nth-child(even) { background: #fafafa; }
+        .bill-table td { padding: 16px 20px; font-size: 16px; font-weight: 700; color: var(--dark); }
+        .item-qty-tag { color: var(--accent); font-size: 13px; font-weight: 800; display: block; margin-top: 2px; }
 
-        .total-box { font-size: 38px; font-weight: 900; color: var(--dark); text-align: center; margin: 10px 0; }
-        
-        /* 🔘 Modern Premium Buttons */
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-        
-        .btn { 
-            padding: 16px; width: 100%; border: none; border-radius: 14px; 
-            font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        
-        .btn-main { background: var(--accent); color: white; box-shadow: 0 6px 20px rgba(0, 184, 148, 0.3); }
-        .btn-reset { background: var(--err); color: white; box-shadow: 0 6px 20px rgba(255, 118, 117, 0.3); }
-        
-        .btn-outline { background: white; color: var(--dark); border: 2px solid #eee; font-size: 14px; padding: 12px; }
-        .btn-outline:active { background: #f1f2f6; transform: scale(0.98); }
+        @keyframes newItem { from { background: #55efc4; transform: translateX(-10px); } to { background: transparent; transform: translateX(0); } }
+        .new-row-anim { animation: newItem 0.8s ease-out; }
 
-        .bill-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        .bill-table td { padding: 12px 5px; border-bottom: 1px solid #f1f2f6; font-size: 15px; font-weight: 500; }
+        /* 💰 CONTROLS */
+        .bottom-controls { background: white; padding: 15px 20px; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); flex-shrink: 0; z-index: 10; }
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+        .stat-item { background: #f8f9fa; padding: 8px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
+        .stat-label { font-size: 8px; font-weight: 800; color: #a4b0be; text-transform: uppercase; }
+        .stat-value { font-size: 13px; font-weight: 800; color: var(--dark); }
+
+        .total-box { font-size: 42px; font-weight: 900; color: var(--dark); text-align: center; margin: 5px 0; border-top: 1px dashed #eee; padding-top: 5px; }
         
-        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 0 15px 10px; border-radius: 10px; font-size: 12px; text-align: center; font-weight: bold; }
+        .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .btn { padding: 18px; border: none; border-radius: 18px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
+        .btn-main { background: var(--accent); color: white; width: 100%; }
+        .btn-reset { background: #f1f2f6; color: var(--dark); }
+        .btn-credit { background: var(--dark); color: white; }
+        .btn-del { background: #fff0f0; color: var(--err); border: 2px solid #ffebeb; padding: 10px 12px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+
+        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 5px 15px; border-radius: 12px; font-size: 11px; text-align: center; font-weight: bold; flex-shrink: 0; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 6000; backdrop-filter: blur(10px); }
+        .modal { background: white; width: 92%; max-width: 450px; max-height: 85vh; padding: 25px; border-radius: 30px; overflow-y: auto; position: relative; }
+        .modal-close { position: absolute; top: 20px; right: 20px; font-size: 28px; cursor: pointer; color: #a4b0be; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <span>💎 PRESTIGE POS</span>
-    <div id="netBadge" style="font-size:10px; padding:4px 12px; border-radius:20px; background:#55efc4; font-weight:bold;">● ONLINE</div>
+    <span>PRESTIGE POS</span>
+    <div id="netBadge" style="font-size:10px; padding:4px 12px; border-radius:20px; background:#55efc4; font-weight:bold; color:black;">● ONLINE</div>
 </div>
 
-<div class="card" id="startCard" style="text-align:center; padding:40px 20px; margin-top:20px;">
-    <h2 style="margin-top:0">Welcome Back</h2>
-    <p style="color:#7f8c8d; margin-bottom:25px">Ready to start your sales session?</p>
-    <button class="btn btn-main" id="startBtn">OPEN TERMINAL</button>
+<div class="card" id="startCard" style="text-align:center; padding:60px 20px; margin: 30px 15px; background:white; border-radius:25px; box-shadow: var(--shadow);">
+    <h2 style="font-size:28px;">Welcome</h2>
+    <p style="color:#7f8c8d; margin-bottom:30px">Terminal Ready</p>
+    <button class="btn btn-main" id="startBtn" onclick="startApp()">OPEN TERMINAL</button>
 </div>
 
 <div id="searchArea" class="search-container" style="display:none;">
-    <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search loose items by name..." autocomplete="off">
+    <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search Products..." autocomplete="off">
     <div id="searchResults" class="search-results"></div>
 </div>
 
-<div id="scannerContainer" style="display:none;">
-    <div id="reader"></div>
-    <div class="focus-guide"></div>
+<div id="counterArea" class="shop-counter" style="display:none;">
+    <div class="counter-label-top">Front Counter</div>
+    <div class="counter-shelf" id="counterShelf"></div>
 </div>
 
-<div id="syncAlert">🔄 SYNCING TO CLOUD...</div>
+<div id="syncAlert" onclick="forceClearQueue()">SYNCING TO CLOUD... (Tap to clear)</div>
 
-<div class="card" id="mainPOS" style="display:none;">
-    <div class="dashboard">
-        <div class="stat-item">
-            <div class="stat-label">Sales</div>
-            <div class="stat-value" id="todaySales">RS 0</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">Cost</div>
-            <div class="stat-value" id="todayCost">RS 0</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-label">Profit</div>
-            <div class="stat-value profit-val" id="todayProfit">RS 0</div>
-        </div>
+<div id="mainPOS" style="display:none;">
+    <div class="bill-header-row">
+        <span>Item Description</span>
+        <span style="text-align:right;">Amount</span>
+        <span style="text-align:center;">Action</span>
     </div>
-
-    <div id="status" style="text-align:center; font-size:13px; color:#95a5a6; margin-bottom:10px; font-weight:bold;">STANDBY</div>
-    
-    <div style="max-height: 20vh; overflow-y: auto; margin-bottom:10px;">
+    <div class="bill-scroll-area">
+        <div id="status" style="text-align:center; font-size:11px; color:var(--accent); margin:15px 0; font-weight:900; letter-spacing:1px; text-transform:uppercase;">READY FOR BILLING</div>
         <table class="bill-table"><tbody id="billBody"></tbody></table>
     </div>
-
-    <div class="total-box" id="totalDisplay">RS 0</div>
     
-    <button class="btn btn-reset" onclick="resetBill()">NEXT CUSTOMER</button>
-
-    <div class="btn-group">
-        <button class="btn btn-outline" onclick="window.location.href='https://www.google.com'">📊 Analytics</button>
-        <button class="btn btn-outline" onclick="window.location.href='https://www.google.com'">📦 Stocks</button>
+    <div class="bottom-controls">
+        <div class="dashboard">
+            <div class="stat-item"><div class="stat-label">Today Sale</div><div class="stat-value" id="todaySales">0</div></div>
+            <div class="stat-item"><div class="stat-label">Today Cost</div><div class="stat-value" id="todayCost">0</div></div>
+            <div class="stat-item" style="background:#e8f5e9"><div class="stat-label" style="color:var(--accent)">Profit</div><div class="stat-value" style="color:var(--accent)" id="todayProfit">0</div></div>
+        </div>
+        <div class="total-box" id="totalDisplay">RS 0</div>
+        <div class="action-group">
+            <button class="btn btn-reset" onclick="resetBill()">CLEAR</button>
+            <button class="btn btn-credit" onclick="openCreditModal()">CREDIT</button>
+        </div>
     </div>
 </div>
+
+<div class="modal-overlay" id="creditModal"><div class="modal" style="height:auto;"><h3>Credit Bill</h3><input type="text" id="custName" placeholder="Enter Customer Name" style="width:100%; padding:15px; border:2px solid #f1f2f6; border-radius:15px; margin-bottom:20px; font-size:16px; outline:none;"><div style="display:flex; gap:12px;"><button class="btn btn-reset" style="flex:1;" onclick="closeModals()">Cancel</button><button id="saveCreditBtn" class="btn btn-credit" style="flex:1;" onclick="saveCreditBill()">WhatsApp</button></div></div></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onValue, update, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onValue, update, increment, serverTimestamp, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAbdQcBsj5-DWyo7VZhUCtDbnT6CeJAt90",
@@ -161,203 +152,230 @@ const db = getDatabase(app);
 
 let localInventory = {}; 
 let currentBill = 0;
-let scanningLock = false;
+let billItems = []; 
 let audioCtx = null;
 let isSyncing = false;
+let isFirebaseConnected = false; 
 
-// Real-time listener for Dashboard
+onValue(ref(db, ".info/connected"), (snap) => {
+    isFirebaseConnected = snap.val() === true;
+    let badge = document.getElementById("netBadge");
+    badge.innerText = isFirebaseConnected ? "● ONLINE" : "● OFFLINE";
+    badge.style.background = isFirebaseConnected ? "#55efc4" : "#ff7675";
+});
+
 function listenToStats() {
     const today = new Date().toISOString().split('T')[0];
-    onValue(ref(db, `Stats/Daily/${today}`), (snap) => {
-        const data = snap.val() || { Total_Sales: 0, Total_Cost: 0, Total_Profit: 0 };
-        document.getElementById("todaySales").innerText = "RS " + (data.Total_Sales || 0).toLocaleString();
-        document.getElementById("todayCost").innerText = "RS " + (data.Total_Cost || 0).toLocaleString();
-        document.getElementById("todayProfit").innerText = "RS " + (data.Total_Profit || 0).toLocaleString();
+    onValue(ref(db, `Stats/Daily/${today}`), snap => {
+        const d = snap.val() || { Total_Sales: 0, Total_Cost: 0, Total_Profit: 0 };
+        document.getElementById("todaySales").innerText = Number(d.Total_Sales || 0).toLocaleString();
+        document.getElementById("todayCost").innerText = Number(d.Total_Cost || 0).toLocaleString();
+        document.getElementById("todayProfit").innerText = Number(d.Total_Profit || 0).toLocaleString();
+    });
+}
+
+// 🔥 UPDATED: Render Counter with Smart Sorting & Stock Badge
+function renderCounter() {
+    const shelf = document.getElementById("counterShelf");
+    shelf.innerHTML = "";
+    
+    let counterItems = [];
+
+    for (let code in localInventory) {
+        const p = localInventory[code];
+        if (p.Name && p.Name.toLowerCase().includes("cnt")) {
+            // Extract number from cntX (e.g., cnt1 -> 1)
+            const match = p.Name.toLowerCase().match(/cnt(\d+)/);
+            const order = match ? parseInt(match[1]) : 999;
+            counterItems.push({ ...p, code, order });
+        }
+    }
+
+    // Sort by order number (cnt1, cnt2...)
+    counterItems.sort((a, b) => a.order - b.order);
+
+    counterItems.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "counter-item";
+        const imgSrc = p.Img || "https://cdn-icons-png.flaticon.com/512/679/679821.png";
+        
+        // Clean Name: Remove cntX and extra spaces
+        const cleanName = p.Name.replace(/cnt\d*/gi, "").trim();
+
+        div.innerHTML = `
+            <div class="counter-price-badge">RS ${p.Price}</div>
+            <div class="counter-stock-badge">Stk: ${p.Stock}</div>
+            <img src="${imgSrc}" class="counter-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'">
+            <span class="counter-name">${cleanName}</span>
+        `;
+        div.onclick = () => window.processItem(p.code, 1);
+        shelf.appendChild(div);
     });
 }
 
 function playFeedback(isSuccess) {
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    if (navigator.vibrate) isSuccess ? navigator.vibrate(60) : navigator.vibrate([100, 50, 100]);
-    if (audioCtx) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.frequency.setValueAtTime(isSuccess ? 1400 : 200, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    if (isSuccess) {
+        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        if (navigator.vibrate) navigator.vibrate(40);
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    } else {
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
     }
 }
 
 function getQueue() { return JSON.parse(localStorage.getItem('pos_sync_queue') || '[]'); }
-function setQueue(q) { 
-    localStorage.setItem('pos_sync_queue', JSON.stringify(q)); 
-    document.getElementById("syncAlert").style.display = q.length > 0 ? "block" : "none";
-}
+function setQueue(q) { localStorage.setItem('pos_sync_queue', JSON.stringify(q)); document.getElementById("syncAlert").style.display = q.length > 0 ? "block" : "none"; }
+
+window.forceClearQueue = function() { if(confirm("Clear stuck sync data?")) { localStorage.removeItem('pos_sync_queue'); document.getElementById("syncAlert").style.display = "none"; isSyncing = false; } };
 
 async function syncData() {
-    if (!navigator.onLine || isSyncing) return;
-    let queue = getQueue();
-    if (queue.length === 0) {
-        document.getElementById("syncAlert").style.display = "none";
-        return;
-    }
-
-    isSyncing = true;
-    let item = queue[0];
-
+    if (!navigator.onLine || !isFirebaseConnected || isSyncing) return;
+    let queue = getQueue(); if (queue.length === 0) return;
+    isSyncing = true; let item = queue[0];
     try {
-        if (isNaN(item.price) || isNaN(item.newStock)) {
-            throw new Error("Invalid Price or Stock data (NaN).");
+        if (item.txnId) {
+            const txnCheck = await get(child(ref(db), `Processed_Transactions/${item.txnId}`));
+            if (txnCheck.exists()) { let nq = getQueue(); nq.shift(); setQueue(nq); isSyncing = false; setTimeout(syncData, 100); return; }
         }
-
-        const profit = item.price - item.cost;
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const monthStr = dateStr.substring(0, 7);
-        const updates = {};
-        
-        updates[`Stats/Lifetime/Total_Sales`] = increment(item.price);
-        updates[`Stats/Lifetime/Total_Cost`] = increment(item.cost);
-        updates[`Stats/Lifetime/Total_Profit`] = increment(profit);
-        updates[`Stats/Monthly/${monthStr}/Total_Sales`] = increment(item.price);
-        updates[`Stats/Monthly/${monthStr}/Total_Cost`] = increment(item.cost);
-        updates[`Stats/Monthly/${monthStr}/Total_Profit`] = increment(profit);
-        updates[`Stats/Daily/${dateStr}/Total_Sales`] = increment(item.price);
-        updates[`Stats/Daily/${dateStr}/Total_Cost`] = increment(item.cost);
-        updates[`Stats/Daily/${dateStr}/Total_Profit`] = increment(profit);
-        updates[`Products/${item.code}/Stock`] = item.newStock;
-        updates[`Sales_Log/${item.code}/Name`] = item.name;
-        updates[`Sales_Log/${item.code}/Qty_Sold`] = increment(1);
-        updates[`Sales_Log/${item.code}/Total_Profit`] = increment(profit);
-        updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
-        
+        const today = new Date().toISOString().split('T')[0], month = today.substring(0, 7), updates = {};
+        if (item.type === 'credit') {
+            updates[`Credit/Today_Total_Credit`] = increment(item.amount);
+            updates[`Credit/Today_Credit_Bills/${item.txnId}`] = { customer: item.customer, amount: item.amount, items: item.details, timestamp: serverTimestamp() };
+        } else {
+            const profit = Number((item.price - item.cost).toFixed(3));
+            ['Daily/' + today, 'Monthly/' + month, 'Lifetime'].forEach(n => {
+                updates[`Stats/${n}/Total_Sales`] = increment(item.price);
+                updates[`Stats/${n}/Total_Cost`] = increment(item.cost);
+                updates[`Stats/${n}/Total_Profit`] = increment(profit);
+            });
+            updates[`Products/${item.code}/Stock`] = increment(-item.qty);
+            updates[`Sales_Log/${item.code}/Name`] = item.name;
+            updates[`Sales_Log/${item.code}/Qty_Sold`] = increment(item.qty);
+            updates[`Sales_Log/${item.code}/Total_Profit`] = increment(profit);
+            updates[`Sales_Log/${item.code}/Total_Sale`] = increment(item.price);
+            updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
+        }
+        if (item.txnId) updates[`Processed_Transactions/${item.txnId}`] = serverTimestamp();
         await update(ref(db), updates);
-        
-        let newQueue = getQueue();
-        newQueue.shift(); 
-        setQueue(newQueue);
-        
-        document.getElementById("syncAlert").innerText = "🔄 SYNCING TO CLOUD...";
-        document.getElementById("syncAlert").style.background = "var(--warn)";
-        document.getElementById("syncAlert").style.color = "#856404";
-
-    } catch (e) { 
-        console.error("🔥 Firebase Sync Error:", e.message);
-        document.getElementById("syncAlert").innerText = "⚠️ SYNC FAILED: " + e.message;
-        document.getElementById("syncAlert").style.background = "var(--err)";
-        document.getElementById("syncAlert").style.color = "white";
-        document.getElementById("syncAlert").style.display = "block";
-        
-        let newQueue = getQueue();
-        newQueue.shift(); 
-        setQueue(newQueue);
-        
-    } finally {
-        isSyncing = false;
-        if (getQueue().length > 0) setTimeout(syncData, 1000);
-    }
+        let nq = getQueue(); nq.shift(); setQueue(nq);
+    } catch (e) { console.error(e); } finally { isSyncing = false; if (getQueue().length > 0) setTimeout(syncData, 1000); }
 }
+
+window.syncInputs = function(code, src, base) {
+    let qI = document.getElementById("qty_"+code), aI = document.getElementById("amt_"+code);
+    if(src==='qty') aI.value = Number((parseFloat(qI.value||0)*base).toFixed(3));
+    else qI.value = Number((parseFloat(aI.value||0)/base).toFixed(3));
+};
 
 window.startApp = function() {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     document.getElementById("startCard").style.display = "none";
-    
-    // Show new Search Area at the top
+    document.getElementById("counterArea").style.display = "block";
     document.getElementById("searchArea").style.display = "block";
-    document.getElementById("scannerContainer").style.display = "block";
-    document.getElementById("mainPOS").style.display = "block";
-    
+    document.getElementById("mainPOS").style.display = "flex";
     listenToStats();
     setInterval(syncData, 5000);
-    onValue(ref(db, 'Products'), (snap) => { localInventory = snap.val() || {}; });
+    onValue(ref(db, 'Products'), snap => { localInventory = snap.val() || {}; renderCounter(); });
 
-    window.processItem = function(code) {
-        const product = localInventory[code];
-        if (product && Number(product.Stock) > 0) {
+    window.processItem = function(code, qty = 1) {
+        qty = parseFloat(qty); const p = localInventory[code];
+        if (p && Number(p.Stock) >= qty) {
+            let tP = Number((Number(p.Price)*qty).toFixed(3)), tC = Number((Number(p.Cost||0)*qty).toFixed(3));
+            if (tP <= 0) return;
             playFeedback(true);
-            let price = Number(product.Price);
-            let cost = Number(product.Cost || 0);
-            let newStock = Number(product.Stock) - 1;
-
-            document.getElementById("billBody").innerHTML += `<tr><td>${product.Name}</td><td align="right"><b>RS ${price}</b></td></tr>`;
-            currentBill += price;
+            let existingIndex = billItems.findIndex(i => i.code === code);
+            if (existingIndex > -1) {
+                let item = billItems[existingIndex];
+                item.qty = Number((item.qty + qty).toFixed(3));
+                item.price = Number((item.price + tP).toFixed(3));
+                item.cost = Number((item.cost + tC).toFixed(3));
+                const row = document.getElementById(item.id);
+                row.className = "new-row-anim";
+                row.cells[0].innerHTML = `<div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">Quantity: x${item.qty}</span>`;
+                row.cells[1].innerHTML = `<div style="text-align:right; font-size:18px;">RS ${item.price}</div>`;
+                setTimeout(() => row.className = "", 800);
+            } else {
+                let rid = "r"+Date.now();
+                const newRow = document.createElement("tr");
+                newRow.id = rid;
+                newRow.className = "new-row-anim";
+                newRow.innerHTML = `<td><div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">Quantity: x${qty}</span></td><td align="right" style="font-size:18px;">RS ${tP}</td><td width="50" align="center"><button class="btn-del" onclick="reverseItem('${rid}','${code}')">🗑️</button></td>`;
+                document.getElementById("billBody").appendChild(newRow);
+                billItems.push({ id: rid, code, name: p.Name, qty, price: tP, cost: tC });
+                setTimeout(() => newRow.className = "", 800);
+            }
+            currentBill = Number((currentBill + tP).toFixed(3));
             document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
-            document.getElementById("status").innerText = "ADDED: " + product.Name;
-
-            let q = getQueue();
-            q.push({ code: code, name: product.Name, price: price, cost: cost, newStock: newStock });
-            setQueue(q);
-            localInventory[code].Stock = newStock;
-            syncData();
-        } else {
-            playFeedback(false);
-            document.getElementById("status").innerText = "NOT FOUND / NO STOCK";
-        }
+            document.getElementById("status").innerText = "ADDED: " + p.Name.replace(/cnt\d*/gi,"");
+            let tid = "TXN-"+Date.now()+"-"+Math.floor(Math.random()*1000);
+            let q = getQueue(); q.push({ code, name: p.Name, price: tP, cost: tC, qty, txnId: tid, type: 'sale' });
+            setQueue(q); syncData();
+            const scrollArea = document.querySelector('.bill-scroll-area');
+            scrollArea.scrollTop = scrollArea.scrollHeight;
+        } else { playFeedback(false); }
     };
 
-    // Search Box Logic
-    document.getElementById("searchBox").addEventListener("input", function(e) {
-        const query = e.target.value.toLowerCase().trim();
-        const resultsDiv = document.getElementById("searchResults");
-        resultsDiv.innerHTML = "";
-        
-        if (query.length < 2) {
-            resultsDiv.style.display = "none";
-            return;
-        }
+    window.reverseItem = function(rid, code) {
+        if(!confirm("Reverse entire item?")) return;
+        let index = billItems.findIndex(i => i.id === rid);
+        if (index === -1) return;
+        let item = billItems[index];
+        document.getElementById(rid).remove();
+        currentBill = Number((currentBill - item.price).toFixed(3));
+        document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
+        let q = getQueue(); q.push({ code, name: item.name, price: -item.price, cost: -item.cost, qty: -item.qty, txnId: "REV-"+Date.now(), type: 'sale' });
+        billItems.splice(index, 1); setQueue(q); syncData();
+    };
 
-        let matches = 0;
-        for (let code in localInventory) {
-            let p = localInventory[code];
-            if (p.Name && p.Name.toLowerCase().includes(query)) {
-                matches++;
-                let div = document.createElement("div");
-                div.className = "search-item";
-                div.innerHTML = `<span>${p.Name} - <b>RS ${p.Price}</b></span> <span class="search-item-stock">Stock: ${p.Stock}</span>`;
-                
-                div.onclick = function() {
-                    if (Number(p.Stock) > 0) {
-                        processItem(code);
-                        document.getElementById("searchBox").value = "";
-                        resultsDiv.style.display = "none";
-                    } else {
-                        playFeedback(false);
-                        document.getElementById("status").innerText = "OUT OF STOCK: " + p.Name;
-                    }
-                };
-                resultsDiv.appendChild(div);
+    window.addSearchItem = function(code) {
+        let q = parseFloat(document.getElementById("qty_"+code).value) || 1;
+        processItem(code, q); document.getElementById("searchBox").value = ""; document.getElementById("searchResults").style.display = "none";
+    };
+
+    document.getElementById("searchBox").addEventListener("input", e => {
+        const val = e.target.value.toLowerCase().trim(), res = document.getElementById("searchResults");
+        res.innerHTML = ""; if (val.length < 2) { res.style.display="none"; return; }
+        const header = document.createElement("div"); header.className = "search-header";
+        header.innerHTML = `<span>Name</span><span>Qty</span><span></span><span>Price</span><span></span>`;
+        res.appendChild(header);
+        for (let c in localInventory) {
+            let p = localInventory[c];
+            if (p.Name && p.Name.toLowerCase().includes(val)) {
+                let d = document.createElement("div"); d.className="search-item";
+                d.innerHTML = `<div class="counter-name" style="text-align:left; padding:0; height:auto;">${p.Name.replace(/cnt\d*/gi,"")}</div><input type="number" id="qty_${c}" value="1" step="0.001" class="calc-input" oninput="syncInputs('${c}','qty',${p.Price})" onclick="this.select()"><div style="text-align:center; color:#ccc; font-weight:bold;">=</div><input type="number" id="amt_${c}" value="${p.Price}" step="0.001" class="calc-input" oninput="syncInputs('${c}','amt',${p.Price})" onclick="this.select()"><button class="btn-add-mini" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:8px 5px;" onclick="addSearchItem('${c}')">ADD</button>`;
+                res.appendChild(d);
             }
         }
-        resultsDiv.style.display = matches > 0 ? "block" : "none";
-    });
-
-    document.addEventListener("click", function(e) {
-        if (!e.target.closest('.search-container')) {
-            document.getElementById("searchResults").style.display = "none";
-        }
-    });
-
-    // Scanner Logic
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start({ facingMode: "environment" }, { fps: 25, qrbox: null, aspectRatio: 1.0 }, (code) => {
-        if (scanningLock) return;
-        const cleanCode = code.trim();
-        
-        scanningLock = true;
-        processItem(cleanCode);
-        setTimeout(() => { scanningLock = false; }, 1800);
+        res.style.display = res.children.length > 1 ? "block" : "none";
     });
 };
 
-window.resetBill = function() {
-    document.getElementById("billBody").innerHTML = "";
-    currentBill = 0;
-    document.getElementById("totalDisplay").innerText = "RS 0";
-    document.getElementById("status").innerText = "READY";
+window.closeModals = () => document.querySelectorAll(".modal-overlay").forEach(m => m.style.display="none");
+window.openCreditModal = () => { if(currentBill>0) document.getElementById("creditModal").style.display="flex"; };
+
+window.saveCreditBill = function() {
+    let n = document.getElementById("custName").value.trim(); if(!n) return alert("Enter name!");
+    let btn = document.getElementById("saveCreditBtn"); btn.innerText = "Opening..."; btn.disabled = true;
+    let tid = "CRD-"+Date.now(), itemsForDB = billItems.map(i=>({name:i.name.replace(/cnt\d*/gi,""), qty:i.qty, price:i.price}));
+    let q = getQueue(); q.push({ type: 'credit', customer: n, amount: currentBill, details: itemsForDB, txnId: tid });
+    setQueue(q); syncData();
+    let msg = `*Sunny Kiryana Store*%0A----------------------------%0A*Customer:* ${n}%0A*Date:* ${new Date().toLocaleDateString()}   ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}%0A----------------------------%0A`;
+    itemsForDB.forEach(item => { msg += `• ${item.name}  (x${item.qty}) = RS ${item.price}%0A`; });
+    msg += `----------------------------%0A*TOTAL: RS ${currentBill}*%0A----------------------------%0A_Thank you!_`;
+    const link = document.createElement('a'); link.href = `https://wa.me/923362267577?text=${msg}`; link.target = '_blank';
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(() => { btn.innerText = "WhatsApp"; btn.disabled = false; resetBill(); closeModals(); }, 1000);
 };
 
-document.getElementById("startBtn").addEventListener("click", startApp);
+window.resetBill = () => { document.getElementById("billBody").innerHTML = ""; currentBill = 0; billItems = []; document.getElementById("totalDisplay").innerText = "RS 0"; document.getElementById("custName").value = ""; document.getElementById("status").innerText = "CLEARED"; };
 </script>
 </body>
 </html>
