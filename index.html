@@ -1,1542 +1,897 @@
-/****************************************************
- *
- * SUNNY AI POS - COMPLETE RESILIENT BACKEND ENGINE
- * Google Apps Script + Groq + Firebase Realtime DB
- *
- ****************************************************/
-
-const MODEL = "openai/gpt-oss-20b";
-const FIREBASE_URL = "https://shop-pos-59971-default-rtdb.firebaseio.com";
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-
-const PRODUCT_CACHE_KEY = "SUNNY_PRODUCTS_CACHE_V30";
-const PRODUCT_CACHE_SECONDS = 300;
-
-const TRANSACTION_CACHE_KEY = "SUNNY_TRANSACTIONS_CACHE_V27";
-const TRANSACTION_CACHE_SECONDS = 10;
-
-const CATALOG_INDEX_KEY = "SUNNY_AI_CATALOG_VOCABULARY";
-
-
-/****************************************************
- *
- * WEB APP ENDPOINTS
- *
- ****************************************************/
-
-function doGet() {
-  return ContentService
-    .createTextOutput(
-      JSON.stringify({
-        ok: true,
-        service: "Sunny AI POS",
-        status: "online"
-      })
-    )
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  const start = new Date().getTime();
-
-  try {
-    const body = JSON.parse(
-      e && e.postData && e.postData.contents
-        ? e.postData.contents
-        : "{}"
-    );
-
-    const products = getProductsCached();
-
-    if (body.action === "resolve_clarification") {
-      const result = executeCommand(body, products);
-      result.ms = new Date().getTime() - start;
-      return jsonResponse(result);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Sunny AI POS - Gemini Terminal</title>
+  <style>
+    :root {
+      --bg-main: #131314;
+      --surface: #1e1f20;
+      --surface-variant: #282a2c;
+      --text-primary: #e3e3e3;
+      --text-secondary: #c4c7c5;
+      --text-muted: #8e918f;
+      --accent-blue: #a8c7fa;
+      --accent-spark: #7cacf8;
+      --input-bg: #1e1f20;
+      --border-subtle: #444746;
+      --danger-color: #f28b82;
+      --warning-color: #fdd663;
+      --success-green: #34a853;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    if (body.action === "resolve_missing") {
-      const result = handleResolveMissing(body, products);
-      result.ms = new Date().getTime() - start;
-      return jsonResponse(result);
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-family);
+      -webkit-tap-highlight-color: transparent;
     }
 
-    const message = String(body.message || "").trim();
-    if (!message) {
-      return jsonResponse({
-        ok: false,
-        reply: "Kuch likhein 🙂"
-      });
+    html, body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      position: fixed; /* Prevents mobile rubber-banding and distortion */
     }
 
-    const result = sendMessage(message);
-    return jsonResponse(result);
-
-  } catch (err) {
-    console.error(err);
-    return jsonResponse({
-      ok: false,
-      reply: "❌ Error: " + err.message
-    });
-  }
-}
-
-function jsonResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-
-/****************************************************
- *
- * MAIN CONTROLLER
- *
- ****************************************************/
-
-function sendMessage(message) {
-  const start = new Date().getTime();
-
-  try {
-    message = String(message || "").trim();
-    if (!message) {
-      return { ok: false, reply: "Kuch likhein 🙂" };
+    body {
+      display: flex;
+      flex-direction: column;
     }
 
-    const cleanLower = message.toLowerCase();
-    
-    // Intercept catalog scan
-    if (
-      cleanLower.includes("scan product") ||
-      cleanLower.includes("scan item") ||
-      cleanLower.includes("learn inventory") ||
-      cleanLower.includes("refresh brain") ||
-      cleanLower.includes("product scan") ||
-      cleanLower.includes("dimagh refresh")
-    ) {
-      const scanResult = syncInventoryToAIBrain();
-      scanResult.ms = new Date().getTime() - start;
-      return scanResult;
+    /* Top Navigation Header */
+    header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: rgba(19, 19, 20, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      z-index: 10;
+      position: relative;
     }
 
-    const cleanedMessage = preprocessMessage(message);
-    const products = getProductsCached();
-
-    const command = safeUnderstandCommand(cleanedMessage, products);
-    const result = executeCommand(command, products);
-    result.ms = new Date().getTime() - start;
-
-    return result;
-
-  } catch (err) {
-    console.error(err);
-    return {
-      ok: false,
-      reply: "❌ Error: " + err.message,
-      ms: new Date().getTime() - start
-    };
-  }
-}
-
-function preprocessMessage(text) {
-  return text
-    .replace(/\b(wapos|vapus|wapis)\b/gi, "wapis")
-    .replace(/\b(aur|or)\b/gi, "+")
-    .replace(/,/g, "+")
-    .replace(/=/g, " = ")
-    .replace(/\s*\+\s*/g, " + ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-
-/****************************************************
- *
- * AI LEARNING & CATALOG VOCABULARY ENGINE
- *
- ****************************************************/
-
-function syncInventoryToAIBrain() {
-  clearCaches();
-  const products = firebaseRequest("Products", "get") || {};
-  const keys = Object.keys(products);
-
-  if (!keys.length) {
-    return { ok: false, reply: "⚠️ Firebase mein koi products nahi mile." };
-  }
-
-  const uniqueNames = new Set();
-  keys.forEach(k => {
-    const p = products[k];
-    const name = (p && p.Name) ? String(p.Name).trim() : k.trim();
-    if (name) uniqueNames.add(name);
-  });
-
-  const vocabulary = Array.from(uniqueNames);
-  PropertiesService.getScriptProperties().setProperty(
-    CATALOG_INDEX_KEY,
-    JSON.stringify(vocabulary)
-  );
-
-  return {
-    ok: true,
-    reply: `🧠 AI Brain Synced! Total ${vocabulary.length} products dimagh me save ho chuke hain.`
-  };
-}
-
-function getLearnedVocabulary() {
-  const raw = PropertiesService.getScriptProperties().getProperty(CATALOG_INDEX_KEY);
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch (e) {}
-  }
-  return [];
-}
-
-
-/****************************************************
- *
- * GROQ PARSER WITH QUANTITY / AMOUNT INTEGRITY
- *
- ****************************************************/
-
-function safeUnderstandCommand(message, products) {
-  const lower = message.toLowerCase().trim();
-
-  // 1. SMART ROUTING INTERCEPTS (Protects reports from being matched as products)
-  if (/^(stats|report|reports|aj ki report|aaj ki report|today report|today stats)$/.test(lower)) {
-    return { action: "report", period: "daily" };
-  }
-  if (/^(yesterday report|kal ki report|pichle din|yesterday stats|yesterday|kal)$/.test(lower)) {
-    return { action: "report", period: "yesterday" };
-  }
-  if (/^(is month|is mahine|this month|monthly report|is month ki report|this month stats)$/.test(lower)) {
-    return { action: "report", period: "monthly" };
-  }
-  if (/^(pichle month|last month|previous month|pichlay mahine)$/.test(lower)) {
-    return { action: "report", period: "previous_month" };
-  }
-
-  // 2. Call AI parsing
-  try {
-    return requestGroqParsing(message, products);
-  } catch (groqErr) {
-    console.warn("Groq Parsing failed: " + groqErr.message);
-    return localFallbackParser(message);
-  }
-}
-
-function requestGroqParsing(message, products) {
-  let knownCatalog = getLearnedVocabulary();
-  if (!knownCatalog.length && products) {
-    knownCatalog = Object.keys(products).map(k => products[k].Name || k).slice(0, 50);
-  } else {
-    knownCatalog = knownCatalog.slice(0, 50);
-  }
-
-  const catalogSnippet = knownCatalog.length
-    ? `Known Products: ${knownCatalog.join(", ")}`
-    : "";
-
-  const systemPrompt = `You are a POS command parser. Convert kiryana store inputs into JSON.
-${catalogSnippet}
-
-Output ONLY valid JSON starting with "{" and ending with "}".
-
-Available Actions: "sale", "return", "list_products", "low_stock", "customer_balance", "customer_payment", "chat"
-
-CRITICAL RULES:
-1. "wapis" or "return" => action "return".
-2. Bare product name => action "sale", default qty = 1.
-3. Customer credit => Set "customer" name, "payment": "credit".
-4. WEIGHT CONVERSIONS TO DECIMALS:
-   - "ada pao" / "aadha pao" = 0.125
-   - "pao" = 0.25
-   - "ada kilo" / "adha kilo" / "adh kilo" / "half kg" / "half kilo" / "ada kg" = 0.5
-   - "pauna kilo" = 0.75
-   - "kilo" / "kg" / "1 kg" = 1
-   - "sawa kilo" = 1.25
-   - "dedh kilo" = 1.5
-   - "do kilo" = 2
-   - "dhai kilo" = 2.5
-   Example: "Ada pao daal" => {"product":"daal","qty":0.125}
-   Example: "Half kg cheeni wapis" => {"action":"return","items":[{"product":"cheeni","qty":0.5}]}
-5. Currency amounts: "50 ki daal" => {"product":"daal","amount":50}`;
-
-  const payload = {
-    model: MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: `Convert this store input to JSON: "${message}"` }
-    ],
-    temperature: 0,
-    max_tokens: 500
-  };
-
-  const apiKey = PropertiesService.getScriptProperties().getProperty("GROQ_API_KEY");
-  if (!apiKey) {
-    throw new Error("GROQ_API_KEY Script Properties mein set nahi hai.");
-  }
-
-  const options = {
-    method: "post",
-    muteHttpExceptions: true,
-    contentType: "application/json",
-    headers: { Authorization: "Bearer " + apiKey },
-    payload: JSON.stringify(payload)
-  };
-
-  const response = UrlFetchApp.fetch(GROQ_URL, options);
-  const status = response.getResponseCode();
-  const text = response.getContentText();
-
-  if (status < 200 || status >= 300) {
-    throw new Error("Groq API Error " + status + ": " + text);
-  }
-
-  const data = JSON.parse(text);
-  if (!data.choices || !data.choices.length) {
-    throw new Error("Groq empty choice response");
-  }
-
-  let content = data.choices[0].message.content || "";
-  content = content.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-
-  const firstBrace = content.indexOf("{");
-  const lastBrace = content.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    content = content.substring(firstBrace, lastBrace + 1);
-  }
-
-  return JSON.parse(content);
-}
-
-function localFallbackParser(message) {
-  const clean = message.trim();
-  let customer = "";
-  let itemStr = clean;
-  let payment = "cash";
-  let action = "sale";
-
-  if (clean.toLowerCase().includes("wapis") || clean.toLowerCase().includes("return")) {
-    action = "return";
-    itemStr = itemStr.replace(/\b(wapis|return)\b/gi, "").trim();
-  }
-
-  if (itemStr.includes("=")) {
-    const parts = itemStr.split("=");
-    customer = parts[0].trim();
-    itemStr = parts.slice(1).join("=").trim();
-    payment = "credit";
-  }
-
-  const items = [];
-  const segments = itemStr.split("+").map(s => s.trim()).filter(Boolean);
-
-  segments.forEach(seg => {
-    const numMatch = seg.match(/^(\d+)$/);
-    if (numMatch) {
-      items.push({ product: "Khula Misc", amount: Number(numMatch[1]), is_misc: true });
-      return;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 500;
     }
 
-    const amtMatch = seg.match(/^(\d+)\s*(ki|ka|ke|rs|rupay)\s*(.+)$/i);
-    if (amtMatch) {
-      items.push({ product: amtMatch[3].trim(), amount: Number(amtMatch[1]) });
-      return;
+    .gemini-spark {
+      width: 20px;
+      height: 20px;
+      fill: url(#gemini-gradient);
     }
 
-    let qtyVal = 1;
-    let prodName = seg;
-
-    const weightMatch = seg.match(/^(ada pao|aadha pao|pao|ada kilo|adha kilo|adh kilo|half kg|half kilo|ada kg|pauna kilo|kilo|kg|sawa kilo|dedh kilo|do kilo|dhai kilo)\s+(.+)$/i);
-    if(weightMatch) {
-       prodName = weightMatch[2].trim();
-       const w = weightMatch[1].toLowerCase();
-       if(w.includes('ada pao') || w.includes('aadha pao')) qtyVal = 0.125;
-       else if(w === 'pao') qtyVal = 0.25;
-       else if(w.includes('ada') || w.includes('adha') || w.includes('adh') || w.includes('half')) qtyVal = 0.5;
-       else if(w.includes('pauna')) qtyVal = 0.75;
-       else if(w === 'kilo' || w === 'kg') qtyVal = 1;
-       else if(w.includes('sawa')) qtyVal = 1.25;
-       else if(w.includes('dedh')) qtyVal = 1.5;
-       else if(w.includes('do')) qtyVal = 2;
-       else if(w.includes('dhai')) qtyVal = 2.5;
-       
-       items.push({ product: prodName, qty: qtyVal });
-       return;
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    const qtyMatch = seg.match(/^(\d+(\.\d+)?)\s+(.+)$/);
-    if (qtyMatch && isNaN(qtyMatch[3])) {
-      items.push({ product: qtyMatch[3].trim(), qty: Number(qtyMatch[1]) });
-      return;
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success-green);
+      box-shadow: 0 0 6px var(--success-green);
+      transition: background 0.3s, box-shadow 0.3s;
     }
 
-    items.push({ product: seg, qty: 1 });
-  });
-
-  return { action, customer, payment, items };
-}
-
-
-/****************************************************
- *
- * COMMAND ROUTER
- *
- ****************************************************/
-
-function executeCommand(command, products) {
-  if (!command || !command.action) {
-    return { ok: false, reply: "Command samajh nahi aayi." };
-  }
-
-  const action = String(command.action).toLowerCase();
-
-  if (action === "resolve_clarification") {
-    const context = command.pending_context;
-    if (!context || !context.items) {
-      return { ok: false, reply: "❌ Session context expire ho gaya hai." };
+    .tag-badge {
+      font-size: 0.75rem;
+      background: var(--surface-variant);
+      color: var(--text-secondary);
+      padding: 3px 9px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      font-family: monospace;
     }
 
-    const idx = context.target_index !== undefined ? context.target_index : 0;
-    const selectedKey = command.selected_product_key || command.selected_product;
-
-    let matchedProduct = null;
-    if (products[selectedKey]) {
-      matchedProduct = { ...products[selectedKey], _key: selectedKey };
-    } else {
-      const match = findProduct(command.selected_product, products);
-      if (match.status === "found") matchedProduct = match.product;
+    /* Header Live Request Progress Bar */
+    .network-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: transparent;
+      overflow: hidden;
     }
 
-    if (matchedProduct) {
-      context.items[idx]._resolvedProduct = matchedProduct;
-      context.items[idx].product = matchedProduct.Name || matchedProduct._key;
-    } else {
-      context.items[idx].product = command.selected_product;
+    .network-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-spark), var(--accent-blue));
+      transition: width 0.3s ease;
     }
 
-    return processSale(context, products);
-  }
-
-  switch (action) {
-    case "sale":
-      return processSale(command, products);
-    case "return":
-      return processReturn(command, products);
-    case "list_products":
-      return processListProducts(products);
-    case "low_stock":
-      return processLowStock(products);
-    case "add_stock":
-      return processAddStock(command, products);
-    case "purchase":
-      return processPurchase(command, products);
-    case "stock":
-      return processStock(command, products);
-    case "report":
-      return processReport(command);
-    case "product_report":
-      return processProductReport(command, products);
-    case "product_search":
-      return processProductSearch(command, products);
-    case "update_price":
-      return processUpdatePrice(command, products);
-    case "update_cost":
-      return processUpdateCost(command, products);
-    case "customer_balance":
-      return processCustomerBalance(command);
-    case "customer_payment":
-      return processCustomerPayment(command);
-    case "clarify":
-      return { ok: false, reply: "⚠️ Samajh nahi aaya, kripya wazeh likhein." };
-    case "chat":
-      return { ok: true, reply: "Walaikum Assalam! Main Sunny AI POS brain hoon 🙂 Entry likhein." };
-    default:
-      return { ok: false, reply: "❌ Unknown action: " + command.action };
-  }
-}
-
-
-/****************************************************
- *
- * MISSING ITEMS RESOLUTION HANDLER
- *
- ****************************************************/
-
-function handleResolveMissing(body, products) {
-  const context = body.pending_context;
-  const decision = body.decision;
-
-  if (!context || !context.items) {
-    return { ok: false, reply: "❌ Session context expire ho gaya hai." };
-  }
-
-  if (decision === "cancel") {
-    return { ok: true, reply: "🚫 Sale cancel kar di gayi hai." };
-  }
-
-  const missingIndices = body.missing_indices || [];
-
-  if (decision === "skip") {
-    context.items = context.items.filter((_, idx) => !missingIndices.includes(idx));
-    if (!context.items.length) {
-      return { ok: false, reply: "❌ Sari items missing theen, sale cancel kar di gayi." };
+    .network-bar.active .network-bar-fill {
+      width: 80%;
+      animation: pulseProgress 1.8s infinite ease-in-out;
     }
-    return processSale(context, products);
-  }
 
-  if (decision === "manual") {
-    const manualPrices = body.manual_prices || {};
-    context.items.forEach((item, idx) => {
-      if (missingIndices.includes(idx)) {
-        const manualAmount = Number(manualPrices[idx] || 0);
-        item.is_misc = true;
-        item.amount = manualAmount;
-        item.product = item.product + " (Unlisted)";
+    @keyframes pulseProgress {
+      0% { transform: translateX(-100%); width: 40%; }
+      50% { transform: translateX(50%); width: 60%; }
+      100% { transform: translateX(150%); width: 40%; }
+    }
+
+    /* Conversation Viewport */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+      scroll-behavior: smooth;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      contain: layout;
+    }
+
+    .message-row.user {
+      justify-content: flex-end;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+    }
+
+    .content-block {
+      max-width: 84%;
+      font-size: 0.94rem;
+      line-height: 1.55;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message-row.user .content-block {
+      background: var(--surface);
+      padding: 10px 16px;
+      border-radius: 18px;
+      border-bottom-right-radius: 4px;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    /* Sub-Bubble Status Elements */
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .status-tick {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+    }
+
+    .mini-spinner {
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .retry-chip {
+      background: rgba(242, 139, 130, 0.12);
+      color: var(--danger-color);
+      border: 1px solid var(--danger-color);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    .message-row.model .content-block {
+      padding-top: 2px;
+    }
+
+    /* Gemini Pulse Wave Skeleton */
+    .shimmer-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 220px;
+      padding-top: 6px;
+    }
+
+    .shimmer-line {
+      height: 13px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #1e1f20 25%, #2d2f31 50%, #1e1f20 75%);
+      background-size: 200% 100%;
+      animation: geminiShimmer 1.4s infinite;
+    }
+
+    .shimmer-line.short { width: 55%; }
+
+    @keyframes geminiShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Dynamic Button Lists & Disambiguation */
+    .interactive-card {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .actions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .option-chip {
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 0.86rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .option-chip:hover:not(:disabled) {
+      background: var(--surface-variant);
+      border-color: var(--accent-spark);
+    }
+
+    .option-chip.cancel-chip {
+      color: var(--danger-color);
+      border-color: rgba(242, 139, 130, 0.3);
+    }
+
+    .option-chip:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .chip-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    /* Inline Manual Price Box */
+    .manual-price-box {
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .manual-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .manual-item-name {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .manual-input {
+      width: 100px;
+      background: #131314;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+      text-align: right;
+    }
+
+    .manual-input:focus { border-color: var(--accent-blue); }
+
+    .submit-prices-btn {
+      background: var(--accent-blue);
+      color: #04101d;
+      font-weight: 600;
+      border: none;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.86rem;
+    }
+
+    .submit-prices-btn:disabled { opacity: 0.5; }
+
+    /* Bottom Input Bar */
+    .input-wrapper {
+      flex-shrink: 0;
+      padding: 10px 16px 18px 16px;
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .input-box {
+      background: var(--input-bg);
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      padding: 5px 12px 5px 18px;
+      border: 1px solid transparent;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .input-box:focus-within {
+      border-color: var(--border-subtle);
+      background: #232427;
+    }
+
+    .input-box input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .input-box input::placeholder { color: var(--text-muted); }
+
+    .send-btn {
+      background: transparent;
+      border: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .send-btn.active { color: var(--accent-blue); }
+    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7cacf8" />
+      <stop offset="50%" stop-color="#9b7bf7" />
+      <stop offset="100%" stop-color="#d96570" />
+    </linearGradient>
+  </svg>
+
+  <header>
+    <div class="brand">
+      <svg class="gemini-spark" viewBox="0 0 24 24">
+        <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+      </svg>
+      Sunny AI POS
+    </div>
+    <div class="status-group">
+      <div class="connection-dot" id="connDot" title="Live Link Active"></div>
+      <div class="tag-badge" id="latencyBadge">Ready</div>
+    </div>
+    <div class="network-bar" id="networkBar">
+      <div class="network-bar-fill"></div>
+    </div>
+  </header>
+
+  <main id="chatFeed">
+    <div class="message-row model">
+      <div class="avatar">
+        <svg class="gemini-spark" viewBox="0 0 24 24">
+          <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+        </svg>
+      </div>
+      <div class="content-block">Sunny AI POS active. Command dein (e.g. "2 Pepsi naqad", "Tibbet + Dew").</div>
+    </div>
+  </main>
+
+  <div class="input-wrapper">
+    <form class="input-box" id="commandForm" onsubmit="handleFormSubmit(event)">
+      <input 
+        type="text" 
+        id="userInput" 
+        placeholder="Type a sale, search, or stock query..." 
+        autocomplete="off"
+      />
+      <button type="submit" id="submitBtn" class="send-btn" disabled aria-label="Send message">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec";
+    const TIMEOUT_LIMIT_MS = 14000;
+
+    const chatFeed = document.getElementById("chatFeed");
+    const userInput = document.getElementById("userInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const latencyBadge = document.getElementById("latencyBadge");
+    const connDot = document.getElementById("connDot");
+    const networkBar = document.getElementById("networkBar");
+
+    let isPrewarmed = false;
+
+    // Fast-typing Pre-Warm Trigger
+    userInput.addEventListener("input", () => {
+      const val = userInput.value.trim();
+      const hasValue = val.length > 0;
+      submitBtn.disabled = !hasValue;
+      submitBtn.classList.toggle("active", hasValue);
+
+      // On first keystroke, pre-warm the HTTP connection silently
+      if (hasValue && !isPrewarmed) {
+        isPrewarmed = true;
+        preWarmConnection();
       }
     });
-    return processSale(context, products);
-  }
 
-  return { ok: false, reply: "❌ Galat decision option." };
-}
-
-
-/****************************************************
- *
- * SALE PROCESSING
- *
- ****************************************************/
-
-function processSale(command, products) {
-  const items = command.items || [];
-
-  if (!items.length) {
-    return { ok: false, reply: "❌ Product aur quantity batayein." };
-  }
-
-  const customer = command.customer ? String(command.customer).trim() : "";
-  const rawPayment = String(command.payment || "").toLowerCase().trim();
-
-  let payment = "cash";
-  if (customer && rawPayment !== "cash" && rawPayment !== "naqad") payment = "credit";
-  else if (rawPayment === "credit" || rawPayment === "udhaar") payment = "credit";
-
-  const missingItems = [];
-  for (let i = 0; i < items.length; i++) {
-    const itm = items[i];
-    if (itm.is_misc || itm._resolvedProduct) continue;
-
-    const match = findProduct(itm.product, products);
-    if (match.status === "not_found") {
-      missingItems.push({
-        index: i,
-        product: itm.product,
-        qty: itm.qty || 1,
-        amount: itm.amount || null
-      });
-    }
-  }
-
-  if (missingItems.length > 0) {
-    const missingNames = missingItems.map(m => `"${m.product}"`).join(", ");
-    let reply = `⚠️ Yeh products database mein nahi mile:\n👉 ${missingNames}\n\nKya missing items ko skip karke baqi bechna hai, ya unlisted price lagani hai?`;
-
-    return {
-      ok: true,
-      type: "need_missing_resolution",
-      reply: reply,
-      missing_items: missingItems,
-      options: [
-        { label: "Skip Missing & Sell Available", action_value: "skip" },
-        { label: "Add Manual Price (Unlisted)", action_value: "manual" },
-        { label: "Cancel Entire Sale", action_value: "cancel" }
-      ],
-      pending_context: {
-        action: "sale",
-        customer: customer,
-        payment: payment,
-        items: items
+    /**
+     * Keep Connection Warm: Periodically keeps the cloud runtime container active
+     */
+    async function preWarmConnection() {
+      try {
+        await fetch(GAS_ENDPOINT_URL, {
+          method: "GET",
+          mode: "no-cors",
+          cache: "no-store"
+        });
+        connDot.style.background = "var(--success-green)";
+        connDot.style.boxShadow = "0 0 6px var(--success-green)";
+      } catch (err) {
+        connDot.style.background = "var(--warning-color)";
+        connDot.style.boxShadow = "0 0 6px var(--warning-color)";
       }
-    };
-  }
+    }
 
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].is_misc || items[i]._resolvedProduct) continue;
+    // Ping every 45s to avoid GAS idle timeouts
+    preWarmConnection();
+    setInterval(preWarmConnection, 45000);
 
-    const match = findProduct(items[i].product, products);
+    function disableAllPreviousActions() {
+      const els = document.querySelectorAll(".interactive-card button, .interactive-card input");
+      els.forEach(el => el.disabled = true);
+    }
 
-    if (match.status === "multiple") {
-      const queryName = items[i].product;
-      return {
-        ok: true,
-        type: "need_clarification",
-        reply: "⚠️ \"" + queryName + "\" ke liye ek se zyada products match huay hain. Sahi product select karein:",
-        options: match.matches,
-        pending_context: {
-          action: "sale",
-          customer: customer,
-          payment: payment,
-          target_index: i,
-          items: items
-        }
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      disableAllPreviousActions();
+      userInput.blur(); // Drop keypad instantly so UI never stretches
+
+      // Instant Optimistic Message Render
+      const userBubble = appendUserMessage(message);
+      userInput.value = "";
+      submitBtn.disabled = true;
+      submitBtn.classList.remove("active");
+      toggleInput(true);
+
+      const shimmer = appendShimmer();
+      setNetworkProgress(true);
+
+      await dispatchPayload({ message: message }, shimmer, userBubble);
+    }
+
+    async function handleDisambiguationSelection(selectedKey, selectedName, pendingContext) {
+      disableAllPreviousActions();
+      userInput.blur();
+
+      const userBubble = appendUserMessage(`Selected: ${selectedName}`);
+      toggleInput(true);
+
+      const shimmer = appendShimmer();
+      setNetworkProgress(true);
+
+      const payload = {
+        action: "resolve_clarification",
+        selected_product_key: selectedKey,
+        selected_product: selectedName,
+        pending_context: pendingContext
       };
+
+      await dispatchPayload(payload, shimmer, userBubble);
     }
-  }
 
-  const updates = {};
-  const transactionItems = [];
-  let total = 0;
+    async function handleMissingResolution(decision, dataBundle) {
+      disableAllPreviousActions();
+      userInput.blur();
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+      let label = "Cancel Sale";
+      if (decision === "skip") label = "Skip Missing & Continue";
+      if (decision === "manual") label = "Apply Manual Prices";
 
-    if (item.is_misc || String(item.product).toLowerCase().includes("misc") || String(item.product).toLowerCase().includes("khula") || String(item.product).toLowerCase().includes("unlisted")) {
-      const miscAmount = Number(item.amount || item.price || item.qty || 0);
-      if (miscAmount <= 0) continue;
+      const userBubble = appendUserMessage(label);
+      toggleInput(true);
 
-      total += miscAmount;
-      transactionItems.push({
-        product: item.product || "Khula Misc",
-        qty: 1,
-        price: miscAmount,
-        cost: 0,
-        total: miscAmount,
-        is_misc: true
+      const shimmer = appendShimmer();
+      setNetworkProgress(true);
+
+      const payload = {
+        action: "resolve_missing",
+        decision: decision,
+        missing_indices: dataBundle.missingIndices,
+        manual_prices: dataBundle.manualPrices || {},
+        pending_context: dataBundle.pendingContext
+      };
+
+      await dispatchPayload(payload, shimmer, userBubble);
+    }
+
+    async function dispatchPayload(payload, shimmer, userBubble) {
+      const startTime = performance.now();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_LIMIT_MS);
+
+      try {
+        latencyBadge.textContent = "Sending...";
+        updateBubbleStatus(userBubble, "sending");
+
+        const response = await fetch(GAS_ENDPOINT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+
+        clearTimeout(timer);
+        updateBubbleStatus(userBubble, "delivered");
+
+        const data = await response.json();
+        const duration = Math.round(performance.now() - startTime);
+        latencyBadge.textContent = `${data.ms || duration}ms`;
+
+        shimmer.remove();
+        setNetworkProgress(false);
+
+        if (data.type === "need_missing_resolution") {
+          renderMissingResolution(data);
+        } else if (data.type === "need_clarification") {
+          renderClarification(data.reply, data.options, data.pending_context);
+        } else {
+          await streamModelResponse(data.reply || "No reply from engine.");
+        }
+      } catch (err) {
+        clearTimeout(timer);
+        shimmer.remove();
+        setNetworkProgress(false);
+
+        const isTimeout = err.name === "AbortError";
+        updateBubbleStatus(userBubble, "failed", () => {
+          const retryShimmer = appendShimmer();
+          setNetworkProgress(true);
+          dispatchPayload(payload, retryShimmer, userBubble);
+        });
+
+        appendModelMessage(isTimeout ? "⚠️ Request timeout. Network slow hai, dubara try karein." : "⚠️ Network error. Internet check karein.");
+        latencyBadge.textContent = "Error";
+      } finally {
+        toggleInput(false);
+        userInput.blur();
+        isPrewarmed = false; // Reset for next typing session
+      }
+    }
+
+    /* Renders User Bubble with Live Status Icons */
+    function appendUserMessage(text) {
+      const row = document.createElement("div");
+      row.className = "message-row user";
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      row.innerHTML = `
+        <div class="content-block">
+          <div>${escapeHtml(text)}</div>
+          <div class="msg-meta">
+            <span class="status-time">${time}</span>
+            <span class="status-tick"><div class="mini-spinner"></div></span>
+          </div>
+        </div>
+      `;
+
+      chatFeed.appendChild(row);
+      scrollBottom();
+      return row;
+    }
+
+    function updateBubbleStatus(bubbleEl, status, retryFn) {
+      if (!bubbleEl) return;
+      const tick = bubbleEl.querySelector(".status-tick");
+      const meta = bubbleEl.querySelector(".msg-meta");
+
+      if (status === "sending") {
+        tick.innerHTML = '<div class="mini-spinner"></div>';
+      } else if (status === "delivered") {
+        // Double blue checkmarks
+        tick.innerHTML = `
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-blue)">
+            <path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.41 11.93l-1.41 1.41 5.66 5.66 12-12-1.42-1.41zM.41 13.34l5.66 5.66 1.41-1.41-5.66-5.66-1.41 1.41z"/>
+          </svg>
+        `;
+      } else if (status === "failed") {
+        tick.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger-color)">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+          </svg>
+        `;
+        if (retryFn && !meta.querySelector(".retry-chip")) {
+          const btn = document.createElement("button");
+          btn.className = "retry-chip";
+          btn.textContent = "Retry ↻";
+          btn.onclick = () => {
+            btn.remove();
+            retryFn();
+          };
+          meta.appendChild(btn);
+        }
+      }
+    }
+
+    function appendModelMessage(text) {
+      const row = document.createElement("div");
+      row.className = "message-row model";
+      row.innerHTML = `
+        <div class="avatar">
+          <svg class="gemini-spark" viewBox="0 0 24 24">
+            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+          </svg>
+        </div>
+        <div class="content-block">${escapeHtml(text)}</div>
+      `;
+      chatFeed.appendChild(row);
+      scrollBottom();
+      return row;
+    }
+
+    function appendShimmer() {
+      const row = document.createElement("div");
+      row.className = "message-row model";
+      row.innerHTML = `
+        <div class="avatar">
+          <svg class="gemini-spark" viewBox="0 0 24 24">
+            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+          </svg>
+        </div>
+        <div class="shimmer-container">
+          <div class="shimmer-line"></div>
+          <div class="shimmer-line short"></div>
+        </div>
+      `;
+      chatFeed.appendChild(row);
+      scrollBottom();
+      return row;
+    }
+
+    async function streamModelResponse(fullText) {
+      const row = document.createElement("div");
+      row.className = "message-row model";
+      row.innerHTML = `
+        <div class="avatar">
+          <svg class="gemini-spark" viewBox="0 0 24 24">
+            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+          </svg>
+        </div>
+        <div class="content-block"></div>
+      `;
+      chatFeed.appendChild(row);
+
+      const block = row.querySelector(".content-block");
+      const tokens = fullText.split(/(\s+)/);
+
+      for (let i = 0; i < tokens.length; i++) {
+        block.textContent += tokens[i];
+        scrollBottom();
+        await new Promise(r => setTimeout(r, 14));
+      }
+    }
+
+    function renderClarification(msg, options, pendingContext) {
+      const row = document.createElement("div");
+      row.className = "message-row model";
+      row.innerHTML = `
+        <div class="avatar">
+          <svg class="gemini-spark" viewBox="0 0 24 24">
+            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+          </svg>
+        </div>
+        <div class="content-block">
+          <div>${escapeHtml(msg)}</div>
+          <div class="interactive-card actions-grid"></div>
+        </div>
+      `;
+
+      const grid = row.querySelector(".actions-grid");
+      (options || []).forEach(opt => {
+        const chip = document.createElement("button");
+        chip.className = "option-chip";
+        chip.innerHTML = `<span>${escapeHtml(opt.name)}</span><span class="chip-meta">Rs ${opt.price} | Stock: ${opt.stock}</span>`;
+        chip.onclick = () => handleDisambiguationSelection(opt.key, opt.name, pendingContext);
+        grid.appendChild(chip);
       });
-      continue;
+
+      chatFeed.appendChild(row);
+      scrollBottom();
     }
 
-    let p = item._resolvedProduct;
-    if (!p) {
-      const match = findProduct(item.product, products);
-      p = match.product;
+    function renderMissingResolution(data) {
+      const row = document.createElement("div");
+      row.className = "message-row model";
+      row.innerHTML = `
+        <div class="avatar">
+          <svg class="gemini-spark" viewBox="0 0 24 24">
+            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
+          </svg>
+        </div>
+        <div class="content-block">
+          <div>${escapeHtml(data.reply)}</div>
+          <div class="interactive-card">
+            <div class="actions-grid" id="missingGrid"></div>
+            <div id="manualPriceBox" style="display: none;"></div>
+          </div>
+        </div>
+      `;
+
+      const grid = row.querySelector("#missingGrid");
+      const manualBox = row.querySelector("#manualPriceBox");
+      const missingIndices = (data.missing_items || []).map(m => m.index);
+
+      // Skip Chip
+      const skipBtn = document.createElement("button");
+      skipBtn.className = "option-chip";
+      skipBtn.textContent = "Skip Missing & Continue";
+      skipBtn.onclick = () => handleMissingResolution("skip", { missingIndices, pendingContext: data.pending_context });
+      grid.appendChild(skipBtn);
+
+      // Manual Price Chip
+      const manualBtn = document.createElement("button");
+      manualBtn.className = "option-chip";
+      manualBtn.textContent = "Enter Manual Price";
+      manualBtn.onclick = () => {
+        grid.style.display = "none";
+        manualBox.style.display = "block";
+        scrollBottom();
+      };
+      grid.appendChild(manualBtn);
+
+      // Cancel Chip
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "option-chip cancel-chip";
+      cancelBtn.textContent = "Cancel Entire Sale";
+      cancelBtn.onclick = () => handleMissingResolution("cancel", { missingIndices, pendingContext: data.pending_context });
+      grid.appendChild(cancelBtn);
+
+      // Build Form
+      const form = document.createElement("div");
+      form.className = "manual-price-box";
+      form.innerHTML = `<div style="font-size: 0.8rem; color: var(--text-muted);">Missing items ki sale price likhein:</div>`;
+
+      const inputMap = {};
+      (data.missing_items || []).forEach(item => {
+        const line = document.createElement("div");
+        line.className = "manual-item-row";
+        line.innerHTML = `
+          <span class="manual-item-name">${escapeHtml(item.product)} (${item.qty || 1}x)</span>
+          <input type="number" class="manual-input" placeholder="Price (Rs)" min="1" step="any" required />
+        `;
+        inputMap[item.index] = line.querySelector("input");
+        form.appendChild(line);
+      });
+
+      const confirmBtn = document.createElement("button");
+      confirmBtn.className = "submit-prices-btn";
+      confirmBtn.textContent = "Confirm & Proceed Sale";
+      confirmBtn.onclick = () => {
+        const manualPrices = {};
+        let valid = true;
+
+        for (const idx of missingIndices) {
+          const val = Number(inputMap[idx].value);
+          if (!val || val <= 0) {
+            inputMap[idx].style.borderColor = "var(--danger-color)";
+            valid = false;
+          } else {
+            inputMap[idx].style.borderColor = "var(--border-subtle)";
+            manualPrices[idx] = val;
+          }
+        }
+        if (!valid) return;
+
+        handleMissingResolution("manual", {
+          missingIndices,
+          manualPrices,
+          pendingContext: data.pending_context
+        });
+      };
+
+      form.appendChild(confirmBtn);
+      manualBox.appendChild(form);
+
+      chatFeed.appendChild(row);
+      scrollBottom();
     }
 
-    const price = Number(p.Price || 0);
-    const cost = Number(p.Cost || 0);
-
-    if (price <= 0) {
-      return { ok: false, reply: "❌ " + (p.Name || p._key) + " ka sale price set nahi hai." };
+    function setNetworkProgress(active) {
+      networkBar.classList.toggle("active", active);
     }
 
-    let saleTotal = 0;
-    let finalQty = 0;
-
-    if (item.amount !== undefined && item.amount !== null && Number(item.amount) > 0) {
-      saleTotal = Number(item.amount);
-      finalQty = saleTotal / price;
-    } else if (item.qty !== undefined && item.qty !== null && Number(item.qty) > 0) {
-      finalQty = Number(item.qty);
-      saleTotal = finalQty * price;
-    } else {
-      finalQty = 1;
-      saleTotal = price;
+    function toggleInput(disabled) {
+      userInput.disabled = disabled;
     }
 
-    const currentStock = Number(p.Stock || 0);
-    if (finalQty > (currentStock + 0.001)) {
-      return { ok: false, reply: "❌ " + (p.Name || p._key) + " ka stock sirf " + formatNumber(currentStock) + " hai." };
+    function scrollBottom() {
+      chatFeed.scrollTop = chatFeed.scrollHeight;
     }
 
-    const newStock = Math.max(0, currentStock - finalQty);
-    const productKey = sanitizeFirebaseKey(p._key);
-    updates["Products/" + productKey + "/Stock"] = newStock;
-
-    total += saleTotal;
-
-    transactionItems.push({
-      product: p.Name || p._key,
-      qty: finalQty,
-      price: price,
-      cost: cost,
-      total: saleTotal
-    });
-  }
-
-  const now = new Date();
-  const timestamp = now.getTime();
-  const transactionId = "T" + timestamp;
-
-  const transaction = {
-    id: transactionId,
-    type: "sale",
-    items: transactionItems,
-    total: total,
-    customer: customer || "",
-    payment: payment,
-    timestamp: timestamp,
-    date: Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd")
-  };
-
-  updates["Transactions/" + transactionId] = transaction;
-
-  const statsPatch = buildStatsPatch(transaction);
-  Object.keys(statsPatch).forEach(path => {
-    updates[path] = statsPatch[path];
-  });
-
-  firebaseRequest("", "patch", updates);
-  clearCaches();
-
-  let reply = "✅ Sale recorded\n";
-  transactionItems.forEach(x => {
-    if (x.is_misc) {
-      reply += "➕ Rs " + formatNumber(x.total) + " (" + x.product + ")\n";
-    } else {
-      reply += formatNumber(x.qty) + " × " + x.product + " (Rs " + formatNumber(x.total) + ")\n";
+    function escapeHtml(str) {
+      const d = document.createElement("div");
+      d.textContent = str;
+      return d.innerHTML;
     }
-  });
-
-  reply += "💰 Total: Rs " + formatNumber(total);
-  reply += payment === "cash" ? "\n💵 Naqad" : "\n🧾 Udhaar";
-  if (customer) reply += "\n👤 " + customer;
-
-  return { ok: true, type: "completed", reply: reply, transaction: transaction };
-}
-
-
-/****************************************************
- *
- * RETURNS ENGINE
- *
- ****************************************************/
-
-function processReturn(command, products) {
-  const items = command.items || [];
-  if (!items.length) {
-    return { ok: false, reply: "❌ Return item aur miqdaar batayein." };
-  }
-
-  const firebasePatch = {};
-  const transactionItems = [];
-  let total = 0;
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    let cleanProductName = item.product.replace(/\b(wapis|return)\b/gi, "").trim();
-    const match = findProduct(cleanProductName, products);
-
-    if (match.status !== "found") {
-      return { ok: false, reply: "❌ Return product database mein nahi mila: " + cleanProductName };
-    }
-
-    const p = match.product;
-    const price = Number(p.Price || 0);
-    const cost = Number(p.Cost || 0);
-
-    let returnQty = 0;
-
-    if (item.amount !== undefined && item.amount !== null && Number(item.amount) > 0 && price > 0) {
-      returnQty = Number(item.amount) / price;
-    } else if (item.qty !== undefined && item.qty !== null && Number(item.qty) > 0) {
-      returnQty = Number(item.qty);
-    } else {
-      returnQty = 1;
-    }
-
-    if (!isFinite(returnQty) || returnQty <= 0) {
-      return { ok: false, reply: "❌ Return quantity galat hai: " + cleanProductName };
-    }
-
-    const oldStock = Number(p.Stock || 0);
-    const newStock = oldStock + returnQty;
-    firebasePatch["Products/" + sanitizeFirebaseKey(p._key) + "/Stock"] = newStock;
-
-    const lineTotal = returnQty * price;
-    total += lineTotal;
-
-    transactionItems.push({
-      product: p.Name || p._key,
-      qty: returnQty,
-      price: price,
-      cost: cost,
-      total: lineTotal
-    });
-  }
-
-  const id = "R" + new Date().getTime();
-  const transaction = {
-    id: id,
-    type: "return",
-    items: transactionItems,
-    total: total,
-    timestamp: new Date().getTime(),
-    date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")
-  };
-
-  firebasePatch["Transactions/" + id] = transaction;
-
-  const statsPatch = buildStatsPatch(transaction);
-  Object.keys(statsPatch).forEach(path => {
-    firebasePatch[path] = statsPatch[path];
-  });
-
-  firebaseRequest("", "patch", firebasePatch);
-  clearCaches();
-
-  return {
-    ok: true,
-    reply: "↩️ Return recorded\n" +
-      transactionItems.map(x => formatNumber(x.qty) + " × " + x.product).join("\n") +
-      "\n💰 Rs " + formatNumber(total)
-  };
-}
-
-
-/****************************************************
- *
- * INVENTORY & PRODUCT OPERATIONS
- *
- ****************************************************/
-
-function processListProducts(products) {
-  const keys = Object.keys(products || {});
-  if (!keys.length) return { ok: true, reply: "📦 Inventory mein koi product mojood nahi hai." };
-
-  const items = keys.map(k => ({
-    name: products[k].Name || k,
-    price: Number(products[k].Price || 0),
-    cost: Number(products[k].Cost || 0),
-    stock: Number(products[k].Stock || 0)
-  })).sort((a, b) => a.name.localeCompare(b.name));
-
-  let reply = "📦 All Products List (" + items.length + " Items):\n";
-  items.forEach((p, idx) => {
-    reply += "\n" + (idx + 1) + ". " + p.name;
-    reply += "\n   Price: Rs " + formatNumber(p.price) + " | Cost: Rs " + formatNumber(p.cost) + " | Stock: " + formatNumber(p.stock);
-  });
-
-  return { ok: true, reply: reply };
-}
-
-function processLowStock(products) {
-  const keys = Object.keys(products || {});
-  const lowItems = [];
-  const THRESHOLD = 5;
-
-  keys.forEach(k => {
-    const p = products[k];
-    const stock = Number(p.Stock || 0);
-    if (stock <= THRESHOLD) {
-      lowItems.push({ name: p.Name || k, stock: stock, price: Number(p.Price || 0) });
-    }
-  });
-
-  if (!lowItems.length) return { ok: true, reply: "✅ Sab products ka stock theek hai (Stock > 5)." };
-
-  lowItems.sort((a, b) => a.stock - b.stock);
-
-  let reply = "⚠️ Low Stock Products (" + lowItems.length + " Items):\n";
-  lowItems.forEach((p, idx) => {
-    reply += "\n" + (idx + 1) + ". " + p.name;
-    reply += "\n   Stock: " + formatNumber(p.stock) + " | Price: Rs " + formatNumber(p.price);
-  });
-
-  return { ok: true, reply: reply };
-}
-
-function processAddStock(command, products) {
-  const items = command.items || [];
-  if (!items.length) return { ok: false, reply: "❌ Product aur quantity batayein." };
-
-  const firebasePatch = {};
-  const messages = [];
-
-  items.forEach(item => {
-    const match = findProduct(item.product, products);
-    if (match.status !== "found") throw new Error("Product issue: " + item.product);
-
-    const p = match.product;
-    const qty = Number(item.qty || 0);
-
-    if (!isFinite(qty) || qty <= 0) throw new Error("Quantity galat: " + item.product);
-
-    const oldStock = Number(p.Stock || 0);
-    const newStock = oldStock + qty;
-
-    firebasePatch["Products/" + sanitizeFirebaseKey(p._key) + "/Stock"] = newStock;
-    messages.push("➕ " + formatNumber(qty) + " × " + (p.Name || p._key) + " → Stock " + formatNumber(newStock));
-  });
-
-  firebaseRequest("", "patch", firebasePatch);
-  clearCaches();
-
-  return { ok: true, reply: "✅ Stock updated\n" + messages.join("\n") };
-}
-
-function processPurchase(command, products) {
-  const items = command.items || [];
-  if (!items.length) return { ok: false, reply: "❌ Purchase item batayein." };
-
-  const firebasePatch = {};
-  const messages = [];
-  const transactionItems = [];
-  let total = 0;
-
-  items.forEach(item => {
-    const match = findProduct(item.product, products);
-    if (match.status !== "found") throw new Error("Product issue: " + item.product);
-
-    const p = match.product;
-    const qty = Number(item.qty || 0);
-    if (!isFinite(qty) || qty <= 0) throw new Error("Quantity galat: " + item.product);
-
-    const oldStock = Number(p.Stock || 0);
-    const newStock = oldStock + qty;
-    const cleanKey = sanitizeFirebaseKey(p._key);
-    firebasePatch["Products/" + cleanKey + "/Stock"] = newStock;
-
-    const cost = Number(item.cost !== undefined ? item.cost : p.Cost || 0);
-    if (cost > 0) firebasePatch["Products/" + cleanKey + "/Cost"] = cost;
-
-    const lineTotal = cost * qty;
-    total += lineTotal;
-
-    transactionItems.push({ product: p.Name || p._key, qty: qty, cost: cost, total: lineTotal });
-    messages.push("📦 " + formatNumber(qty) + " × " + (p.Name || p._key));
-  });
-
-  const id = "P" + new Date().getTime();
-  const transaction = {
-    id: id,
-    type: "purchase",
-    items: transactionItems,
-    total: total,
-    timestamp: new Date().getTime(),
-    date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")
-  };
-
-  firebasePatch["Transactions/" + id] = transaction;
-  firebaseRequest("", "patch", firebasePatch);
-  clearCaches();
-
-  return { ok: true, reply: "✅ Purchase recorded\n" + messages.join("\n") + "\n💰 Total cost: Rs " + formatNumber(total) };
-}
-
-function processStock(command, products) {
-  const match = findProduct(command.product, products);
-
-  if (match.status === "not_found") return { ok: false, reply: "❌ Product nahi mila: " + command.product };
-  if (match.status === "multiple") return { ok: false, reply: "❌ Multiple products match ho rahe hain:\n" + match.matches.map(m => m.name).join(", ") };
-
-  const p = match.product;
-  return {
-    ok: true,
-    reply: "📦 " + (p.Name || p._key) +
-      "\nStock: " + formatNumber(Number(p.Stock || 0)) +
-      "\nSale Price: Rs " + formatNumber(Number(p.Price || 0)) +
-      "\nCost: Rs " + formatNumber(Number(p.Cost || 0))
-  };
-}
-
-function processUpdatePrice(command, products) {
-  const match = findProduct(command.product, products);
-  if (match.status !== "found") return { ok: false, reply: "❌ Product match nahi hua." };
-
-  const price = Number(command.price);
-  if (!isFinite(price) || price < 0) return { ok: false, reply: "❌ Price galat hai." };
-
-  const p = match.product;
-  firebaseRequest("Products/" + sanitizeFirebaseKey(p._key), "patch", { Price: price, updatedAt: new Date().getTime() });
-  clearCaches();
-
-  return { ok: true, reply: "✅ Price updated\n" + (p.Name || p._key) + "\n💰 Rs " + formatNumber(price) };
-}
-
-function processUpdateCost(command, products) {
-  const match = findProduct(command.product, products);
-  if (match.status !== "found") return { ok: false, reply: "❌ Product match nahi hua." };
-
-  const cost = Number(command.cost);
-  if (!isFinite(cost) || cost < 0) return { ok: false, reply: "❌ Cost galat hai." };
-
-  const p = match.product;
-  firebaseRequest("Products/" + sanitizeFirebaseKey(p._key), "patch", { Cost: cost, updatedAt: new Date().getTime() });
-  clearCaches();
-
-  return { ok: true, reply: "✅ Cost updated\n" + (p.Name || p._key) + "\n📦 Cost: Rs " + formatNumber(cost) };
-}
-
-function processProductSearch(command, products) {
-  const match = findProduct(command.product, products);
-
-  if (match.status === "not_found") return { ok: false, reply: "❌ Product nahi mila." };
-  if (match.status === "multiple") return { ok: false, reply: "❌ Multiple products match ho rahe hain:\n" + match.matches.map(m => m.name).join("\n") };
-
-  const p = match.product;
-  return {
-    ok: true,
-    reply: "🔎 " + (p.Name || p._key) +
-      "\nStock: " + formatNumber(Number(p.Stock || 0)) +
-      "\nPrice: Rs " + formatNumber(Number(p.Price || 0)) +
-      "\nCost: Rs " + formatNumber(Number(p.Cost || 0))
-  };
-}
-
-
-/****************************************************
- *
- * PRODUCT MATCHING ENGINE
- *
- ****************************************************/
-
-function sanitizeFirebaseKey(key) {
-  return String(key || "").replace(/[.#$\[\]\/]/g, "_").trim();
-}
-
-function canonicalProductName(text) {
-  text = String(text || "");
-  try { text = decodeURIComponent(text); } catch (e) {}
-  return text.toLowerCase().trim().replace(/\s+/g, " ");
-}
-
-function phoneticUrduNormalization(text) {
-  return text
-    .replace(/soper|sooper|super/g, "super")
-    .replace(/capicuino|capiccino|cappuchino|cappucino/g, "cappuccino")
-    .replace(/morch|marach|mirchi/g, "mirch")
-    .replace(/saban|sabun/g, "soap")
-    .replace(/tel/g, "oil")
-    .replace(/baskat|biacuut|biskut/g, "biscuit")
-    .replace(/cheni/g, "cheeni")
-    .replace(/ghi/g, "ghee")
-    .replace(/dall/g, "daal");
-}
-
-function normalizeForMatching(text) {
-  let str = canonicalProductName(text);
-  str = phoneticUrduNormalization(str);
-  return str.replace(/[^a-z0-9\u0600-\u06ff]+/gi, " ").replace(/\s+/g, " ").trim();
-}
-
-function tokenizeProductName(text) {
-  const normalized = normalizeForMatching(text);
-  if (!normalized) return [];
-  return normalized.split(" ").filter(x => x.length > 0);
-}
-
-function levenshteinDistance(a, b) {
-  a = String(a || ""); b = String(b || "");
-  const m = a.length, n = b.length;
-  if (m === 0) return n; if (n === 0) return m;
-
-  const matrix = [];
-  for (let i = 0; i <= m; i++) { matrix[i] = []; matrix[i][0] = i; }
-  for (let j = 0; j <= n; j++) { matrix[0][j] = j; }
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
-      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
-    }
-  }
-  return matrix[m][n];
-}
-
-function similarityScore(a, b) {
-  a = normalizeForMatching(a); b = normalizeForMatching(b);
-  if (!a || !b) return 0; if (a === b) return 100;
-  const maxLength = Math.max(a.length, b.length);
-  if (!maxLength) return 100;
-  return Math.round((1 - levenshteinDistance(a, b) / maxLength) * 100);
-}
-
-function fuzzyProductScore(query, name) {
-  const q = normalizeForMatching(query); const n = normalizeForMatching(name);
-  if (!q || !n) return 0; if (q === n) return 100;
-  if (n.indexOf(q) !== -1) return 92; if (q.indexOf(n) !== -1) return 88;
-
-  const qTokens = tokenizeProductName(q), nTokens = tokenizeProductName(n);
-  if (qTokens.length === 1) {
-    let best = 0;
-    nTokens.forEach(t => { const score = similarityScore(qTokens[0], t); if (score > best) best = score; });
-    return best;
-  }
-
-  let totalBest = 0;
-  qTokens.forEach(qT => {
-    let best = 0;
-    nTokens.forEach(nT => { const score = similarityScore(qT, nT); if (score > best) best = score; });
-    totalBest += best;
-  });
-
-  return Math.round((totalBest / qTokens.length) * 0.75 + similarityScore(q, n) * 0.25);
-}
-
-function findProduct(searchName, products) {
-  const query = canonicalProductName(searchName);
-  const normalizedQuery = normalizeForMatching(searchName);
-  if (!query) return { status: "not_found" };
-
-  const candidates = [];
-  const keys = Object.keys(products || {});
-
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    const p = products[key] || {};
-    const rawName = p.Name || key;
-    if (normalizedQuery === normalizeForMatching(rawName) || normalizedQuery === normalizeForMatching(key)) {
-      return { status: "found", product: { ...p, _key: key } };
-    }
-  }
-
-  keys.forEach(key => {
-    const p = products[key] || {};
-    const rawName = p.Name || key;
-    const name = canonicalProductName(rawName);
-    const normalizedKey = canonicalProductName(key);
-
-    let score = 0;
-    if (query === name) score = 100;
-    else if (query === normalizedKey) score = 98;
-    else if (name.indexOf(query) !== -1) score = 92;
-    else if (query.indexOf(name) !== -1) score = 88;
-    else score = fuzzyProductScore(query, name);
-
-    if (score >= 60) candidates.push({ product: { ...p, _key: key }, score: score, canonicalName: name });
-  });
-
-  if (!candidates.length) return { status: "not_found" };
-
-  const groups = {};
-  candidates.forEach(c => {
-    const groupKey = c.canonicalName;
-    if (!groups[groupKey]) groups[groupKey] = [];
-    groups[groupKey].push(c);
-  });
-
-  const uniqueProducts = Object.keys(groups).map(k => groups[k].sort((a, b) => b.score - a.score)[0]).sort((a, b) => b.score - a.score);
-  const best = uniqueProducts[0];
-
-  if (best.score < 60) return { status: "not_found" };
-  if (uniqueProducts.length === 1) return best.score >= 65 ? { status: "found", product: best.product } : { status: "not_found" };
-
-  const second = uniqueProducts[1];
-  if (best.score >= 95 && best.score > second.score) return { status: "found", product: best.product };
-  if (best.score >= 75 && (best.score - second.score) >= 10) return { status: "found", product: best.product };
-
-  const eligibleMatches = uniqueProducts.filter(x => x.score >= 60 && (best.score - x.score) <= 8).slice(0, 5);
-  if (eligibleMatches.length <= 1) return { status: "found", product: best.product };
-
-  return {
-    status: "multiple",
-    matches: eligibleMatches.map(x => ({ key: String(x.product._key), name: String(x.product.Name || x.product._key), price: Number(x.product.Price || 0), stock: Number(x.product.Stock || 0) }))
-  };
-}
-
-
-/****************************************************
- *
- * STATS GENERATOR & HELPERS
- *
- ****************************************************/
-
-function getStatsBucketPaths(date) {
-  const d = date || new Date();
-  const daily = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
-  const weekly = getISOWeekKey(d);
-  const monthly = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM");
-  const yearly = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy");
-
-  return {
-    daily: "Stats/Daily/" + daily,
-    weekly: "Stats/Weekly/" + weekly,
-    monthly: "Stats/Monthly/" + monthly,
-    yearly: "Stats/Yearly/" + yearly,
-    lifetime: "Stats/Lifetime/All"
-  };
-}
-
-function getISOWeekKey(date) {
-  const d = new Date(date.getTime());
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-  const weekYear = d.getFullYear();
-  const week1 = new Date(weekYear, 0, 4);
-  const weekNumber = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-  return weekYear + "-W" + ("0" + weekNumber).slice(-2);
-}
-
-function emptyStats() {
-  return { TotalSales: 0, TotalCost: 0, TotalProfit: 0, TotalCredit: 0, TotalCash: 0, SaleCount: 0, Products: {} };
-}
-
-function buildStatsPatch(transaction) {
-  const timestamp = Number(transaction.timestamp || 0);
-  if (!timestamp) return {};
-
-  const date = new Date(timestamp);
-  const paths = getStatsBucketPaths(date);
-  const currentStats = firebaseRequest("Stats", "get") || {};
-  const patch = {};
-
-  Object.keys(paths).forEach(period => {
-    const path = paths[period];
-    let existing = getObjectAtPath(currentStats, path.replace(/^Stats\//, ""));
-    if (!existing || typeof existing !== "object") existing = emptyStats();
-    existing = JSON.parse(JSON.stringify(existing));
-    applyTransactionToStats(existing, transaction);
-    patch[path] = existing;
-  });
-
-  return patch;
-}
-
-function applyTransactionToStats(stats, transaction) {
-  if (!stats.Products) stats.Products = {};
-
-  if (transaction.type === "sale") {
-    const saleTotal = Number(transaction.total || 0);
-    let totalCost = 0;
-
-    (transaction.items || []).forEach(item => {
-      const qty = Number(item.qty || 0);
-      const price = Number(item.price || 0);
-      const cost = Number(item.cost || 0);
-      const revenue = Number(item.total !== undefined ? item.total : qty * price);
-      const itemCost = qty * cost;
-      const itemProfit = revenue - itemCost;
-
-      totalCost += itemCost;
-
-      const productKey = sanitizeFirebaseKey(canonicalProductName(item.product));
-      const displayName = String(item.product || "").trim();
-
-      if (!stats.Products[productKey]) {
-        stats.Products[productKey] = { Name: displayName, Qty: 0, TimesSold: 0, Revenue: 0, Cost: 0, Profit: 0 };
-      }
-
-      const ps = stats.Products[productKey];
-      ps.Qty = Number(ps.Qty || 0) + qty;
-      ps.TimesSold = Number(ps.TimesSold || 0) + 1;
-      ps.Revenue = Number(ps.Revenue || 0) + revenue;
-      ps.Cost = Number(ps.Cost || 0) + itemCost;
-      ps.Profit = Number(ps.Profit || 0) + itemProfit;
-    });
-
-    stats.TotalSales = Number(stats.TotalSales || 0) + saleTotal;
-    stats.TotalCost = Number(stats.TotalCost || 0) + totalCost;
-    stats.TotalProfit = Number(stats.TotalProfit || 0) + (saleTotal - totalCost);
-    stats.SaleCount = Number(stats.SaleCount || 0) + 1;
-
-    if (String(transaction.payment || "").toLowerCase() === "credit") stats.TotalCredit = Number(stats.TotalCredit || 0) + saleTotal;
-    else stats.TotalCash = Number(stats.TotalCash || 0) + saleTotal;
-
-  } else if (transaction.type === "return") {
-    const returnTotal = Number(transaction.total || 0);
-    let returnCost = 0;
-
-    (transaction.items || []).forEach(item => {
-      const qty = Number(item.qty || 0);
-      const price = Number(item.price || 0);
-      const cost = Number(item.cost || 0);
-      const revenue = Number(item.total !== undefined ? item.total : qty * price);
-      const itemCost = qty * cost;
-      const itemProfit = revenue - itemCost;
-
-      returnCost += itemCost;
-
-      const productKey = sanitizeFirebaseKey(canonicalProductName(item.product));
-      const displayName = String(item.product || "").trim();
-
-      if (!stats.Products[productKey]) {
-        stats.Products[productKey] = { Name: displayName, Qty: 0, TimesSold: 0, Revenue: 0, Cost: 0, Profit: 0 };
-      }
-
-      const ps = stats.Products[productKey];
-      ps.Qty = Math.max(0, Number(ps.Qty || 0) - qty);
-      ps.Revenue = Number(ps.Revenue || 0) - revenue;
-      ps.Cost = Number(ps.Cost || 0) - itemCost;
-      ps.Profit = Number(ps.Profit || 0) - itemProfit;
-    });
-
-    stats.TotalSales = Number(stats.TotalSales || 0) - returnTotal;
-    stats.TotalCost = Number(stats.TotalCost || 0) - returnCost;
-    stats.TotalProfit = Number(stats.TotalProfit || 0) - (returnTotal - returnCost);
-  }
-}
-
-function getObjectAtPath(root, path) {
-  const parts = String(path || "").split("/").filter(x => x !== "");
-  let current = root;
-  for (let i = 0; i < parts.length; i++) {
-    if (!current || typeof current !== "object") return null;
-    current = current[parts[i]];
-  }
-  return current || null;
-}
-
-
-/****************************************************
- *
- * REPORTING ENGINE (WITH YESTERDAY SUPPORT)
- *
- ****************************************************/
-
-function processReport(command) {
-  const period = normalizeReportPeriod(command.period);
-
-  if (period === "daily" || period === "weekly" || period === "monthly" || period === "yearly" || period === "lifetime") {
-    const statsReport = getStatsReport(period);
-    if (statsReport) return formatStatsReport(statsReport, period);
-  }
-
-  const range = getDateRange(period);
-  return buildReportFromTransactions(range, period);
-}
-
-function normalizeReportPeriod(period) {
-  period = String(period || "daily").toLowerCase();
-  if (period === "today" || period === "daily" || period === "day") return "daily";
-  if (period === "yesterday" || period === "kal") return "yesterday";
-  if (period === "week" || period === "weekly") return "weekly";
-  if (period === "month" || period === "monthly") return "monthly";
-  if (period === "year" || period === "yearly") return "yearly";
-  if (period === "all" || period === "lifetime") return "lifetime";
-  if (period === "previous_week" || period === "last_week") return "previous_week";
-  if (period === "previous_month" || period === "last_month") return "previous_month";
-  if (period === "previous_year" || period === "last_year") return "previous_year";
-  return "daily";
-}
-
-function getStatsReport(period) {
-  const now = new Date();
-  const paths = getStatsBucketPaths(now);
-  const path = paths[period];
-  if (!path) return null;
-  const stats = firebaseRequest(path, "get");
-  return (stats && typeof stats === "object") ? stats : null;
-}
-
-function formatStatsReport(stats, period) {
-  const title = getReportTitle(period);
-
-  let reply = "📊 " + title + "\n\n";
-  reply += "💰 Total Sales: Rs " + formatNumber(stats.TotalSales || 0) + "\n";
-  reply += "📦 Total Cost: Rs " + formatNumber(stats.TotalCost || 0) + "\n";
-  reply += "📈 Total Profit: Rs " + formatNumber(stats.TotalProfit || 0) + "\n";
-  reply += "💵 Total Cash: Rs " + formatNumber(stats.TotalCash || 0) + "\n";
-  reply += "🧾 Total Credit: Rs " + formatNumber(stats.TotalCredit || 0) + "\n";
-  reply += "🛒 Sales Count: " + formatNumber(stats.SaleCount || 0);
-
-  const productRows = Object.keys(stats.Products || {})
-    .map(key => stats.Products[key])
-    .filter(p => Number(p.Revenue || 0) !== 0 || Number(p.Qty || 0) !== 0)
-    .sort((a, b) => Number(b.Revenue || 0) - Number(a.Revenue || 0));
-
-  if (productRows.length) {
-    reply += "\n\n🛍️ Product Sales:";
-    productRows.forEach((p, index) => {
-      reply += "\n\n" + (index + 1) + ". " + p.Name;
-      reply += "\n   Sold: " + formatNumber(p.Qty || 0) + " | Times: " + formatNumber(p.TimesSold || 0);
-      reply += "\n   Rev: Rs " + formatNumber(p.Revenue || 0) + " | Profit: Rs " + formatNumber(p.Profit || 0);
-    });
-  }
-
-  return { ok: true, reply: reply };
-}
-
-function buildReportFromTransactions(range, period) {
-  const transactions = getTransactionsCached();
-  const stats = emptyStats();
-
-  Object.keys(transactions || {}).forEach(key => {
-    const t = transactions[key] || {};
-    const timestamp = Number(t.timestamp || 0);
-    if (timestamp < range.start || timestamp > range.end) return;
-    applyTransactionToStats(stats, t);
-  });
-
-  return formatStatsReport(stats, period);
-}
-
-function processProductReport(command, products) {
-  const match = findProduct(command.product, products);
-
-  if (match.status === "not_found") return { ok: false, reply: "❌ Product nahi mila: " + command.product };
-  if (match.status === "multiple") return { ok: false, reply: "❌ Multiple products match ho rahe hain:\n" + match.matches.map(m => m.name).join(", ") };
-
-  const product = match.product;
-  const targetName = canonicalProductName(product.Name || product._key);
-  const period = normalizeReportPeriod(command.period || "monthly");
-
-  if (period === "daily" || period === "weekly" || period === "monthly" || period === "yearly" || period === "lifetime") {
-    const stats = getStatsReport(period);
-    if (stats) {
-      const p = findStatsProduct(stats.Products, targetName);
-      if (p) return formatProductStatsReport(product, p, period);
-    }
-  }
-
-  const range = getDateRange(period);
-  const transactions = getTransactionsCached();
-  let qty = 0, revenue = 0, cost = 0, profit = 0, timesSold = 0;
-
-  Object.keys(transactions || {}).forEach(key => {
-    const t = transactions[key] || {};
-    if (t.type !== "sale") return;
-
-    const timestamp = Number(t.timestamp || 0);
-    if (timestamp < range.start || timestamp > range.end) return;
-
-    (t.items || []).forEach(item => {
-      if (canonicalProductName(item.product) !== targetName) return;
-      const itemQty = Number(item.qty || 0);
-      const itemPrice = Number(item.price || 0);
-      const itemCost = Number(item.cost !== undefined ? item.cost : product.Cost || 0);
-      const itemRevenue = Number(item.total !== undefined ? item.total : itemQty * itemPrice);
-
-      qty += itemQty; revenue += itemRevenue; cost += itemQty * itemCost; profit += itemRevenue - itemQty * itemCost; timesSold++;
-    });
-  });
-
-  return {
-    ok: true,
-    reply: "📊 " + (product.Name || product._key) +
-      "\n\nPeriod: " + getReportTitle(period) +
-      "\n\nSold: " + formatNumber(qty) + "\n🔢 Times Sold: " + formatNumber(timesSold) +
-      "\n💰 Revenue: Rs " + formatNumber(revenue) + "\n📦 Cost: Rs " + formatNumber(cost) + "\n📈 Profit: Rs " + formatNumber(profit)
-  };
-}
-
-function findStatsProduct(products, targetName) {
-  const keys = Object.keys(products || {});
-  for (let i = 0; i < keys.length; i++) {
-    const p = products[keys[i]];
-    if (canonicalProductName(keys[i]) === targetName || canonicalProductName(p.Name) === targetName) return p;
-  }
-  return null;
-}
-
-function formatProductStatsReport(product, p, period) {
-  return {
-    ok: true,
-    reply: "📊 " + (product.Name || product._key) +
-      "\n\nPeriod: " + getReportTitle(period) +
-      "\n\nSold: " + formatNumber(p.Qty || 0) + "\n🔢 Times Sold: " + formatNumber(p.TimesSold || 0) +
-      "\n💰 Revenue: Rs " + formatNumber(p.Revenue || 0) + "\n📦 Cost: Rs " + formatNumber(p.Cost || 0) + "\n📈 Profit: Rs " + formatNumber(p.Profit || 0)
-  };
-}
-
-
-/****************************************************
- *
- * CACHE & FIREBASE REST UTILITIES
- *
- ****************************************************/
-
-function getProductsCached() {
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get(PRODUCT_CACHE_KEY);
-  if (cached) { try { return JSON.parse(cached); } catch (e) {} }
-  const products = firebaseRequest("Products", "get") || {};
-  try { cache.put(PRODUCT_CACHE_KEY, JSON.stringify(products), PRODUCT_CACHE_SECONDS); } catch (e) {}
-  return products;
-}
-
-function getTransactionsCached() {
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get(TRANSACTION_CACHE_KEY);
-  if (cached) { try { return JSON.parse(cached); } catch (e) {} }
-  const transactions = firebaseRequest("Transactions", "get") || {};
-  try { cache.put(TRANSACTION_CACHE_KEY, JSON.stringify(transactions), TRANSACTION_CACHE_SECONDS); } catch (e) {}
-  return transactions;
-}
-
-function clearCaches() {
-  const cache = CacheService.getScriptCache();
-  cache.remove(PRODUCT_CACHE_KEY);
-  cache.remove(TRANSACTION_CACHE_KEY);
-}
-
-function getDateRange(period) {
-  const now = new Date();
-  period = normalizeReportPeriod(period);
-
-  let start, end;
-  if (period === "daily") {
-    start = new Date(now); start.setHours(0, 0, 0, 0);
-    end = new Date(now); end.setHours(23, 59, 59, 999);
-  } else if (period === "yesterday") {
-    start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
-    end = new Date(start); end.setHours(23, 59, 59, 999);
-  } else if (period === "weekly") {
-    start = new Date(now);
-    const day = start.getDay(); const diff = day === 0 ? 6 : day - 1;
-    start.setDate(start.getDate() - diff); start.setHours(0, 0, 0, 0);
-    end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
-  } else if (period === "previous_week") {
-    const currentMonday = new Date(now);
-    const day = currentMonday.getDay(); const diff = day === 0 ? 6 : day - 1;
-    currentMonday.setDate(currentMonday.getDate() - diff); currentMonday.setHours(0, 0, 0, 0);
-    start = new Date(currentMonday); start.setDate(start.getDate() - 7);
-    end = new Date(currentMonday); end.setMilliseconds(-1);
-  } else if (period === "monthly") {
-    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  } else if (period === "previous_month") {
-    start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-    end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-  } else if (period === "yearly") {
-    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-  } else if (period === "previous_year") {
-    start = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
-    end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
-  } else if (period === "lifetime") {
-    start = new Date(0); end = new Date(2100, 0, 1);
-  } else {
-    start = new Date(now); start.setHours(0, 0, 0, 0);
-    end = new Date(now); end.setHours(23, 59, 59, 999);
-  }
-
-  return { start: start.getTime(), end: end.getTime() };
-}
-
-function getReportTitle(period) {
-  switch (normalizeReportPeriod(period)) {
-    case "daily": return "Today's Report";
-    case "yesterday": return "Yesterday's Report";
-    case "weekly": return "This Week's Report";
-    case "previous_week": return "Previous Week Report";
-    case "monthly": return "This Month's Report";
-    case "previous_month": return "Previous Month Report";
-    case "yearly": return "This Year's Report";
-    case "previous_year": return "Previous Year Report";
-    case "lifetime": return "Lifetime Report";
-    default: return "Report";
-  }
-}
-
-function firebaseRequest(path, method, data) {
-  const cleanBase = String(FIREBASE_URL || "").replace(/\/+$/, "");
-  let cleanPath = String(path || "").trim().replace(/^\/+|\/+$/g, "");
-
-  if (cleanPath.length > 0) {
-    cleanPath = cleanPath.split("/").map(part => {
-      try { part = decodeURIComponent(part); } catch (e) {}
-      return encodeURIComponent(part);
-    }).join("/");
-  }
-
-  const url = cleanPath.length > 0 ? cleanBase + "/" + cleanPath + ".json" : cleanBase + "/.json";
-  const options = { method: method || "get", muteHttpExceptions: true, contentType: "application/json" };
-  if (data !== undefined) options.payload = JSON.stringify(data);
-
-  const response = UrlFetchApp.fetch(url, options);
-  const status = response.getResponseCode();
-  const text = response.getContentText();
-
-  if (status < 200 || status >= 300) throw new Error("Firebase Error " + status + ": " + text);
-  return text ? JSON.parse(text) : null;
-}
-
-function formatNumber(value) {
-  const n = Number(value);
-  if (!isFinite(n)) return "0";
-  if (Math.abs(n - Math.round(n)) < 0.000001) return String(Math.round(n));
-  return n.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-}
+  </script>
+</body>
+</html>
