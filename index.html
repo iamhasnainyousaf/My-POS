@@ -1,339 +1,1542 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <style>
-        :root { 
-            --accent: #00b894; 
-            --dark: #1e272e; 
-            --err: #ff7675; 
-            --warn: #fdcb6e; 
-            --info: #0984e3;
-            --glass: rgba(255, 255, 255, 0.95);
-            --shadow: 0 8px 30px rgba(0,0,0,0.1);
-            --popup-shadow: 0 20px 50px rgba(0,0,0,0.3);
-        }
-        
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f1f2f6; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; color: var(--dark); }
-        
-        .header { background: var(--dark); color: white; padding: 12px 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0; }
+/****************************************************
+ *
+ * SUNNY AI POS - COMPLETE RESILIENT BACKEND ENGINE
+ * Google Apps Script + Groq + Firebase Realtime DB
+ *
+ ****************************************************/
 
-        /* 🔍 SEARCH */
-        .search-container { position: relative; margin: 12px 12px 8px 12px; z-index: 1001; flex-shrink: 0; }
-        .search-box { width: 100%; padding: 15px; border: none; border-radius: 15px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        
-        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border-radius: 15px; box-shadow: var(--popup-shadow); z-index: 1002; max-height: 350px; overflow-y: auto; display: none; margin-top: 8px; border: 1px solid #eee; }
-        .search-header { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #eee; font-size: 10px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
-        .search-item { display: grid; grid-template-columns: 1fr 65px 10px 65px 60px; gap: 5px; padding: 14px 15px; border-bottom: 1px solid #f1f2f6; align-items: center; }
-        .calc-input { width: 100%; padding: 8px 2px; border: 1px solid #eee; border-radius: 8px; text-align: center; font-weight: bold; font-size: 13px; outline: none; background: #f9f9f9; }
+const MODEL = "openai/gpt-oss-20b";
+const FIREBASE_URL = "https://shop-pos-59971-default-rtdb.firebaseio.com";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-        /* 🍬 COUNTER */
-        .shop-counter { margin: 0 0 10px 0; padding: 0; flex-shrink: 0; }
-        .counter-label-top { padding-left: 15px; font-size: 10px; font-weight: 800; color: #a4b0be; text-transform: uppercase; margin-bottom: 5px; }
-        .counter-shelf { display: flex; gap: 10px; overflow-x: auto; padding: 0 15px 10px 15px; scrollbar-width: none; }
-        .counter-shelf::-webkit-scrollbar { display: none; }
-        .counter-item { min-width: 85px; height: 110px; background: white; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #fff; cursor: pointer; flex-shrink: 0; transition: 0.2s; }
-        .counter-img { width: 50px; height: 50px; object-fit: contain; margin-bottom: 5px; }
-        .counter-price-badge { position: absolute; top: 5px; right: 5px; background: var(--accent); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; }
-        .counter-stock-badge { position: absolute; top: 5px; left: 5px; background: var(--err); color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 10px; }
-        .counter-name { font-size: 10px; font-weight: 700; text-align: center; height: 24px; overflow: hidden; padding: 0 4px; line-height: 1.1; }
+const PRODUCT_CACHE_KEY = "SUNNY_PRODUCTS_CACHE_V30";
+const PRODUCT_CACHE_SECONDS = 300;
 
-        /* 📜 BILL AREA */
-        #mainPOS { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; margin: 0; background: white; border-radius: 25px 25px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
-        .bill-header-row { display: grid; grid-template-columns: 1fr 100px 50px; padding: 12px 20px; background: #f8f9fa; border-bottom: 2px solid #eee; font-size: 12px; font-weight: 800; color: #7f8c8d; text-transform: uppercase; }
-        .bill-scroll-area { flex-grow: 1; overflow-y: auto; padding: 0; background: #fff; }
-        .bill-table { width: 100%; border-collapse: collapse; }
-        .bill-table tr { border-bottom: 1px solid #f1f2f6; }
-        .bill-table td { padding: 16px 20px; font-size: 16px; font-weight: 700; color: var(--dark); }
-        .item-qty-tag { color: var(--accent); font-size: 13px; font-weight: 800; display: block; margin-top: 2px; }
+const TRANSACTION_CACHE_KEY = "SUNNY_TRANSACTIONS_CACHE_V27";
+const TRANSACTION_CACHE_SECONDS = 10;
 
-        @keyframes newItem { from { background: #55efc4; transform: translateX(-10px); } to { background: transparent; transform: translateX(0); } }
-        .new-row-anim { animation: newItem 0.8s ease-out; }
+const CATALOG_INDEX_KEY = "SUNNY_AI_CATALOG_VOCABULARY";
 
-        /* 💰 CONTROLS */
-        .bottom-controls { background: white; padding: 15px 20px; box-shadow: 0 -10px 30px rgba(0,0,0,0.08); flex-shrink: 0; z-index: 10; }
-        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-        .stat-item { background: #f8f9fa; padding: 8px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
-        .stat-label { font-size: 8px; font-weight: 800; color: #a4b0be; text-transform: uppercase; }
-        .stat-value { font-size: 13px; font-weight: 800; color: var(--dark); }
-        .total-box { font-size: 42px; font-weight: 900; color: var(--dark); text-align: center; margin: 5px 0; border-top: 1px dashed #eee; padding-top: 5px; }
-        .action-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .btn { padding: 18px; border: none; border-radius: 18px; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
-        .btn-main { background: var(--accent); color: white; width: 100%; }
-        .btn-reset { background: #f1f2f6; color: var(--dark); }
-        .btn-credit { background: var(--dark); color: white; }
-        .btn-del { background: #fff0f0; color: var(--err); border: 2px solid #ffebeb; padding: 10px 12px; border-radius: 12px; font-size: 18px; cursor: pointer; }
 
-        /* 🖼️ MODALS & CUSTOM POPUPS */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 6000; backdrop-filter: blur(8px); }
-        .modal { background: white; width: 88%; max-width: 400px; padding: 25px; border-radius: 25px; position: relative; box-shadow: var(--popup-shadow); text-align: center; }
-        .modal h3 { margin: 0 0 15px 0; }
-        .cust-input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 15px; margin-bottom: 15px; font-size: 18px; outline: none; box-sizing: border-box; }
-        .cust-input.error { border-color: var(--err); background: #fff5f5; }
+/****************************************************
+ *
+ * WEB APP ENDPOINTS
+ *
+ ****************************************************/
 
-        /* Sync Alert */
-        #syncAlert { display: none; background: var(--warn); color: #856404; padding: 10px; margin: 5px 15px; border-radius: 12px; font-size: 11px; text-align: center; font-weight: bold; flex-shrink: 0; }
-    </style>
-</head>
-<body>
-
-<div class="header">
-    <span>PRESTIGE POS</span>
-    <div id="netBadge" style="font-size:10px; padding:4px 12px; border-radius:20px; background:#55efc4; font-weight:bold; color:black;">● ONLINE</div>
-</div>
-
-<div class="card" id="startCard" style="text-align:center; padding:60px 20px; margin: 30px 15px; background:white; border-radius:25px; box-shadow: var(--shadow); flex-shrink: 0;">
-    <h2 style="font-size:28px;">Welcome</h2>
-    <p style="color:#7f8c8d; margin-bottom:30px">Terminal Ready</p>
-    <button class="btn btn-main" id="startBtn" onclick="startApp()">OPEN TERMINAL</button>
-</div>
-
-<div id="searchArea" class="search-container" style="display:none;">
-    <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search Products..." autocomplete="off">
-    <div id="searchResults" class="search-results"></div>
-</div>
-
-<div id="counterArea" class="shop-counter" style="display:none;">
-    <div class="counter-label-top">Front Counter</div>
-    <div class="counter-shelf" id="counterShelf"></div>
-</div>
-
-<div id="syncAlert" onclick="forceClearQueue()">SYNCING... (Tap to clear)</div>
-
-<div id="mainPOS" style="display:none;">
-    <div class="bill-header-row"><span>Item</span><span style="text-align:right;">Amount</span><span style="text-align:center;">Del</span></div>
-    <div class="bill-scroll-area">
-        <div id="status" style="text-align:center; font-size:11px; color:var(--accent); margin:15px 0; font-weight:900; letter-spacing:1px; text-transform:uppercase;">READY</div>
-        <table class="bill-table"><tbody id="billBody"></tbody></table>
-    </div>
-    <div class="bottom-controls">
-        <div class="dashboard">
-            <div class="stat-item"><div class="stat-label">Today Sale</div><div class="stat-value" id="todaySales">0</div></div>
-            <div class="stat-item"><div class="stat-label">Today Cost</div><div class="stat-value" id="todayCost">0</div></div>
-            <div class="stat-item" style="background:#e8f5e9"><div class="stat-label" style="color:var(--accent)">Profit</div><div class="stat-value" style="color:var(--accent)" id="todayProfit">0</div></div>
-        </div>
-        <div class="total-box" id="totalDisplay">RS 0</div>
-        <div class="action-group">
-            <button class="btn btn-reset" onclick="resetBill()">CLEAR</button>
-            <button class="btn btn-credit" onclick="openCreditModal()">CREDIT</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="creditModal">
-    <div class="modal">
-        <h3>Credit Bill</h3>
-        <input type="text" id="custName" class="cust-input" placeholder="Enter Customer Name" oninput="this.classList.remove('error')">
-        <div id="nameError" style="color:red; font-size:12px; margin-bottom:10px; display:none;">Please enter a name first!</div>
-        <div style="display:flex; gap:12px;">
-            <button class="btn btn-reset" style="flex:1;" onclick="closeModals()">CANCEL</button>
-            <button id="saveCreditBtn" class="btn btn-credit" style="flex:1;" onclick="saveCreditBill()">WHATSAPP</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="confirmModal">
-    <div class="modal">
-        <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
-        <h3>Reverse Item?</h3>
-        <p style="color:#7f8c8d; margin-bottom: 20px;">Do you want to remove this item from the bill?</p>
-        <div style="display:flex; gap:12px;">
-            <button class="btn btn-reset" style="flex:1;" onclick="closeModals()">NO</button>
-            <button id="confirmBtn" class="btn btn-credit" style="flex:1; background:var(--err);">YES, REMOVE</button>
-        </div>
-    </div>
-</div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, onValue, update, increment, serverTimestamp, get, child } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAbdQcBsj5-DWyo7VZhUCtDbnT6CeJAt90",
-  authDomain: "shop-pos-59971.firebaseapp.com",
-  databaseURL: "https://shop-pos-59971-default-rtdb.firebaseio.com",
-  projectId: "shop-pos-59971",
-  storageBucket: "shop-pos-59971.firebasestorage.app",
-  messagingSenderId: "624757293899",
-  appId: "1:624757293899:web:a4e633cfe629eb0ac6dece"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-let localInventory = {}, currentBill = 0, billItems = [], audioCtx = null, isSyncing = false, isFirebaseConnected = false; 
-
-onValue(ref(db, ".info/connected"), s => {
-    isFirebaseConnected = s.val() === true;
-    let b = document.getElementById("netBadge");
-    b.innerText = isFirebaseConnected ? "● ONLINE" : "● OFFLINE";
-    b.style.background = isFirebaseConnected ? "#55efc4" : "#ff7675";
-});
-
-function listenToStats() {
-    const today = new Date().toISOString().split('T')[0];
-    onValue(ref(db, `Stats/Daily/${today}`), snap => {
-        const d = snap.val() || { Total_Sales: 0, Total_Cost: 0, Total_Profit: 0 };
-        document.getElementById("todaySales").innerText = Number(d.Total_Sales || 0).toLocaleString();
-        document.getElementById("todayCost").innerText = Number(d.Total_Cost || 0).toLocaleString();
-        document.getElementById("todayProfit").innerText = Number(d.Total_Profit || 0).toLocaleString();
-    });
+function doGet() {
+  return ContentService
+    .createTextOutput(
+      JSON.stringify({
+        ok: true,
+        service: "Sunny AI POS",
+        status: "online"
+      })
+    )
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
-function renderCounter() {
-    const shelf = document.getElementById("counterShelf"); shelf.innerHTML = "";
-    let items = [];
-    for (let c in localInventory) {
-        const p = localInventory[c];
-        if (p.Name && p.Name.toLowerCase().includes("cnt")) {
-            const m = p.Name.toLowerCase().match(/cnt(\d+)/);
-            items.push({ ...p, code: c, order: m ? parseInt(m[1]) : 999 });
-        }
+function doPost(e) {
+  const start = new Date().getTime();
+
+  try {
+    const body = JSON.parse(
+      e && e.postData && e.postData.contents
+        ? e.postData.contents
+        : "{}"
+    );
+
+    const products = getProductsCached();
+
+    if (body.action === "resolve_clarification") {
+      const result = executeCommand(body, products);
+      result.ms = new Date().getTime() - start;
+      return jsonResponse(result);
     }
-    items.sort((a, b) => a.order - b.order).forEach(p => {
-        const div = document.createElement("div"); div.className = "counter-item";
-        div.innerHTML = `<div class="counter-price-badge">RS ${p.Price}</div><div class="counter-stock-badge">Stk: ${p.Stock}</div><img src="${p.Img || 'https://cdn-icons-png.flaticon.com/512/679/679821.png'}" class="counter-img" onerror="this.src='https://cdn-icons-png.flaticon.com/512/679/679821.png'"><span class="counter-name">${p.Name.replace(/cnt\d*/gi,"").trim()}</span>`;
-        div.onclick = () => window.processItem(p.code, 1);
-        shelf.appendChild(div);
+
+    if (body.action === "resolve_missing") {
+      const result = handleResolveMissing(body, products);
+      result.ms = new Date().getTime() - start;
+      return jsonResponse(result);
+    }
+
+    const message = String(body.message || "").trim();
+    if (!message) {
+      return jsonResponse({
+        ok: false,
+        reply: "Kuch likhein 🙂"
+      });
+    }
+
+    const result = sendMessage(message);
+    return jsonResponse(result);
+
+  } catch (err) {
+    console.error(err);
+    return jsonResponse({
+      ok: false,
+      reply: "❌ Error: " + err.message
     });
+  }
 }
 
-function playFeedback(s) {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    if (s) { osc.frequency.setValueAtTime(1200, audioCtx.currentTime); if (navigator.vibrate) navigator.vibrate(40); osc.start(); osc.stop(audioCtx.currentTime + 0.1); }
-    else { osc.frequency.setValueAtTime(100, audioCtx.currentTime); if (navigator.vibrate) navigator.vibrate([100, 50, 100]); osc.start(); osc.stop(audioCtx.currentTime + 0.3); }
+function jsonResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
-function getQueue() { return JSON.parse(localStorage.getItem('pos_sync_queue') || '[]'); }
-function setQueue(q) { localStorage.setItem('pos_sync_queue', JSON.stringify(q)); document.getElementById("syncAlert").style.display = q.length > 0 ? "block" : "none"; }
-window.forceClearQueue = () => { localStorage.removeItem('pos_sync_queue'); document.getElementById("syncAlert").style.display = "none"; isSyncing = false; };
 
-async function syncData() {
-    if (!navigator.onLine || !isFirebaseConnected || isSyncing) return;
-    let queue = getQueue(); if (!queue.length) return;
-    isSyncing = true; let item = queue[0];
+/****************************************************
+ *
+ * MAIN CONTROLLER
+ *
+ ****************************************************/
+
+function sendMessage(message) {
+  const start = new Date().getTime();
+
+  try {
+    message = String(message || "").trim();
+    if (!message) {
+      return { ok: false, reply: "Kuch likhein 🙂" };
+    }
+
+    const cleanLower = message.toLowerCase();
+    
+    // Intercept catalog scan
+    if (
+      cleanLower.includes("scan product") ||
+      cleanLower.includes("scan item") ||
+      cleanLower.includes("learn inventory") ||
+      cleanLower.includes("refresh brain") ||
+      cleanLower.includes("product scan") ||
+      cleanLower.includes("dimagh refresh")
+    ) {
+      const scanResult = syncInventoryToAIBrain();
+      scanResult.ms = new Date().getTime() - start;
+      return scanResult;
+    }
+
+    const cleanedMessage = preprocessMessage(message);
+    const products = getProductsCached();
+
+    const command = safeUnderstandCommand(cleanedMessage, products);
+    const result = executeCommand(command, products);
+    result.ms = new Date().getTime() - start;
+
+    return result;
+
+  } catch (err) {
+    console.error(err);
+    return {
+      ok: false,
+      reply: "❌ Error: " + err.message,
+      ms: new Date().getTime() - start
+    };
+  }
+}
+
+function preprocessMessage(text) {
+  return text
+    .replace(/\b(wapos|vapus|wapis)\b/gi, "wapis")
+    .replace(/\b(aur|or)\b/gi, "+")
+    .replace(/,/g, "+")
+    .replace(/=/g, " = ")
+    .replace(/\s*\+\s*/g, " + ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
+/****************************************************
+ *
+ * AI LEARNING & CATALOG VOCABULARY ENGINE
+ *
+ ****************************************************/
+
+function syncInventoryToAIBrain() {
+  clearCaches();
+  const products = firebaseRequest("Products", "get") || {};
+  const keys = Object.keys(products);
+
+  if (!keys.length) {
+    return { ok: false, reply: "⚠️ Firebase mein koi products nahi mile." };
+  }
+
+  const uniqueNames = new Set();
+  keys.forEach(k => {
+    const p = products[k];
+    const name = (p && p.Name) ? String(p.Name).trim() : k.trim();
+    if (name) uniqueNames.add(name);
+  });
+
+  const vocabulary = Array.from(uniqueNames);
+  PropertiesService.getScriptProperties().setProperty(
+    CATALOG_INDEX_KEY,
+    JSON.stringify(vocabulary)
+  );
+
+  return {
+    ok: true,
+    reply: `🧠 AI Brain Synced! Total ${vocabulary.length} products dimagh me save ho chuke hain.`
+  };
+}
+
+function getLearnedVocabulary() {
+  const raw = PropertiesService.getScriptProperties().getProperty(CATALOG_INDEX_KEY);
+  if (raw) {
     try {
-        if (item.txnId) {
-            const check = await get(child(ref(db), `Processed_Transactions/${item.txnId}`));
-            if (check.exists()) { let nq = getQueue(); nq.shift(); setQueue(nq); isSyncing = false; setTimeout(syncData, 100); return; }
-        }
-        const today = new Date().toISOString().split('T')[0], month = today.substring(0, 7), updates = {};
-        if (item.type === 'credit') {
-            updates[`Credit/Today_Total_Credit`] = increment(item.amount);
-            updates[`Credit/Today_Credit_Bills/${item.txnId}`] = { customer: item.customer, amount: item.amount, items: item.details, timestamp: serverTimestamp() };
-        } else {
-            const profit = Number((item.price - item.cost).toFixed(3));
-            ['Daily/' + today, 'Monthly/' + month, 'Lifetime'].forEach(n => { updates[`Stats/${n}/Total_Sales`] = increment(item.price); updates[`Stats/${n}/Total_Cost`] = increment(item.cost); updates[`Stats/${n}/Total_Profit`] = increment(profit); });
-            updates[`Products/${item.code}/Stock`] = increment(-item.qty); updates[`Sales_Log/${item.code}/Name`] = item.name; updates[`Sales_Log/${item.code}/Qty_Sold`] = increment(item.qty); updates[`Sales_Log/${item.code}/Total_Profit`] = increment(profit); updates[`Sales_Log/${item.code}/Total_Sale`] = increment(item.price); updates[`Sales_Log/${item.code}/Last_Sale`] = serverTimestamp();
-        }
-        if (item.txnId) updates[`Processed_Transactions/${item.txnId}`] = serverTimestamp();
-        await update(ref(db), updates);
-        let nq = getQueue(); nq.shift(); setQueue(nq);
-    } catch (e) { console.error(e); } finally { isSyncing = false; if (getQueue().length) setTimeout(syncData, 1000); }
+      return JSON.parse(raw);
+    } catch (e) {}
+  }
+  return [];
 }
 
-window.syncInputs = (c, s, b) => { let q = document.getElementById("qty_"+c), a = document.getElementById("amt_"+c); if(s==='qty') a.value = Number((parseFloat(q.value||0)*b).toFixed(3)); else q.value = Number((parseFloat(a.value||0)/b).toFixed(3)); };
 
-window.startApp = () => {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    document.getElementById("startCard").style.display = "none"; document.getElementById("counterArea").style.display = "block"; document.getElementById("searchArea").style.display = "block"; document.getElementById("mainPOS").style.display = "flex";
-    listenToStats(); setInterval(syncData, 5000);
-    onValue(ref(db, 'Products'), snap => { localInventory = snap.val() || {}; renderCounter(); });
+/****************************************************
+ *
+ * GROQ PARSER WITH QUANTITY / AMOUNT INTEGRITY
+ *
+ ****************************************************/
 
-    window.processItem = (code, qty = 1) => {
-        qty = parseFloat(qty); const p = localInventory[code];
-        if (p && Number(p.Stock) >= qty) {
-            let tP = Number((Number(p.Price)*qty).toFixed(3)), tC = Number((Number(p.Cost||0)*qty).toFixed(3));
-            if (tP <= 0) return;
-            playFeedback(true);
-            let existing = billItems.findIndex(i => i.code === code);
-            if (existing > -1) {
-                let item = billItems[existing]; item.qty = Number((item.qty + qty).toFixed(3)); item.price = Number((item.price + tP).toFixed(3)); item.cost = Number((item.cost + tC).toFixed(3));
-                const row = document.getElementById(item.id); row.className = "new-row-anim"; row.cells[0].innerHTML = `<div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${item.qty}</span>`; row.cells[1].innerHTML = `<div style="text-align:right; font-size:18px;">RS ${item.price}</div>`; setTimeout(() => row.className = "", 800);
-            } else {
-                let rid = "r"+Date.now();
-                const newRow = document.createElement("tr"); newRow.id = rid; newRow.className = "new-row-anim"; newRow.innerHTML = `<td><div style="font-size:18px;">${p.Name.replace(/cnt\d*/gi,"")}</div><span class="item-qty-tag">x${qty}</span></td><td align="right" style="font-size:18px;">RS ${tP}</td><td width="50" align="center"><button class="btn-del" onclick="askReverseItem('${rid}')">🗑️</button></td>`;
-                document.getElementById("billBody").appendChild(newRow); billItems.push({ id: rid, code, name: p.Name, qty, price: tP, cost: tC }); setTimeout(() => newRow.className = "", 800);
-            }
-            currentBill = Number((currentBill + tP).toFixed(3)); document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
-            let tid = "TXN-"+Date.now()+"-"+Math.floor(Math.random()*1000);
-            let q = getQueue(); q.push({ code, name: p.Name, price: tP, cost: tC, qty, txnId: tid, type: 'sale' }); setQueue(q); syncData();
-            const scroll = document.querySelector('.bill-scroll-area'); scroll.scrollTop = scroll.scrollHeight;
-        } else { playFeedback(false); }
-    };
+function safeUnderstandCommand(message, products) {
+  const lower = message.toLowerCase().trim();
 
-    // 🔥 FIX: CUSTOM CONFIRMATION DIALOGUE FOR REVERSE
-    window.askReverseItem = (rid) => {
-        document.getElementById("confirmModal").style.display = "flex";
-        document.getElementById("confirmBtn").onclick = () => {
-            let idx = billItems.findIndex(i => i.id === rid);
-            if (idx > -1) {
-                let item = billItems[idx];
-                document.getElementById(rid).remove();
-                currentBill = Number((currentBill - item.price).toFixed(3));
-                document.getElementById("totalDisplay").innerText = "RS " + currentBill.toLocaleString();
-                let q = getQueue(); q.push({ code: item.code, name: item.name, price: -item.price, cost: -item.cost, qty: -item.qty, txnId: "REV-"+Date.now(), type: 'sale' });
-                billItems.splice(idx, 1); setQueue(q); syncData();
-            }
-            closeModals();
-        };
-    };
+  // 1. SMART ROUTING INTERCEPTS (Protects reports from being matched as products)
+  if (/^(stats|report|reports|aj ki report|aaj ki report|today report|today stats)$/.test(lower)) {
+    return { action: "report", period: "daily" };
+  }
+  if (/^(yesterday report|kal ki report|pichle din|yesterday stats|yesterday|kal)$/.test(lower)) {
+    return { action: "report", period: "yesterday" };
+  }
+  if (/^(is month|is mahine|this month|monthly report|is month ki report|this month stats)$/.test(lower)) {
+    return { action: "report", period: "monthly" };
+  }
+  if (/^(pichle month|last month|previous month|pichlay mahine)$/.test(lower)) {
+    return { action: "report", period: "previous_month" };
+  }
 
-    window.addSearchItem = (c) => { let q = parseFloat(document.getElementById("qty_"+c).value) || 1; processItem(c, q); document.getElementById("searchBox").value = ""; document.getElementById("searchResults").style.display = "none"; };
+  // 2. Call AI parsing
+  try {
+    return requestGroqParsing(message, products);
+  } catch (groqErr) {
+    console.warn("Groq Parsing failed: " + groqErr.message);
+    return localFallbackParser(message);
+  }
+}
 
-    document.getElementById("searchBox").addEventListener("input", e => {
-        const val = e.target.value.toLowerCase().trim(), res = document.getElementById("searchResults"); res.innerHTML = ""; if (val.length < 2) { res.style.display="none"; return; }
-        const header = document.createElement("div"); header.className = "search-header";
-        header.innerHTML = `<span>Name</span><span>Qty</span><span></span><span>Price</span><span></span>`; res.appendChild(header);
-        for (let c in localInventory) {
-            let p = localInventory[c];
-            if (p.Name && p.Name.toLowerCase().includes(val)) {
-                let d = document.createElement("div"); d.className="search-item";
-                d.innerHTML = `<div style="font-weight:700; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.Name.replace(/cnt\d*/gi,"")}</div><input type="number" id="qty_${c}" value="1" step="0.001" class="calc-input" oninput="syncInputs('${c}','qty',${p.Price})" onclick="this.select()"><div style="text-align:center; color:#ccc; font-weight:bold;">=</div><input type="number" id="amt_${c}" value="${p.Price}" step="0.001" class="calc-input" oninput="syncInputs('${c}','amt',${p.Price})" onclick="this.select()"><button class="btn-add-mini" style="background:var(--accent); color:white; border:none; border-radius:10px; padding:8px 5px; font-size:10px;" onclick="addSearchItem('${c}')">ADD</button>`;
-                res.appendChild(d);
-            }
-        }
-        res.style.display = res.children.length > 1 ? "block" : "none";
-    });
-};
+function requestGroqParsing(message, products) {
+  let knownCatalog = getLearnedVocabulary();
+  if (!knownCatalog.length && products) {
+    knownCatalog = Object.keys(products).map(k => products[k].Name || k).slice(0, 50);
+  } else {
+    knownCatalog = knownCatalog.slice(0, 50);
+  }
 
-window.closeModals = () => {
-    document.querySelectorAll(".modal-overlay").forEach(m => m.style.display="none");
-    document.getElementById("custName").classList.remove('error');
-    document.getElementById("nameError").style.display = "none";
-};
+  const catalogSnippet = knownCatalog.length
+    ? `Known Products: ${knownCatalog.join(", ")}`
+    : "";
 
-window.openCreditModal = () => { if(currentBill>0) document.getElementById("creditModal").style.display="flex"; };
+  const systemPrompt = `You are a POS command parser. Convert kiryana store inputs into JSON.
+${catalogSnippet}
 
-// 🔥 FIX: CUSTOM ERROR HANDLING FOR WHATSAPP
-window.saveCreditBill = function() {
-    let n = document.getElementById("custName").value.trim();
-    if(!n) {
-        // UI Feedback instead of alert()
-        document.getElementById("custName").classList.add('error');
-        document.getElementById("nameError").style.display = "block";
-        return;
+Output ONLY valid JSON starting with "{" and ending with "}".
+
+Available Actions: "sale", "return", "list_products", "low_stock", "customer_balance", "customer_payment", "chat"
+
+CRITICAL RULES:
+1. "wapis" or "return" => action "return".
+2. Bare product name => action "sale", default qty = 1.
+3. Customer credit => Set "customer" name, "payment": "credit".
+4. WEIGHT CONVERSIONS TO DECIMALS:
+   - "ada pao" / "aadha pao" = 0.125
+   - "pao" = 0.25
+   - "ada kilo" / "adha kilo" / "adh kilo" / "half kg" / "half kilo" / "ada kg" = 0.5
+   - "pauna kilo" = 0.75
+   - "kilo" / "kg" / "1 kg" = 1
+   - "sawa kilo" = 1.25
+   - "dedh kilo" = 1.5
+   - "do kilo" = 2
+   - "dhai kilo" = 2.5
+   Example: "Ada pao daal" => {"product":"daal","qty":0.125}
+   Example: "Half kg cheeni wapis" => {"action":"return","items":[{"product":"cheeni","qty":0.5}]}
+5. Currency amounts: "50 ki daal" => {"product":"daal","amount":50}`;
+
+  const payload = {
+    model: MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Convert this store input to JSON: "${message}"` }
+    ],
+    temperature: 0,
+    max_tokens: 500
+  };
+
+  const apiKey = PropertiesService.getScriptProperties().getProperty("GROQ_API_KEY");
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY Script Properties mein set nahi hai.");
+  }
+
+  const options = {
+    method: "post",
+    muteHttpExceptions: true,
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + apiKey },
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(GROQ_URL, options);
+  const status = response.getResponseCode();
+  const text = response.getContentText();
+
+  if (status < 200 || status >= 300) {
+    throw new Error("Groq API Error " + status + ": " + text);
+  }
+
+  const data = JSON.parse(text);
+  if (!data.choices || !data.choices.length) {
+    throw new Error("Groq empty choice response");
+  }
+
+  let content = data.choices[0].message.content || "";
+  content = content.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  const firstBrace = content.indexOf("{");
+  const lastBrace = content.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    content = content.substring(firstBrace, lastBrace + 1);
+  }
+
+  return JSON.parse(content);
+}
+
+function localFallbackParser(message) {
+  const clean = message.trim();
+  let customer = "";
+  let itemStr = clean;
+  let payment = "cash";
+  let action = "sale";
+
+  if (clean.toLowerCase().includes("wapis") || clean.toLowerCase().includes("return")) {
+    action = "return";
+    itemStr = itemStr.replace(/\b(wapis|return)\b/gi, "").trim();
+  }
+
+  if (itemStr.includes("=")) {
+    const parts = itemStr.split("=");
+    customer = parts[0].trim();
+    itemStr = parts.slice(1).join("=").trim();
+    payment = "credit";
+  }
+
+  const items = [];
+  const segments = itemStr.split("+").map(s => s.trim()).filter(Boolean);
+
+  segments.forEach(seg => {
+    const numMatch = seg.match(/^(\d+)$/);
+    if (numMatch) {
+      items.push({ product: "Khula Misc", amount: Number(numMatch[1]), is_misc: true });
+      return;
     }
 
-    let btn = document.getElementById("saveCreditBtn"); btn.innerText = "Opening..."; btn.disabled = true;
-    let tid = "CRD-"+Date.now(), items = billItems.map(i=>({name:i.name.replace(/cnt\d*/gi,"").trim(), qty:i.qty, price:i.price}));
-    let q = getQueue(); q.push({ type: 'credit', customer: n, amount: currentBill, details: items, txnId: tid });
-    setQueue(q); syncData();
+    const amtMatch = seg.match(/^(\d+)\s*(ki|ka|ke|rs|rupay)\s*(.+)$/i);
+    if (amtMatch) {
+      items.push({ product: amtMatch[3].trim(), amount: Number(amtMatch[1]) });
+      return;
+    }
 
-    const now = new Date();
-    let msg = `*Sunny Kiryana Store*%0A----------------------------%0A*Customer:* ${n}%0A*Date:* ${now.toLocaleDateString()}   ${now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true})}%0A----------------------------%0A`;
-    items.forEach(it => { msg += `• ${it.name}  (x${it.qty}) = RS ${it.price}%0A`; });
-    msg += `----------------------------%0A*TOTAL: RS ${currentBill}*%0A----------------------------%0A_Thank you!_`;
+    let qtyVal = 1;
+    let prodName = seg;
 
-    window.location.href = `whatsapp://send?phone=923362267577&text=${msg}`;
-    setTimeout(() => { btn.innerText = "WhatsApp"; btn.disabled = false; resetBill(); closeModals(); }, 1200);
-};
+    const weightMatch = seg.match(/^(ada pao|aadha pao|pao|ada kilo|adha kilo|adh kilo|half kg|half kilo|ada kg|pauna kilo|kilo|kg|sawa kilo|dedh kilo|do kilo|dhai kilo)\s+(.+)$/i);
+    if(weightMatch) {
+       prodName = weightMatch[2].trim();
+       const w = weightMatch[1].toLowerCase();
+       if(w.includes('ada pao') || w.includes('aadha pao')) qtyVal = 0.125;
+       else if(w === 'pao') qtyVal = 0.25;
+       else if(w.includes('ada') || w.includes('adha') || w.includes('adh') || w.includes('half')) qtyVal = 0.5;
+       else if(w.includes('pauna')) qtyVal = 0.75;
+       else if(w === 'kilo' || w === 'kg') qtyVal = 1;
+       else if(w.includes('sawa')) qtyVal = 1.25;
+       else if(w.includes('dedh')) qtyVal = 1.5;
+       else if(w.includes('do')) qtyVal = 2;
+       else if(w.includes('dhai')) qtyVal = 2.5;
+       
+       items.push({ product: prodName, qty: qtyVal });
+       return;
+    }
 
-window.resetBill = () => { document.getElementById("billBody").innerHTML = ""; currentBill = 0; billItems = []; document.getElementById("totalDisplay").innerText = "RS 0"; document.getElementById("custName").value = ""; };
-</script>
-</body>
-</html>
+    const qtyMatch = seg.match(/^(\d+(\.\d+)?)\s+(.+)$/);
+    if (qtyMatch && isNaN(qtyMatch[3])) {
+      items.push({ product: qtyMatch[3].trim(), qty: Number(qtyMatch[1]) });
+      return;
+    }
+
+    items.push({ product: seg, qty: 1 });
+  });
+
+  return { action, customer, payment, items };
+}
+
+
+/****************************************************
+ *
+ * COMMAND ROUTER
+ *
+ ****************************************************/
+
+function executeCommand(command, products) {
+  if (!command || !command.action) {
+    return { ok: false, reply: "Command samajh nahi aayi." };
+  }
+
+  const action = String(command.action).toLowerCase();
+
+  if (action === "resolve_clarification") {
+    const context = command.pending_context;
+    if (!context || !context.items) {
+      return { ok: false, reply: "❌ Session context expire ho gaya hai." };
+    }
+
+    const idx = context.target_index !== undefined ? context.target_index : 0;
+    const selectedKey = command.selected_product_key || command.selected_product;
+
+    let matchedProduct = null;
+    if (products[selectedKey]) {
+      matchedProduct = { ...products[selectedKey], _key: selectedKey };
+    } else {
+      const match = findProduct(command.selected_product, products);
+      if (match.status === "found") matchedProduct = match.product;
+    }
+
+    if (matchedProduct) {
+      context.items[idx]._resolvedProduct = matchedProduct;
+      context.items[idx].product = matchedProduct.Name || matchedProduct._key;
+    } else {
+      context.items[idx].product = command.selected_product;
+    }
+
+    return processSale(context, products);
+  }
+
+  switch (action) {
+    case "sale":
+      return processSale(command, products);
+    case "return":
+      return processReturn(command, products);
+    case "list_products":
+      return processListProducts(products);
+    case "low_stock":
+      return processLowStock(products);
+    case "add_stock":
+      return processAddStock(command, products);
+    case "purchase":
+      return processPurchase(command, products);
+    case "stock":
+      return processStock(command, products);
+    case "report":
+      return processReport(command);
+    case "product_report":
+      return processProductReport(command, products);
+    case "product_search":
+      return processProductSearch(command, products);
+    case "update_price":
+      return processUpdatePrice(command, products);
+    case "update_cost":
+      return processUpdateCost(command, products);
+    case "customer_balance":
+      return processCustomerBalance(command);
+    case "customer_payment":
+      return processCustomerPayment(command);
+    case "clarify":
+      return { ok: false, reply: "⚠️ Samajh nahi aaya, kripya wazeh likhein." };
+    case "chat":
+      return { ok: true, reply: "Walaikum Assalam! Main Sunny AI POS brain hoon 🙂 Entry likhein." };
+    default:
+      return { ok: false, reply: "❌ Unknown action: " + command.action };
+  }
+}
+
+
+/****************************************************
+ *
+ * MISSING ITEMS RESOLUTION HANDLER
+ *
+ ****************************************************/
+
+function handleResolveMissing(body, products) {
+  const context = body.pending_context;
+  const decision = body.decision;
+
+  if (!context || !context.items) {
+    return { ok: false, reply: "❌ Session context expire ho gaya hai." };
+  }
+
+  if (decision === "cancel") {
+    return { ok: true, reply: "🚫 Sale cancel kar di gayi hai." };
+  }
+
+  const missingIndices = body.missing_indices || [];
+
+  if (decision === "skip") {
+    context.items = context.items.filter((_, idx) => !missingIndices.includes(idx));
+    if (!context.items.length) {
+      return { ok: false, reply: "❌ Sari items missing theen, sale cancel kar di gayi." };
+    }
+    return processSale(context, products);
+  }
+
+  if (decision === "manual") {
+    const manualPrices = body.manual_prices || {};
+    context.items.forEach((item, idx) => {
+      if (missingIndices.includes(idx)) {
+        const manualAmount = Number(manualPrices[idx] || 0);
+        item.is_misc = true;
+        item.amount = manualAmount;
+        item.product = item.product + " (Unlisted)";
+      }
+    });
+    return processSale(context, products);
+  }
+
+  return { ok: false, reply: "❌ Galat decision option." };
+}
+
+
+/****************************************************
+ *
+ * SALE PROCESSING
+ *
+ ****************************************************/
+
+function processSale(command, products) {
+  const items = command.items || [];
+
+  if (!items.length) {
+    return { ok: false, reply: "❌ Product aur quantity batayein." };
+  }
+
+  const customer = command.customer ? String(command.customer).trim() : "";
+  const rawPayment = String(command.payment || "").toLowerCase().trim();
+
+  let payment = "cash";
+  if (customer && rawPayment !== "cash" && rawPayment !== "naqad") payment = "credit";
+  else if (rawPayment === "credit" || rawPayment === "udhaar") payment = "credit";
+
+  const missingItems = [];
+  for (let i = 0; i < items.length; i++) {
+    const itm = items[i];
+    if (itm.is_misc || itm._resolvedProduct) continue;
+
+    const match = findProduct(itm.product, products);
+    if (match.status === "not_found") {
+      missingItems.push({
+        index: i,
+        product: itm.product,
+        qty: itm.qty || 1,
+        amount: itm.amount || null
+      });
+    }
+  }
+
+  if (missingItems.length > 0) {
+    const missingNames = missingItems.map(m => `"${m.product}"`).join(", ");
+    let reply = `⚠️ Yeh products database mein nahi mile:\n👉 ${missingNames}\n\nKya missing items ko skip karke baqi bechna hai, ya unlisted price lagani hai?`;
+
+    return {
+      ok: true,
+      type: "need_missing_resolution",
+      reply: reply,
+      missing_items: missingItems,
+      options: [
+        { label: "Skip Missing & Sell Available", action_value: "skip" },
+        { label: "Add Manual Price (Unlisted)", action_value: "manual" },
+        { label: "Cancel Entire Sale", action_value: "cancel" }
+      ],
+      pending_context: {
+        action: "sale",
+        customer: customer,
+        payment: payment,
+        items: items
+      }
+    };
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].is_misc || items[i]._resolvedProduct) continue;
+
+    const match = findProduct(items[i].product, products);
+
+    if (match.status === "multiple") {
+      const queryName = items[i].product;
+      return {
+        ok: true,
+        type: "need_clarification",
+        reply: "⚠️ \"" + queryName + "\" ke liye ek se zyada products match huay hain. Sahi product select karein:",
+        options: match.matches,
+        pending_context: {
+          action: "sale",
+          customer: customer,
+          payment: payment,
+          target_index: i,
+          items: items
+        }
+      };
+    }
+  }
+
+  const updates = {};
+  const transactionItems = [];
+  let total = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    if (item.is_misc || String(item.product).toLowerCase().includes("misc") || String(item.product).toLowerCase().includes("khula") || String(item.product).toLowerCase().includes("unlisted")) {
+      const miscAmount = Number(item.amount || item.price || item.qty || 0);
+      if (miscAmount <= 0) continue;
+
+      total += miscAmount;
+      transactionItems.push({
+        product: item.product || "Khula Misc",
+        qty: 1,
+        price: miscAmount,
+        cost: 0,
+        total: miscAmount,
+        is_misc: true
+      });
+      continue;
+    }
+
+    let p = item._resolvedProduct;
+    if (!p) {
+      const match = findProduct(item.product, products);
+      p = match.product;
+    }
+
+    const price = Number(p.Price || 0);
+    const cost = Number(p.Cost || 0);
+
+    if (price <= 0) {
+      return { ok: false, reply: "❌ " + (p.Name || p._key) + " ka sale price set nahi hai." };
+    }
+
+    let saleTotal = 0;
+    let finalQty = 0;
+
+    if (item.amount !== undefined && item.amount !== null && Number(item.amount) > 0) {
+      saleTotal = Number(item.amount);
+      finalQty = saleTotal / price;
+    } else if (item.qty !== undefined && item.qty !== null && Number(item.qty) > 0) {
+      finalQty = Number(item.qty);
+      saleTotal = finalQty * price;
+    } else {
+      finalQty = 1;
+      saleTotal = price;
+    }
+
+    const currentStock = Number(p.Stock || 0);
+    if (finalQty > (currentStock + 0.001)) {
+      return { ok: false, reply: "❌ " + (p.Name || p._key) + " ka stock sirf " + formatNumber(currentStock) + " hai." };
+    }
+
+    const newStock = Math.max(0, currentStock - finalQty);
+    const productKey = sanitizeFirebaseKey(p._key);
+    updates["Products/" + productKey + "/Stock"] = newStock;
+
+    total += saleTotal;
+
+    transactionItems.push({
+      product: p.Name || p._key,
+      qty: finalQty,
+      price: price,
+      cost: cost,
+      total: saleTotal
+    });
+  }
+
+  const now = new Date();
+  const timestamp = now.getTime();
+  const transactionId = "T" + timestamp;
+
+  const transaction = {
+    id: transactionId,
+    type: "sale",
+    items: transactionItems,
+    total: total,
+    customer: customer || "",
+    payment: payment,
+    timestamp: timestamp,
+    date: Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd")
+  };
+
+  updates["Transactions/" + transactionId] = transaction;
+
+  const statsPatch = buildStatsPatch(transaction);
+  Object.keys(statsPatch).forEach(path => {
+    updates[path] = statsPatch[path];
+  });
+
+  firebaseRequest("", "patch", updates);
+  clearCaches();
+
+  let reply = "✅ Sale recorded\n";
+  transactionItems.forEach(x => {
+    if (x.is_misc) {
+      reply += "➕ Rs " + formatNumber(x.total) + " (" + x.product + ")\n";
+    } else {
+      reply += formatNumber(x.qty) + " × " + x.product + " (Rs " + formatNumber(x.total) + ")\n";
+    }
+  });
+
+  reply += "💰 Total: Rs " + formatNumber(total);
+  reply += payment === "cash" ? "\n💵 Naqad" : "\n🧾 Udhaar";
+  if (customer) reply += "\n👤 " + customer;
+
+  return { ok: true, type: "completed", reply: reply, transaction: transaction };
+}
+
+
+/****************************************************
+ *
+ * RETURNS ENGINE
+ *
+ ****************************************************/
+
+function processReturn(command, products) {
+  const items = command.items || [];
+  if (!items.length) {
+    return { ok: false, reply: "❌ Return item aur miqdaar batayein." };
+  }
+
+  const firebasePatch = {};
+  const transactionItems = [];
+  let total = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    let cleanProductName = item.product.replace(/\b(wapis|return)\b/gi, "").trim();
+    const match = findProduct(cleanProductName, products);
+
+    if (match.status !== "found") {
+      return { ok: false, reply: "❌ Return product database mein nahi mila: " + cleanProductName };
+    }
+
+    const p = match.product;
+    const price = Number(p.Price || 0);
+    const cost = Number(p.Cost || 0);
+
+    let returnQty = 0;
+
+    if (item.amount !== undefined && item.amount !== null && Number(item.amount) > 0 && price > 0) {
+      returnQty = Number(item.amount) / price;
+    } else if (item.qty !== undefined && item.qty !== null && Number(item.qty) > 0) {
+      returnQty = Number(item.qty);
+    } else {
+      returnQty = 1;
+    }
+
+    if (!isFinite(returnQty) || returnQty <= 0) {
+      return { ok: false, reply: "❌ Return quantity galat hai: " + cleanProductName };
+    }
+
+    const oldStock = Number(p.Stock || 0);
+    const newStock = oldStock + returnQty;
+    firebasePatch["Products/" + sanitizeFirebaseKey(p._key) + "/Stock"] = newStock;
+
+    const lineTotal = returnQty * price;
+    total += lineTotal;
+
+    transactionItems.push({
+      product: p.Name || p._key,
+      qty: returnQty,
+      price: price,
+      cost: cost,
+      total: lineTotal
+    });
+  }
+
+  const id = "R" + new Date().getTime();
+  const transaction = {
+    id: id,
+    type: "return",
+    items: transactionItems,
+    total: total,
+    timestamp: new Date().getTime(),
+    date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")
+  };
+
+  firebasePatch["Transactions/" + id] = transaction;
+
+  const statsPatch = buildStatsPatch(transaction);
+  Object.keys(statsPatch).forEach(path => {
+    firebasePatch[path] = statsPatch[path];
+  });
+
+  firebaseRequest("", "patch", firebasePatch);
+  clearCaches();
+
+  return {
+    ok: true,
+    reply: "↩️ Return recorded\n" +
+      transactionItems.map(x => formatNumber(x.qty) + " × " + x.product).join("\n") +
+      "\n💰 Rs " + formatNumber(total)
+  };
+}
+
+
+/****************************************************
+ *
+ * INVENTORY & PRODUCT OPERATIONS
+ *
+ ****************************************************/
+
+function processListProducts(products) {
+  const keys = Object.keys(products || {});
+  if (!keys.length) return { ok: true, reply: "📦 Inventory mein koi product mojood nahi hai." };
+
+  const items = keys.map(k => ({
+    name: products[k].Name || k,
+    price: Number(products[k].Price || 0),
+    cost: Number(products[k].Cost || 0),
+    stock: Number(products[k].Stock || 0)
+  })).sort((a, b) => a.name.localeCompare(b.name));
+
+  let reply = "📦 All Products List (" + items.length + " Items):\n";
+  items.forEach((p, idx) => {
+    reply += "\n" + (idx + 1) + ". " + p.name;
+    reply += "\n   Price: Rs " + formatNumber(p.price) + " | Cost: Rs " + formatNumber(p.cost) + " | Stock: " + formatNumber(p.stock);
+  });
+
+  return { ok: true, reply: reply };
+}
+
+function processLowStock(products) {
+  const keys = Object.keys(products || {});
+  const lowItems = [];
+  const THRESHOLD = 5;
+
+  keys.forEach(k => {
+    const p = products[k];
+    const stock = Number(p.Stock || 0);
+    if (stock <= THRESHOLD) {
+      lowItems.push({ name: p.Name || k, stock: stock, price: Number(p.Price || 0) });
+    }
+  });
+
+  if (!lowItems.length) return { ok: true, reply: "✅ Sab products ka stock theek hai (Stock > 5)." };
+
+  lowItems.sort((a, b) => a.stock - b.stock);
+
+  let reply = "⚠️ Low Stock Products (" + lowItems.length + " Items):\n";
+  lowItems.forEach((p, idx) => {
+    reply += "\n" + (idx + 1) + ". " + p.name;
+    reply += "\n   Stock: " + formatNumber(p.stock) + " | Price: Rs " + formatNumber(p.price);
+  });
+
+  return { ok: true, reply: reply };
+}
+
+function processAddStock(command, products) {
+  const items = command.items || [];
+  if (!items.length) return { ok: false, reply: "❌ Product aur quantity batayein." };
+
+  const firebasePatch = {};
+  const messages = [];
+
+  items.forEach(item => {
+    const match = findProduct(item.product, products);
+    if (match.status !== "found") throw new Error("Product issue: " + item.product);
+
+    const p = match.product;
+    const qty = Number(item.qty || 0);
+
+    if (!isFinite(qty) || qty <= 0) throw new Error("Quantity galat: " + item.product);
+
+    const oldStock = Number(p.Stock || 0);
+    const newStock = oldStock + qty;
+
+    firebasePatch["Products/" + sanitizeFirebaseKey(p._key) + "/Stock"] = newStock;
+    messages.push("➕ " + formatNumber(qty) + " × " + (p.Name || p._key) + " → Stock " + formatNumber(newStock));
+  });
+
+  firebaseRequest("", "patch", firebasePatch);
+  clearCaches();
+
+  return { ok: true, reply: "✅ Stock updated\n" + messages.join("\n") };
+}
+
+function processPurchase(command, products) {
+  const items = command.items || [];
+  if (!items.length) return { ok: false, reply: "❌ Purchase item batayein." };
+
+  const firebasePatch = {};
+  const messages = [];
+  const transactionItems = [];
+  let total = 0;
+
+  items.forEach(item => {
+    const match = findProduct(item.product, products);
+    if (match.status !== "found") throw new Error("Product issue: " + item.product);
+
+    const p = match.product;
+    const qty = Number(item.qty || 0);
+    if (!isFinite(qty) || qty <= 0) throw new Error("Quantity galat: " + item.product);
+
+    const oldStock = Number(p.Stock || 0);
+    const newStock = oldStock + qty;
+    const cleanKey = sanitizeFirebaseKey(p._key);
+    firebasePatch["Products/" + cleanKey + "/Stock"] = newStock;
+
+    const cost = Number(item.cost !== undefined ? item.cost : p.Cost || 0);
+    if (cost > 0) firebasePatch["Products/" + cleanKey + "/Cost"] = cost;
+
+    const lineTotal = cost * qty;
+    total += lineTotal;
+
+    transactionItems.push({ product: p.Name || p._key, qty: qty, cost: cost, total: lineTotal });
+    messages.push("📦 " + formatNumber(qty) + " × " + (p.Name || p._key));
+  });
+
+  const id = "P" + new Date().getTime();
+  const transaction = {
+    id: id,
+    type: "purchase",
+    items: transactionItems,
+    total: total,
+    timestamp: new Date().getTime(),
+    date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd")
+  };
+
+  firebasePatch["Transactions/" + id] = transaction;
+  firebaseRequest("", "patch", firebasePatch);
+  clearCaches();
+
+  return { ok: true, reply: "✅ Purchase recorded\n" + messages.join("\n") + "\n💰 Total cost: Rs " + formatNumber(total) };
+}
+
+function processStock(command, products) {
+  const match = findProduct(command.product, products);
+
+  if (match.status === "not_found") return { ok: false, reply: "❌ Product nahi mila: " + command.product };
+  if (match.status === "multiple") return { ok: false, reply: "❌ Multiple products match ho rahe hain:\n" + match.matches.map(m => m.name).join(", ") };
+
+  const p = match.product;
+  return {
+    ok: true,
+    reply: "📦 " + (p.Name || p._key) +
+      "\nStock: " + formatNumber(Number(p.Stock || 0)) +
+      "\nSale Price: Rs " + formatNumber(Number(p.Price || 0)) +
+      "\nCost: Rs " + formatNumber(Number(p.Cost || 0))
+  };
+}
+
+function processUpdatePrice(command, products) {
+  const match = findProduct(command.product, products);
+  if (match.status !== "found") return { ok: false, reply: "❌ Product match nahi hua." };
+
+  const price = Number(command.price);
+  if (!isFinite(price) || price < 0) return { ok: false, reply: "❌ Price galat hai." };
+
+  const p = match.product;
+  firebaseRequest("Products/" + sanitizeFirebaseKey(p._key), "patch", { Price: price, updatedAt: new Date().getTime() });
+  clearCaches();
+
+  return { ok: true, reply: "✅ Price updated\n" + (p.Name || p._key) + "\n💰 Rs " + formatNumber(price) };
+}
+
+function processUpdateCost(command, products) {
+  const match = findProduct(command.product, products);
+  if (match.status !== "found") return { ok: false, reply: "❌ Product match nahi hua." };
+
+  const cost = Number(command.cost);
+  if (!isFinite(cost) || cost < 0) return { ok: false, reply: "❌ Cost galat hai." };
+
+  const p = match.product;
+  firebaseRequest("Products/" + sanitizeFirebaseKey(p._key), "patch", { Cost: cost, updatedAt: new Date().getTime() });
+  clearCaches();
+
+  return { ok: true, reply: "✅ Cost updated\n" + (p.Name || p._key) + "\n📦 Cost: Rs " + formatNumber(cost) };
+}
+
+function processProductSearch(command, products) {
+  const match = findProduct(command.product, products);
+
+  if (match.status === "not_found") return { ok: false, reply: "❌ Product nahi mila." };
+  if (match.status === "multiple") return { ok: false, reply: "❌ Multiple products match ho rahe hain:\n" + match.matches.map(m => m.name).join("\n") };
+
+  const p = match.product;
+  return {
+    ok: true,
+    reply: "🔎 " + (p.Name || p._key) +
+      "\nStock: " + formatNumber(Number(p.Stock || 0)) +
+      "\nPrice: Rs " + formatNumber(Number(p.Price || 0)) +
+      "\nCost: Rs " + formatNumber(Number(p.Cost || 0))
+  };
+}
+
+
+/****************************************************
+ *
+ * PRODUCT MATCHING ENGINE
+ *
+ ****************************************************/
+
+function sanitizeFirebaseKey(key) {
+  return String(key || "").replace(/[.#$\[\]\/]/g, "_").trim();
+}
+
+function canonicalProductName(text) {
+  text = String(text || "");
+  try { text = decodeURIComponent(text); } catch (e) {}
+  return text.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function phoneticUrduNormalization(text) {
+  return text
+    .replace(/soper|sooper|super/g, "super")
+    .replace(/capicuino|capiccino|cappuchino|cappucino/g, "cappuccino")
+    .replace(/morch|marach|mirchi/g, "mirch")
+    .replace(/saban|sabun/g, "soap")
+    .replace(/tel/g, "oil")
+    .replace(/baskat|biacuut|biskut/g, "biscuit")
+    .replace(/cheni/g, "cheeni")
+    .replace(/ghi/g, "ghee")
+    .replace(/dall/g, "daal");
+}
+
+function normalizeForMatching(text) {
+  let str = canonicalProductName(text);
+  str = phoneticUrduNormalization(str);
+  return str.replace(/[^a-z0-9\u0600-\u06ff]+/gi, " ").replace(/\s+/g, " ").trim();
+}
+
+function tokenizeProductName(text) {
+  const normalized = normalizeForMatching(text);
+  if (!normalized) return [];
+  return normalized.split(" ").filter(x => x.length > 0);
+}
+
+function levenshteinDistance(a, b) {
+  a = String(a || ""); b = String(b || "");
+  const m = a.length, n = b.length;
+  if (m === 0) return n; if (n === 0) return m;
+
+  const matrix = [];
+  for (let i = 0; i <= m; i++) { matrix[i] = []; matrix[i][0] = i; }
+  for (let j = 0; j <= n; j++) { matrix[0][j] = j; }
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+      matrix[i][j] = Math.min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + cost);
+    }
+  }
+  return matrix[m][n];
+}
+
+function similarityScore(a, b) {
+  a = normalizeForMatching(a); b = normalizeForMatching(b);
+  if (!a || !b) return 0; if (a === b) return 100;
+  const maxLength = Math.max(a.length, b.length);
+  if (!maxLength) return 100;
+  return Math.round((1 - levenshteinDistance(a, b) / maxLength) * 100);
+}
+
+function fuzzyProductScore(query, name) {
+  const q = normalizeForMatching(query); const n = normalizeForMatching(name);
+  if (!q || !n) return 0; if (q === n) return 100;
+  if (n.indexOf(q) !== -1) return 92; if (q.indexOf(n) !== -1) return 88;
+
+  const qTokens = tokenizeProductName(q), nTokens = tokenizeProductName(n);
+  if (qTokens.length === 1) {
+    let best = 0;
+    nTokens.forEach(t => { const score = similarityScore(qTokens[0], t); if (score > best) best = score; });
+    return best;
+  }
+
+  let totalBest = 0;
+  qTokens.forEach(qT => {
+    let best = 0;
+    nTokens.forEach(nT => { const score = similarityScore(qT, nT); if (score > best) best = score; });
+    totalBest += best;
+  });
+
+  return Math.round((totalBest / qTokens.length) * 0.75 + similarityScore(q, n) * 0.25);
+}
+
+function findProduct(searchName, products) {
+  const query = canonicalProductName(searchName);
+  const normalizedQuery = normalizeForMatching(searchName);
+  if (!query) return { status: "not_found" };
+
+  const candidates = [];
+  const keys = Object.keys(products || {});
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const p = products[key] || {};
+    const rawName = p.Name || key;
+    if (normalizedQuery === normalizeForMatching(rawName) || normalizedQuery === normalizeForMatching(key)) {
+      return { status: "found", product: { ...p, _key: key } };
+    }
+  }
+
+  keys.forEach(key => {
+    const p = products[key] || {};
+    const rawName = p.Name || key;
+    const name = canonicalProductName(rawName);
+    const normalizedKey = canonicalProductName(key);
+
+    let score = 0;
+    if (query === name) score = 100;
+    else if (query === normalizedKey) score = 98;
+    else if (name.indexOf(query) !== -1) score = 92;
+    else if (query.indexOf(name) !== -1) score = 88;
+    else score = fuzzyProductScore(query, name);
+
+    if (score >= 60) candidates.push({ product: { ...p, _key: key }, score: score, canonicalName: name });
+  });
+
+  if (!candidates.length) return { status: "not_found" };
+
+  const groups = {};
+  candidates.forEach(c => {
+    const groupKey = c.canonicalName;
+    if (!groups[groupKey]) groups[groupKey] = [];
+    groups[groupKey].push(c);
+  });
+
+  const uniqueProducts = Object.keys(groups).map(k => groups[k].sort((a, b) => b.score - a.score)[0]).sort((a, b) => b.score - a.score);
+  const best = uniqueProducts[0];
+
+  if (best.score < 60) return { status: "not_found" };
+  if (uniqueProducts.length === 1) return best.score >= 65 ? { status: "found", product: best.product } : { status: "not_found" };
+
+  const second = uniqueProducts[1];
+  if (best.score >= 95 && best.score > second.score) return { status: "found", product: best.product };
+  if (best.score >= 75 && (best.score - second.score) >= 10) return { status: "found", product: best.product };
+
+  const eligibleMatches = uniqueProducts.filter(x => x.score >= 60 && (best.score - x.score) <= 8).slice(0, 5);
+  if (eligibleMatches.length <= 1) return { status: "found", product: best.product };
+
+  return {
+    status: "multiple",
+    matches: eligibleMatches.map(x => ({ key: String(x.product._key), name: String(x.product.Name || x.product._key), price: Number(x.product.Price || 0), stock: Number(x.product.Stock || 0) }))
+  };
+}
+
+
+/****************************************************
+ *
+ * STATS GENERATOR & HELPERS
+ *
+ ****************************************************/
+
+function getStatsBucketPaths(date) {
+  const d = date || new Date();
+  const daily = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const weekly = getISOWeekKey(d);
+  const monthly = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM");
+  const yearly = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy");
+
+  return {
+    daily: "Stats/Daily/" + daily,
+    weekly: "Stats/Weekly/" + weekly,
+    monthly: "Stats/Monthly/" + monthly,
+    yearly: "Stats/Yearly/" + yearly,
+    lifetime: "Stats/Lifetime/All"
+  };
+}
+
+function getISOWeekKey(date) {
+  const d = new Date(date.getTime());
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const weekYear = d.getFullYear();
+  const week1 = new Date(weekYear, 0, 4);
+  const weekNumber = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  return weekYear + "-W" + ("0" + weekNumber).slice(-2);
+}
+
+function emptyStats() {
+  return { TotalSales: 0, TotalCost: 0, TotalProfit: 0, TotalCredit: 0, TotalCash: 0, SaleCount: 0, Products: {} };
+}
+
+function buildStatsPatch(transaction) {
+  const timestamp = Number(transaction.timestamp || 0);
+  if (!timestamp) return {};
+
+  const date = new Date(timestamp);
+  const paths = getStatsBucketPaths(date);
+  const currentStats = firebaseRequest("Stats", "get") || {};
+  const patch = {};
+
+  Object.keys(paths).forEach(period => {
+    const path = paths[period];
+    let existing = getObjectAtPath(currentStats, path.replace(/^Stats\//, ""));
+    if (!existing || typeof existing !== "object") existing = emptyStats();
+    existing = JSON.parse(JSON.stringify(existing));
+    applyTransactionToStats(existing, transaction);
+    patch[path] = existing;
+  });
+
+  return patch;
+}
+
+function applyTransactionToStats(stats, transaction) {
+  if (!stats.Products) stats.Products = {};
+
+  if (transaction.type === "sale") {
+    const saleTotal = Number(transaction.total || 0);
+    let totalCost = 0;
+
+    (transaction.items || []).forEach(item => {
+      const qty = Number(item.qty || 0);
+      const price = Number(item.price || 0);
+      const cost = Number(item.cost || 0);
+      const revenue = Number(item.total !== undefined ? item.total : qty * price);
+      const itemCost = qty * cost;
+      const itemProfit = revenue - itemCost;
+
+      totalCost += itemCost;
+
+      const productKey = sanitizeFirebaseKey(canonicalProductName(item.product));
+      const displayName = String(item.product || "").trim();
+
+      if (!stats.Products[productKey]) {
+        stats.Products[productKey] = { Name: displayName, Qty: 0, TimesSold: 0, Revenue: 0, Cost: 0, Profit: 0 };
+      }
+
+      const ps = stats.Products[productKey];
+      ps.Qty = Number(ps.Qty || 0) + qty;
+      ps.TimesSold = Number(ps.TimesSold || 0) + 1;
+      ps.Revenue = Number(ps.Revenue || 0) + revenue;
+      ps.Cost = Number(ps.Cost || 0) + itemCost;
+      ps.Profit = Number(ps.Profit || 0) + itemProfit;
+    });
+
+    stats.TotalSales = Number(stats.TotalSales || 0) + saleTotal;
+    stats.TotalCost = Number(stats.TotalCost || 0) + totalCost;
+    stats.TotalProfit = Number(stats.TotalProfit || 0) + (saleTotal - totalCost);
+    stats.SaleCount = Number(stats.SaleCount || 0) + 1;
+
+    if (String(transaction.payment || "").toLowerCase() === "credit") stats.TotalCredit = Number(stats.TotalCredit || 0) + saleTotal;
+    else stats.TotalCash = Number(stats.TotalCash || 0) + saleTotal;
+
+  } else if (transaction.type === "return") {
+    const returnTotal = Number(transaction.total || 0);
+    let returnCost = 0;
+
+    (transaction.items || []).forEach(item => {
+      const qty = Number(item.qty || 0);
+      const price = Number(item.price || 0);
+      const cost = Number(item.cost || 0);
+      const revenue = Number(item.total !== undefined ? item.total : qty * price);
+      const itemCost = qty * cost;
+      const itemProfit = revenue - itemCost;
+
+      returnCost += itemCost;
+
+      const productKey = sanitizeFirebaseKey(canonicalProductName(item.product));
+      const displayName = String(item.product || "").trim();
+
+      if (!stats.Products[productKey]) {
+        stats.Products[productKey] = { Name: displayName, Qty: 0, TimesSold: 0, Revenue: 0, Cost: 0, Profit: 0 };
+      }
+
+      const ps = stats.Products[productKey];
+      ps.Qty = Math.max(0, Number(ps.Qty || 0) - qty);
+      ps.Revenue = Number(ps.Revenue || 0) - revenue;
+      ps.Cost = Number(ps.Cost || 0) - itemCost;
+      ps.Profit = Number(ps.Profit || 0) - itemProfit;
+    });
+
+    stats.TotalSales = Number(stats.TotalSales || 0) - returnTotal;
+    stats.TotalCost = Number(stats.TotalCost || 0) - returnCost;
+    stats.TotalProfit = Number(stats.TotalProfit || 0) - (returnTotal - returnCost);
+  }
+}
+
+function getObjectAtPath(root, path) {
+  const parts = String(path || "").split("/").filter(x => x !== "");
+  let current = root;
+  for (let i = 0; i < parts.length; i++) {
+    if (!current || typeof current !== "object") return null;
+    current = current[parts[i]];
+  }
+  return current || null;
+}
+
+
+/****************************************************
+ *
+ * REPORTING ENGINE (WITH YESTERDAY SUPPORT)
+ *
+ ****************************************************/
+
+function processReport(command) {
+  const period = normalizeReportPeriod(command.period);
+
+  if (period === "daily" || period === "weekly" || period === "monthly" || period === "yearly" || period === "lifetime") {
+    const statsReport = getStatsReport(period);
+    if (statsReport) return formatStatsReport(statsReport, period);
+  }
+
+  const range = getDateRange(period);
+  return buildReportFromTransactions(range, period);
+}
+
+function normalizeReportPeriod(period) {
+  period = String(period || "daily").toLowerCase();
+  if (period === "today" || period === "daily" || period === "day") return "daily";
+  if (period === "yesterday" || period === "kal") return "yesterday";
+  if (period === "week" || period === "weekly") return "weekly";
+  if (period === "month" || period === "monthly") return "monthly";
+  if (period === "year" || period === "yearly") return "yearly";
+  if (period === "all" || period === "lifetime") return "lifetime";
+  if (period === "previous_week" || period === "last_week") return "previous_week";
+  if (period === "previous_month" || period === "last_month") return "previous_month";
+  if (period === "previous_year" || period === "last_year") return "previous_year";
+  return "daily";
+}
+
+function getStatsReport(period) {
+  const now = new Date();
+  const paths = getStatsBucketPaths(now);
+  const path = paths[period];
+  if (!path) return null;
+  const stats = firebaseRequest(path, "get");
+  return (stats && typeof stats === "object") ? stats : null;
+}
+
+function formatStatsReport(stats, period) {
+  const title = getReportTitle(period);
+
+  let reply = "📊 " + title + "\n\n";
+  reply += "💰 Total Sales: Rs " + formatNumber(stats.TotalSales || 0) + "\n";
+  reply += "📦 Total Cost: Rs " + formatNumber(stats.TotalCost || 0) + "\n";
+  reply += "📈 Total Profit: Rs " + formatNumber(stats.TotalProfit || 0) + "\n";
+  reply += "💵 Total Cash: Rs " + formatNumber(stats.TotalCash || 0) + "\n";
+  reply += "🧾 Total Credit: Rs " + formatNumber(stats.TotalCredit || 0) + "\n";
+  reply += "🛒 Sales Count: " + formatNumber(stats.SaleCount || 0);
+
+  const productRows = Object.keys(stats.Products || {})
+    .map(key => stats.Products[key])
+    .filter(p => Number(p.Revenue || 0) !== 0 || Number(p.Qty || 0) !== 0)
+    .sort((a, b) => Number(b.Revenue || 0) - Number(a.Revenue || 0));
+
+  if (productRows.length) {
+    reply += "\n\n🛍️ Product Sales:";
+    productRows.forEach((p, index) => {
+      reply += "\n\n" + (index + 1) + ". " + p.Name;
+      reply += "\n   Sold: " + formatNumber(p.Qty || 0) + " | Times: " + formatNumber(p.TimesSold || 0);
+      reply += "\n   Rev: Rs " + formatNumber(p.Revenue || 0) + " | Profit: Rs " + formatNumber(p.Profit || 0);
+    });
+  }
+
+  return { ok: true, reply: reply };
+}
+
+function buildReportFromTransactions(range, period) {
+  const transactions = getTransactionsCached();
+  const stats = emptyStats();
+
+  Object.keys(transactions || {}).forEach(key => {
+    const t = transactions[key] || {};
+    const timestamp = Number(t.timestamp || 0);
+    if (timestamp < range.start || timestamp > range.end) return;
+    applyTransactionToStats(stats, t);
+  });
+
+  return formatStatsReport(stats, period);
+}
+
+function processProductReport(command, products) {
+  const match = findProduct(command.product, products);
+
+  if (match.status === "not_found") return { ok: false, reply: "❌ Product nahi mila: " + command.product };
+  if (match.status === "multiple") return { ok: false, reply: "❌ Multiple products match ho rahe hain:\n" + match.matches.map(m => m.name).join(", ") };
+
+  const product = match.product;
+  const targetName = canonicalProductName(product.Name || product._key);
+  const period = normalizeReportPeriod(command.period || "monthly");
+
+  if (period === "daily" || period === "weekly" || period === "monthly" || period === "yearly" || period === "lifetime") {
+    const stats = getStatsReport(period);
+    if (stats) {
+      const p = findStatsProduct(stats.Products, targetName);
+      if (p) return formatProductStatsReport(product, p, period);
+    }
+  }
+
+  const range = getDateRange(period);
+  const transactions = getTransactionsCached();
+  let qty = 0, revenue = 0, cost = 0, profit = 0, timesSold = 0;
+
+  Object.keys(transactions || {}).forEach(key => {
+    const t = transactions[key] || {};
+    if (t.type !== "sale") return;
+
+    const timestamp = Number(t.timestamp || 0);
+    if (timestamp < range.start || timestamp > range.end) return;
+
+    (t.items || []).forEach(item => {
+      if (canonicalProductName(item.product) !== targetName) return;
+      const itemQty = Number(item.qty || 0);
+      const itemPrice = Number(item.price || 0);
+      const itemCost = Number(item.cost !== undefined ? item.cost : product.Cost || 0);
+      const itemRevenue = Number(item.total !== undefined ? item.total : itemQty * itemPrice);
+
+      qty += itemQty; revenue += itemRevenue; cost += itemQty * itemCost; profit += itemRevenue - itemQty * itemCost; timesSold++;
+    });
+  });
+
+  return {
+    ok: true,
+    reply: "📊 " + (product.Name || product._key) +
+      "\n\nPeriod: " + getReportTitle(period) +
+      "\n\nSold: " + formatNumber(qty) + "\n🔢 Times Sold: " + formatNumber(timesSold) +
+      "\n💰 Revenue: Rs " + formatNumber(revenue) + "\n📦 Cost: Rs " + formatNumber(cost) + "\n📈 Profit: Rs " + formatNumber(profit)
+  };
+}
+
+function findStatsProduct(products, targetName) {
+  const keys = Object.keys(products || {});
+  for (let i = 0; i < keys.length; i++) {
+    const p = products[keys[i]];
+    if (canonicalProductName(keys[i]) === targetName || canonicalProductName(p.Name) === targetName) return p;
+  }
+  return null;
+}
+
+function formatProductStatsReport(product, p, period) {
+  return {
+    ok: true,
+    reply: "📊 " + (product.Name || product._key) +
+      "\n\nPeriod: " + getReportTitle(period) +
+      "\n\nSold: " + formatNumber(p.Qty || 0) + "\n🔢 Times Sold: " + formatNumber(p.TimesSold || 0) +
+      "\n💰 Revenue: Rs " + formatNumber(p.Revenue || 0) + "\n📦 Cost: Rs " + formatNumber(p.Cost || 0) + "\n📈 Profit: Rs " + formatNumber(p.Profit || 0)
+  };
+}
+
+
+/****************************************************
+ *
+ * CACHE & FIREBASE REST UTILITIES
+ *
+ ****************************************************/
+
+function getProductsCached() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(PRODUCT_CACHE_KEY);
+  if (cached) { try { return JSON.parse(cached); } catch (e) {} }
+  const products = firebaseRequest("Products", "get") || {};
+  try { cache.put(PRODUCT_CACHE_KEY, JSON.stringify(products), PRODUCT_CACHE_SECONDS); } catch (e) {}
+  return products;
+}
+
+function getTransactionsCached() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(TRANSACTION_CACHE_KEY);
+  if (cached) { try { return JSON.parse(cached); } catch (e) {} }
+  const transactions = firebaseRequest("Transactions", "get") || {};
+  try { cache.put(TRANSACTION_CACHE_KEY, JSON.stringify(transactions), TRANSACTION_CACHE_SECONDS); } catch (e) {}
+  return transactions;
+}
+
+function clearCaches() {
+  const cache = CacheService.getScriptCache();
+  cache.remove(PRODUCT_CACHE_KEY);
+  cache.remove(TRANSACTION_CACHE_KEY);
+}
+
+function getDateRange(period) {
+  const now = new Date();
+  period = normalizeReportPeriod(period);
+
+  let start, end;
+  if (period === "daily") {
+    start = new Date(now); start.setHours(0, 0, 0, 0);
+    end = new Date(now); end.setHours(23, 59, 59, 999);
+  } else if (period === "yesterday") {
+    start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
+    end = new Date(start); end.setHours(23, 59, 59, 999);
+  } else if (period === "weekly") {
+    start = new Date(now);
+    const day = start.getDay(); const diff = day === 0 ? 6 : day - 1;
+    start.setDate(start.getDate() - diff); start.setHours(0, 0, 0, 0);
+    end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
+  } else if (period === "previous_week") {
+    const currentMonday = new Date(now);
+    const day = currentMonday.getDay(); const diff = day === 0 ? 6 : day - 1;
+    currentMonday.setDate(currentMonday.getDate() - diff); currentMonday.setHours(0, 0, 0, 0);
+    start = new Date(currentMonday); start.setDate(start.getDate() - 7);
+    end = new Date(currentMonday); end.setMilliseconds(-1);
+  } else if (period === "monthly") {
+    start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else if (period === "previous_month") {
+    start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+    end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  } else if (period === "yearly") {
+    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  } else if (period === "previous_year") {
+    start = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+    end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+  } else if (period === "lifetime") {
+    start = new Date(0); end = new Date(2100, 0, 1);
+  } else {
+    start = new Date(now); start.setHours(0, 0, 0, 0);
+    end = new Date(now); end.setHours(23, 59, 59, 999);
+  }
+
+  return { start: start.getTime(), end: end.getTime() };
+}
+
+function getReportTitle(period) {
+  switch (normalizeReportPeriod(period)) {
+    case "daily": return "Today's Report";
+    case "yesterday": return "Yesterday's Report";
+    case "weekly": return "This Week's Report";
+    case "previous_week": return "Previous Week Report";
+    case "monthly": return "This Month's Report";
+    case "previous_month": return "Previous Month Report";
+    case "yearly": return "This Year's Report";
+    case "previous_year": return "Previous Year Report";
+    case "lifetime": return "Lifetime Report";
+    default: return "Report";
+  }
+}
+
+function firebaseRequest(path, method, data) {
+  const cleanBase = String(FIREBASE_URL || "").replace(/\/+$/, "");
+  let cleanPath = String(path || "").trim().replace(/^\/+|\/+$/g, "");
+
+  if (cleanPath.length > 0) {
+    cleanPath = cleanPath.split("/").map(part => {
+      try { part = decodeURIComponent(part); } catch (e) {}
+      return encodeURIComponent(part);
+    }).join("/");
+  }
+
+  const url = cleanPath.length > 0 ? cleanBase + "/" + cleanPath + ".json" : cleanBase + "/.json";
+  const options = { method: method || "get", muteHttpExceptions: true, contentType: "application/json" };
+  if (data !== undefined) options.payload = JSON.stringify(data);
+
+  const response = UrlFetchApp.fetch(url, options);
+  const status = response.getResponseCode();
+  const text = response.getContentText();
+
+  if (status < 200 || status >= 300) throw new Error("Firebase Error " + status + ": " + text);
+  return text ? JSON.parse(text) : null;
+}
+
+function formatNumber(value) {
+  const n = Number(value);
+  if (!isFinite(n)) return "0";
+  if (Math.abs(n - Math.round(n)) < 0.000001) return String(Math.round(n));
+  return n.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
