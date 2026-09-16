@@ -133,7 +133,7 @@
     // TURBO QUEUE ENGINE
     // ---------------------------------------------------------
     
-    // NAYA CODE: App khulte hi pehle Android se check karo
+    // App khulte hi pehle Android se check karo
     if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
         try {
             let androidData = window.AndroidBridge.getOfflineDataFromAndroid();
@@ -206,6 +206,71 @@
       connDot.style.boxShadow = "0 0 6px var(--warning-color)";
     });
 
+    // -------- NAYA CODE: Visibility Change Listener --------
+    // Jab user app minimize karke dobara wapis aaye
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && window.AndroidBridge) {
+        try {
+          let androidStr = window.AndroidBridge.getOfflineDataFromAndroid();
+          if (androidStr && androidStr !== "") {
+              let androidQueue = JSON.parse(androidStr);
+              let androidIds = androidQueue.map(item => item.id);
+              let queueChanged = false;
+              
+              for (let i = commandQueue.length - 1; i >= 0; i--) {
+                  let currentItem = commandQueue[i];
+                  
+                  // Case 1: Sale background mein mukammal ho gayi
+                  if (!androidIds.includes(currentItem.id)) {
+                      let bubble = document.getElementById(currentItem.id);
+                      // Usay done (blue tick) mark kar do
+                      if (bubble) updateBubbleStatus(bubble, 'delivered'); 
+                      
+                      commandQueue.splice(i, 1);
+                      queueChanged = true;
+                  } 
+                  // Case 2: Sale background mein interactive (Manual Price) ho gayi
+                  else {
+                      let androidItem = androidQueue.find(a => a.id === currentItem.id);
+                      if (androidItem && androidItem.status === 'interactive' && currentItem.status !== 'interactive') {
+                          currentItem.status = 'interactive';
+                          currentItem.interactiveData = androidItem.interactiveData;
+                          queueChanged = true;
+                          
+                          let bubble = document.getElementById(currentItem.id);
+                          if (bubble) updateBubbleStatus(bubble, 'delivered');
+                          
+                          isAwaitingInput = true;
+                          toggleInput(true);
+                          
+                          let origText = currentItem.originalMessage || currentItem.displayLabel;
+                          if (currentItem.interactiveData.type === "need_missing_resolution") {
+                              renderMissingResolution(currentItem.interactiveData, currentItem.id, origText);
+                          } else {
+                              renderClarification(currentItem.interactiveData.reply, currentItem.interactiveData.options, currentItem.interactiveData.pending_context, currentItem.id, origText);
+                          }
+                      }
+                  }
+              }
+              
+              // Agar UI mein koi tabdeeli aayi hai toh state save aur fake shimmers hata do
+              if (queueChanged) {
+                  saveQueue();
+                  isProcessingQueue = false;
+                  setNetworkProgress(false);
+                  
+                  // Loading wali animations delete kar do
+                  document.querySelectorAll('.shimmer-container').forEach(el => {
+                      let row = el.closest('.message-row.model');
+                      if (row) row.remove();
+                  });
+              }
+          }
+        } catch(e) { console.warn("Visibility check failed", e); }
+      }
+    });
+    // -------- NAYA CODE YAHAN KHATAM --------
+
     setInterval(() => {
       if (commandQueue.length > 0 && navigator.onLine && !isProcessingQueue) {
         processQueue();
@@ -219,7 +284,7 @@
       commandQueue.push(qItem);
       saveQueue();
 
-      // NAYA CODE: Android background ko bhi data bhejein
+      // Android background ko bhi data bhejein
       if (window.AndroidBridge) {
           window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
       }
@@ -296,7 +361,7 @@
           commandQueue.shift();
           saveQueue();
           
-          // NAYA CODE: Android ko batao ke queue update ho gayi hai (ya khali ho gayi hai)
+          // Android ko batao ke queue update ho gayi hai (ya khali ho gayi hai)
           if (window.AndroidBridge) {
               window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
           }
@@ -388,7 +453,6 @@
         delete qItem.interactiveData;
         saveQueue();
         
-        // NAYA CODE
         if (window.AndroidBridge) {
             window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
         }
@@ -424,7 +488,6 @@
         delete qItem.interactiveData;
         saveQueue();
         
-        // NAYA CODE
         if (window.AndroidBridge) {
             window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
         }
