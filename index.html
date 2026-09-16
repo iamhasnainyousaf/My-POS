@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>Sunny AI POS - Ultra Fast</title>
   
-  <link rel="preconnect" href="[https://script.google.com](https://script.google.com)" crossorigin>
-  <link rel="dns-prefetch" href="[https://script.google.com](https://script.google.com)">
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
 
   <style>
     :root {
@@ -205,6 +205,11 @@
       commandQueue.push(qItem);
       saveQueue();
 
+      // NAYA CODE: Android background ko bhi data bhejein
+      if (window.AndroidBridge) {
+          window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
+      }
+
       const bubble = appendUserMessage(displayLabel, id);
       updateBubbleStatus(bubble, 'queued');
 
@@ -271,6 +276,11 @@
         } else {
           commandQueue.shift();
           saveQueue();
+          
+          // NAYA CODE: Android ko batao ke queue update ho gayi hai (ya khali ho gayi hai)
+          if (window.AndroidBridge) {
+              window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
+          }
 
           isAwaitingInput = false;
           toggleInput(false);
@@ -354,6 +364,11 @@
         qItem.status = 'queued';
         delete qItem.interactiveData;
         saveQueue();
+        
+        // NAYA CODE
+        if (window.AndroidBridge) {
+            window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
+        }
 
         const resBubble = appendUserMessage(qItem.displayLabel, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
@@ -385,6 +400,11 @@
         qItem.status = 'queued';
         delete qItem.interactiveData;
         saveQueue();
+        
+        // NAYA CODE
+        if (window.AndroidBridge) {
+            window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
+        }
 
         const resBubble = appendUserMessage(label, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
