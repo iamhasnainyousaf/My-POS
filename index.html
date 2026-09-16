@@ -9,6 +9,7 @@
   <link rel="dns-prefetch" href="https://script.google.com">
 
   <style>
+    /* Aapka pehle wala CSS yahan aayega, main usay waisa hi rakha hai */
     :root {
       --bg-main: #131314; --surface: #1e1f20; --surface-variant: #282a2c;
       --text-primary: #e3e3e3; --text-secondary: #c4c7c5; --text-muted: #8e918f;
@@ -118,7 +119,7 @@
     // ---------------------------------------------------------
     // CONFIGURATION
     // ---------------------------------------------------------
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec"; // Ensure your deployment URL is placed here!
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec"; 
     const TIMEOUT_LIMIT_MS = 25000;
     const QUEUE_KEY = "sunny_pos_queue";
 
@@ -129,32 +130,66 @@
     const connDot = document.getElementById("connDot");
     const networkBar = document.getElementById("networkBar");
 
-    // ---------------------------------------------------------
-    // TURBO QUEUE ENGINE
-    // ---------------------------------------------------------
-    
-    // App khulte hi pehle Android se check karo
-    if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
-        try {
-            let androidData = window.AndroidBridge.getOfflineDataFromAndroid();
-            if (androidData && androidData !== "") {
-                // Jo bhi Android ke paas bacha hua data hai (interactive ya pending), wahi final hai
-                localStorage.setItem(QUEUE_KEY, androidData); 
-            }
-        } catch (e) {
-            console.warn("Android Sync check failed:", e);
-        }
-    }
-
-    let commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
+    let commandQueue = [];
     let isProcessingQueue = false;
     let isAwaitingInput = false;
 
-    function saveQueue() {
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(commandQueue));
+    // ---------------------------------------------------------
+    // INITIALIZATION & SYNC LOGIC
+    // ---------------------------------------------------------
+
+    // Sab se pehle memory sync karne ka function
+    function initializeQueue() {
+        // App khulte hi pehle Android se check karo ke background mein kya hua hai
+        if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
+            try {
+                let androidData = window.AndroidBridge.getOfflineDataFromAndroid();
+                if (androidData && androidData !== "") {
+                    // Jo Android kahe, usi ko sach maan kar localStorage update karo
+                    localStorage.setItem(QUEUE_KEY, androidData); 
+                }
+            } catch (e) {
+                console.warn("Android Sync check failed:", e);
+            }
+        }
+        
+        // Ab localStorage se latest updated list uthao
+        commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
+        
+        // Sirf unn entries ko screen par render karo jo queue mein reh gayi hain
+        commandQueue.forEach(item => {
+            const row = appendUserMessage(item.displayLabel, item.id);
+            const origText = item.originalMessage || item.displayLabel;
+
+            if (item.status === 'interactive' && item.interactiveData) {
+              updateBubbleStatus(row, 'delivered');
+              isAwaitingInput = true;
+              toggleInput(true);
+              
+              if (item.interactiveData.type === "need_missing_resolution") {
+                renderMissingResolution(item.interactiveData, item.id, origText);
+              } else if (item.interactiveData.type === "need_clarification") {
+                renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
+              }
+            } else {
+              // Agar pending hai toh dikhao taake user ko pata ho ke ye wali process nahi hui
+              updateBubbleStatus(row, item.status === 'failed' ? 'failed' : 'queued');
+            }
+        });
+        
+        if (commandQueue.length > 0 && navigator.onLine) {
+            processQueue();
+        }
     }
 
-    // Auto-sync catalog in the background without showing a chat bubble
+    function saveQueue() {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(commandQueue));
+      // Saath hi Android ko bhi latest state bhej do
+      if (window.AndroidBridge) {
+          window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
+      }
+    }
+
     async function preWarmConnection() {
       try {
         const id = 'txn_sync_' + Date.now();
@@ -169,27 +204,8 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      commandQueue.forEach(item => {
-        const row = appendUserMessage(item.displayLabel, item.id);
-        const origText = item.originalMessage || item.displayLabel;
-
-        if (item.status === 'interactive' && item.interactiveData) {
-          updateBubbleStatus(row, 'delivered');
-          isAwaitingInput = true;
-          toggleInput(true);
-          
-          if (item.interactiveData.type === "need_missing_resolution") {
-            renderMissingResolution(item.interactiveData, item.id, origText);
-          } else if (item.interactiveData.type === "need_clarification") {
-            renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
-          }
-        } else {
-          updateBubbleStatus(row, item.status === 'failed' ? 'failed' : 'queued');
-        }
-      });
-      if (commandQueue.length > 0 && navigator.onLine) processQueue();
-      
-      // Auto-sync catalog on load
+      // DOM Load hone par apni memory sync karega
+      initializeQueue();
       preWarmConnection();
     });
 
@@ -206,71 +222,6 @@
       connDot.style.boxShadow = "0 0 6px var(--warning-color)";
     });
 
-    // -------- NAYA CODE: Visibility Change Listener --------
-    // Jab user app minimize karke dobara wapis aaye
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && window.AndroidBridge) {
-        try {
-          let androidStr = window.AndroidBridge.getOfflineDataFromAndroid();
-          if (androidStr && androidStr !== "") {
-              let androidQueue = JSON.parse(androidStr);
-              let androidIds = androidQueue.map(item => item.id);
-              let queueChanged = false;
-              
-              for (let i = commandQueue.length - 1; i >= 0; i--) {
-                  let currentItem = commandQueue[i];
-                  
-                  // Case 1: Sale background mein mukammal ho gayi
-                  if (!androidIds.includes(currentItem.id)) {
-                      let bubble = document.getElementById(currentItem.id);
-                      // Usay done (blue tick) mark kar do
-                      if (bubble) updateBubbleStatus(bubble, 'delivered'); 
-                      
-                      commandQueue.splice(i, 1);
-                      queueChanged = true;
-                  } 
-                  // Case 2: Sale background mein interactive (Manual Price) ho gayi
-                  else {
-                      let androidItem = androidQueue.find(a => a.id === currentItem.id);
-                      if (androidItem && androidItem.status === 'interactive' && currentItem.status !== 'interactive') {
-                          currentItem.status = 'interactive';
-                          currentItem.interactiveData = androidItem.interactiveData;
-                          queueChanged = true;
-                          
-                          let bubble = document.getElementById(currentItem.id);
-                          if (bubble) updateBubbleStatus(bubble, 'delivered');
-                          
-                          isAwaitingInput = true;
-                          toggleInput(true);
-                          
-                          let origText = currentItem.originalMessage || currentItem.displayLabel;
-                          if (currentItem.interactiveData.type === "need_missing_resolution") {
-                              renderMissingResolution(currentItem.interactiveData, currentItem.id, origText);
-                          } else {
-                              renderClarification(currentItem.interactiveData.reply, currentItem.interactiveData.options, currentItem.interactiveData.pending_context, currentItem.id, origText);
-                          }
-                      }
-                  }
-              }
-              
-              // Agar UI mein koi tabdeeli aayi hai toh state save aur fake shimmers hata do
-              if (queueChanged) {
-                  saveQueue();
-                  isProcessingQueue = false;
-                  setNetworkProgress(false);
-                  
-                  // Loading wali animations delete kar do
-                  document.querySelectorAll('.shimmer-container').forEach(el => {
-                      let row = el.closest('.message-row.model');
-                      if (row) row.remove();
-                  });
-              }
-          }
-        } catch(e) { console.warn("Visibility check failed", e); }
-      }
-    });
-    // -------- NAYA CODE YAHAN KHATAM --------
-
     setInterval(() => {
       if (commandQueue.length > 0 && navigator.onLine && !isProcessingQueue) {
         processQueue();
@@ -283,11 +234,6 @@
 
       commandQueue.push(qItem);
       saveQueue();
-
-      // Android background ko bhi data bhejein
-      if (window.AndroidBridge) {
-          window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
-      }
 
       const bubble = appendUserMessage(displayLabel, id);
       updateBubbleStatus(bubble, 'queued');
@@ -342,11 +288,6 @@
           currentItem.status = 'interactive';
           currentItem.interactiveData = data;
           saveQueue();
-          
-          // Agar server ne naye options diye hain, toh usay Android ko bhi bata do
-          if (window.AndroidBridge) {
-              window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
-          }
 
           isAwaitingInput = true;
           toggleInput(true);
@@ -361,11 +302,6 @@
           commandQueue.shift();
           saveQueue();
           
-          // Android ko batao ke queue update ho gayi hai (ya khali ho gayi hai)
-          if (window.AndroidBridge) {
-              window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
-          }
-
           isAwaitingInput = false;
           toggleInput(false);
           if (bubble) updateBubbleStatus(bubble, 'delivered');
@@ -380,10 +316,6 @@
         currentItem.status = 'failed';
         saveQueue();
         
-        if (window.AndroidBridge) {
-             window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
-        }
-        
         if (bubble) updateBubbleStatus(bubble, 'failed');
       } finally {
         isProcessingQueue = false;
@@ -396,7 +328,7 @@
     }
 
     // ---------------------------------------------------------
-    // INPUT FORM
+    // INPUT FORM & UI LOGIC
     // ---------------------------------------------------------
 
     userInput.addEventListener("input", () => {
@@ -452,10 +384,6 @@
         qItem.status = 'queued';
         delete qItem.interactiveData;
         saveQueue();
-        
-        if (window.AndroidBridge) {
-            window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
-        }
 
         const resBubble = appendUserMessage(qItem.displayLabel, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
@@ -487,10 +415,6 @@
         qItem.status = 'queued';
         delete qItem.interactiveData;
         saveQueue();
-        
-        if (window.AndroidBridge) {
-            window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
-        }
 
         const resBubble = appendUserMessage(label, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
