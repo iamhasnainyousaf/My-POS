@@ -9,7 +9,6 @@
   <link rel="dns-prefetch" href="https://script.google.com">
 
   <style>
-    /* Aapka pehle wala CSS yahan aayega, main usay waisa hi rakha hai */
     :root {
       --bg-main: #131314; --surface: #1e1f20; --surface-variant: #282a2c;
       --text-primary: #e3e3e3; --text-secondary: #c4c7c5; --text-muted: #8e918f;
@@ -135,17 +134,14 @@
     let isAwaitingInput = false;
 
     // ---------------------------------------------------------
-    // INITIALIZATION & SYNC LOGIC
+    // INSTANT UI SYNC LOGIC (Zero Lag Mechanism)
     // ---------------------------------------------------------
 
-    // Sab se pehle memory sync karne ka function
-    function initializeQueue() {
-        // App khulte hi pehle Android se check karo ke background mein kya hua hai
+    function syncWithAndroid() {
         if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
             try {
                 let androidData = window.AndroidBridge.getOfflineDataFromAndroid();
                 if (androidData && androidData !== "") {
-                    // Jo Android kahe, usi ko sach maan kar localStorage update karo
                     localStorage.setItem(QUEUE_KEY, androidData); 
                 }
             } catch (e) {
@@ -153,59 +149,88 @@
             }
         }
         
-        // Ab localStorage se latest updated list uthao
         commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
-        
-        // Sirf unn entries ko screen par render karo jo queue mein reh gayi hain
-        commandQueue.forEach(item => {
-            const row = appendUserMessage(item.displayLabel, item.id);
-            const origText = item.originalMessage || item.displayLabel;
-
-            if (item.status === 'interactive' && item.interactiveData) {
-              updateBubbleStatus(row, 'delivered');
-              isAwaitingInput = true;
-              toggleInput(true);
-              
-              if (item.interactiveData.type === "need_missing_resolution") {
-                renderMissingResolution(item.interactiveData, item.id, origText);
-              } else if (item.interactiveData.type === "need_clarification") {
-                renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
-              }
-            } else {
-              // Agar pending hai toh dikhao taake user ko pata ho ke ye wali process nahi hui
-              updateBubbleStatus(row, item.status === 'failed' ? 'failed' : 'queued');
-            }
-        });
+        syncUIWithQueue(); // Instant Screen Update
         
         if (commandQueue.length > 0 && navigator.onLine) {
             processQueue();
         }
     }
 
+    // Yeh function app khulte hi foran purani cheezein gayab kar deta hai
+    function syncUIWithQueue() {
+        // 1. Agar koi 'Syncing' wala animation (Shimmer) chal raha hai, usay foran delete karo
+        document.querySelectorAll('.shimmer-container').forEach(el => {
+            const row = el.closest('.message-row');
+            if(row) row.remove();
+        });
+        setNetworkProgress(false);
+
+        // 2. Jo sales Android ne pichay se mukammal kar di hain, unko screen se mita do
+        const allTxnBubbles = document.querySelectorAll('.message-row.user[id^="txn_"]');
+        allTxnBubbles.forEach(bubble => {
+            const exists = commandQueue.find(q => q.id === bubble.id);
+            if (!exists) {
+                let next = bubble.nextElementSibling;
+                while (next && next.classList.contains('model')) {
+                    const toRemove = next;
+                    next = next.nextElementSibling;
+                    toRemove.remove();
+                }
+                bubble.remove(); // Sale bubble delete!
+            }
+        });
+
+        // 3. Sirf wo sales dikhao jo baqi hain ya jinki confirmation chahiye
+        commandQueue.forEach(item => {
+            let bubble = document.getElementById(item.id);
+            if (!bubble) {
+                bubble = appendUserMessage(item.displayLabel, item.id);
+            }
+
+            if (item.status === 'interactive' && item.interactiveData) {
+                updateBubbleStatus(bubble, 'delivered');
+                
+                let next = bubble.nextElementSibling;
+                let hasCard = false;
+                while (next && next.classList.contains('model')) {
+                    if (next.querySelector('.interactive-card')) hasCard = true;
+                    next = next.nextElementSibling;
+                }
+
+                if (!hasCard) {
+                    const origText = item.originalMessage || item.displayLabel;
+                    if (item.interactiveData.type === "need_missing_resolution") {
+                        renderMissingResolution(item.interactiveData, item.id, origText);
+                    } else if (item.interactiveData.type === "need_clarification") {
+                        renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
+                    }
+                }
+            } else {
+                updateBubbleStatus(bubble, item.status === 'failed' ? 'failed' : 'queued');
+            }
+        });
+
+        isAwaitingInput = commandQueue.some(i => i.status === 'interactive');
+        toggleInput(isAwaitingInput);
+    }
+
     function saveQueue() {
       localStorage.setItem(QUEUE_KEY, JSON.stringify(commandQueue));
-      // Saath hi Android ko bhi latest state bhej do
       if (window.AndroidBridge) {
           window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
       }
     }
 
-    async function preWarmConnection() {
-      try {
-        const id = 'txn_sync_' + Date.now();
-        await fetch(GAS_ENDPOINT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "sync_catalog", client_txn_id: id })
-        });
-      } catch (err) {
-        console.warn("Catalog sync failed in background", err);
-      }
-    }
+    // Ahem Code: Jaise hi user wapis app kholay (Resume kare) foran background data uthao aur screen saaf karo
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === 'visible') {
+            syncWithAndroid(); 
+        }
+    });
 
     window.addEventListener('DOMContentLoaded', () => {
-      // DOM Load hone par apni memory sync karega
-      initializeQueue();
+      syncWithAndroid();
       preWarmConnection();
     });
 
@@ -301,7 +326,7 @@
         } else {
           commandQueue.shift();
           saveQueue();
-          
+
           isAwaitingInput = false;
           toggleInput(false);
           if (bubble) updateBubbleStatus(bubble, 'delivered');
@@ -328,7 +353,7 @@
     }
 
     // ---------------------------------------------------------
-    // INPUT FORM & UI LOGIC
+    // INPUT FORM
     // ---------------------------------------------------------
 
     userInput.addEventListener("input", () => {
