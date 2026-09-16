@@ -115,9 +115,6 @@
   </div>
 
   <script>
-    // ---------------------------------------------------------
-    // CONFIGURATION
-    // ---------------------------------------------------------
     const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec"; 
     const TIMEOUT_LIMIT_MS = 25000;
     const QUEUE_KEY = "sunny_pos_queue";
@@ -133,10 +130,7 @@
     let isProcessingQueue = false;
     let isAwaitingInput = false;
 
-    // ---------------------------------------------------------
-    // INSTANT UI SYNC LOGIC (Zero Lag Mechanism)
-    // ---------------------------------------------------------
-
+    // Is function ko DOM load hone se PEHLE call kiya jayega taake screen par fake bubble na aye
     function syncWithAndroid() {
         if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
             try {
@@ -144,29 +138,20 @@
                 if (androidData && androidData !== "") {
                     localStorage.setItem(QUEUE_KEY, androidData); 
                 }
-            } catch (e) {
-                console.warn("Android Sync check failed:", e);
-            }
+            } catch (e) { }
         }
         
         commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
-        syncUIWithQueue(); // Instant Screen Update
-        
-        if (commandQueue.length > 0 && navigator.onLine) {
-            processQueue();
-        }
+        syncUIWithQueue(); 
     }
 
-    // Yeh function app khulte hi foran purani cheezein gayab kar deta hai
     function syncUIWithQueue() {
-        // 1. Agar koi 'Syncing' wala animation (Shimmer) chal raha hai, usay foran delete karo
         document.querySelectorAll('.shimmer-container').forEach(el => {
             const row = el.closest('.message-row');
             if(row) row.remove();
         });
         setNetworkProgress(false);
 
-        // 2. Jo sales Android ne pichay se mukammal kar di hain, unko screen se mita do
         const allTxnBubbles = document.querySelectorAll('.message-row.user[id^="txn_"]');
         allTxnBubbles.forEach(bubble => {
             const exists = commandQueue.find(q => q.id === bubble.id);
@@ -177,11 +162,10 @@
                     next = next.nextElementSibling;
                     toRemove.remove();
                 }
-                bubble.remove(); // Sale bubble delete!
+                bubble.remove(); 
             }
         });
 
-        // 3. Sirf wo sales dikhao jo baqi hain ya jinki confirmation chahiye
         commandQueue.forEach(item => {
             let bubble = document.getElementById(item.id);
             if (!bubble) {
@@ -190,14 +174,12 @@
 
             if (item.status === 'interactive' && item.interactiveData) {
                 updateBubbleStatus(bubble, 'delivered');
-                
                 let next = bubble.nextElementSibling;
                 let hasCard = false;
                 while (next && next.classList.contains('model')) {
                     if (next.querySelector('.interactive-card')) hasCard = true;
                     next = next.nextElementSibling;
                 }
-
                 if (!hasCard) {
                     const origText = item.originalMessage || item.displayLabel;
                     if (item.interactiveData.type === "need_missing_resolution") {
@@ -222,7 +204,6 @@
       }
     }
 
-    // Ahem Code: Jaise hi user wapis app kholay (Resume kare) foran background data uthao aur screen saaf karo
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === 'visible') {
             syncWithAndroid(); 
@@ -230,7 +211,7 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
-      syncWithAndroid();
+      syncWithAndroid(); // Screen render hone se pehle update check karo
       preWarmConnection();
     });
 
@@ -238,7 +219,13 @@
       latencyBadge.textContent = "Online";
       connDot.style.background = "var(--success-green)";
       connDot.style.boxShadow = "0 0 6px var(--success-green)";
-      if (commandQueue.length > 0) processQueue();
+      
+      // FIX: Net aate hi HTML khud se process karna shuru na kare, 
+      // balke Java ko background upload ke liye 3 second ka time de.
+      setTimeout(() => {
+          syncWithAndroid(); 
+          if (commandQueue.length > 0) processQueue();
+      }, 3000); 
     });
 
     window.addEventListener('offline', () => {
@@ -249,9 +236,10 @@
 
     setInterval(() => {
       if (commandQueue.length > 0 && navigator.onLine && !isProcessingQueue) {
-        processQueue();
+          syncWithAndroid(); // Har dafa fetch se pehle check karo ke Java ne upload toh nahi kar diya
+          if (commandQueue.length > 0) processQueue();
       }
-    }, 2000);
+    }, 4000); // 4 second ka waqfa taake collision na ho
 
     function enqueueCommand(payload, displayLabel) {
       const id = 'txn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
@@ -263,7 +251,7 @@
       const bubble = appendUserMessage(displayLabel, id);
       updateBubbleStatus(bubble, 'queued');
 
-      processQueue();
+      if (navigator.onLine) processQueue();
     }
 
     async function processQueue() {
@@ -352,10 +340,6 @@
       }
     }
 
-    // ---------------------------------------------------------
-    // INPUT FORM
-    // ---------------------------------------------------------
-
     userInput.addEventListener("input", () => {
       const val = userInput.value.trim();
       submitBtn.disabled = val.length === 0;
@@ -386,10 +370,6 @@
       enqueueCommand({ message: message }, message);
     }
 
-    // ---------------------------------------------------------
-    // DISAMBIGUATION & MISSING PRICING
-    // ---------------------------------------------------------
-    
     function handleDisambiguationSelection(selectedKey, selectedName, pendingContext, queueItemId) {
       disableAllPreviousActions();
       isAwaitingInput = false;
@@ -412,7 +392,8 @@
 
         const resBubble = appendUserMessage(qItem.displayLabel, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
-        processQueue();
+        
+        if (navigator.onLine) processQueue();
       }
     }
 
@@ -443,13 +424,10 @@
 
         const resBubble = appendUserMessage(label, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
-        processQueue();
+        
+        if (navigator.onLine) processQueue();
       }
     }
-
-    // ---------------------------------------------------------
-    // RENDER FACTORY
-    // ---------------------------------------------------------
 
     function appendUserMessage(text, id) {
       const row = document.createElement("div");
