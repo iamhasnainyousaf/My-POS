@@ -3,410 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
-  <title>Sunny AI POS - Gemini Terminal</title>
+  <title>Sunny AI POS - Ultra Fast</title>
+  
+  <link rel="preconnect" href="[https://script.google.com](https://script.google.com)" crossorigin>
+  <link rel="dns-prefetch" href="[https://script.google.com](https://script.google.com)">
+
   <style>
     :root {
-      --bg-main: #131314;
-      --surface: #1e1f20;
-      --surface-variant: #282a2c;
-      --text-primary: #e3e3e3;
-      --text-secondary: #c4c7c5;
-      --text-muted: #8e918f;
-      --accent-blue: #a8c7fa;
-      --accent-spark: #7cacf8;
-      --input-bg: #1e1f20;
-      --border-subtle: #444746;
-      --danger-color: #f28b82;
-      --warning-color: #fdd663;
-      --success-green: #34a853;
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --bg-main: #131314; --surface: #1e1f20; --surface-variant: #282a2c;
+      --text-primary: #e3e3e3; --text-secondary: #c4c7c5; --text-muted: #8e918f;
+      --accent-blue: #a8c7fa; --accent-spark: #7cacf8; --input-bg: #1e1f20;
+      --border-subtle: #444746; --danger-color: #f28b82; --warning-color: #fdd663;
+      --success-green: #34a853; --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-family); -webkit-tap-highlight-color: transparent; }
+    html, body { background-color: var(--bg-main); color: var(--text-primary); width: 100%; height: 100%; height: 100dvh; overflow: hidden; position: fixed; }
+    body { display: flex; flex-direction: column; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: var(--font-family);
-      -webkit-tap-highlight-color: transparent;
-    }
+    header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: rgba(19, 19, 20, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.06); z-index: 10; position: relative; }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 500; }
+    .gemini-spark { width: 20px; height: 20px; fill: url(#gemini-gradient); }
+    .status-group { display: flex; align-items: center; gap: 8px; }
+    .connection-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success-green); box-shadow: 0 0 6px var(--success-green); transition: background 0.3s, box-shadow 0.3s; }
+    .tag-badge { font-size: 0.75rem; background: var(--surface-variant); color: var(--text-secondary); padding: 3px 9px; border-radius: 12px; border: 1px solid var(--border-subtle); font-family: monospace; }
+    
+    .network-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: transparent; overflow: hidden; }
+    .network-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-spark), var(--accent-blue)); transition: width 0.3s ease; }
+    .network-bar.active .network-bar-fill { width: 80%; animation: pulseProgress 1.8s infinite ease-in-out; }
+    @keyframes pulseProgress { 0% { transform: translateX(-100%); width: 40%; } 50% { transform: translateX(50%); width: 60%; } 100% { transform: translateX(150%); width: 40%; } }
 
-    html, body {
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-      width: 100%;
-      height: 100%;
-      height: 100dvh;
-      overflow: hidden;
-      position: fixed; /* Prevents mobile rubber-banding and distortion */
-    }
+    main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px; display: flex; flex-direction: column; gap: 20px; max-width: 800px; width: 100%; margin: 0 auto; scroll-behavior: smooth; }
+    .message-row { display: flex; gap: 12px; width: 100%; contain: layout; }
+    .message-row.user { justify-content: flex-end; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--surface); }
+    
+    .content-block { max-width: 84%; font-size: 0.94rem; line-height: 1.55; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+    .message-row.user .content-block { background: var(--surface); padding: 10px 16px; border-radius: 18px; border-bottom-right-radius: 4px; color: #ffffff; display: flex; flex-direction: column; align-items: flex-end; }
+    
+    .quote-block { font-size: 0.82rem; color: var(--text-secondary); background: rgba(124, 172, 248, 0.1); padding: 6px 10px; border-left: 3px solid var(--accent-spark); border-radius: 4px; margin-bottom: 10px; font-style: italic; word-break: break-word; }
+    .msg-meta { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--text-muted); margin-top: 5px; }
+    .status-tick { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; }
+    
+    .mini-spinner { width: 10px; height: 10px; border: 1.5px solid rgba(255, 255, 255, 0.2); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin 0.75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .message-row.model .content-block { padding-top: 2px; }
 
-    body {
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Top Navigation Header */
-    header {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px;
-      background: rgba(19, 19, 20, 0.95);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      z-index: 10;
-      position: relative;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 1.1rem;
-      font-weight: 500;
-    }
-
-    .gemini-spark {
-      width: 20px;
-      height: 20px;
-      fill: url(#gemini-gradient);
-    }
-
-    .status-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .connection-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--success-green);
-      box-shadow: 0 0 6px var(--success-green);
-      transition: background 0.3s, box-shadow 0.3s;
-    }
-
-    .tag-badge {
-      font-size: 0.75rem;
-      background: var(--surface-variant);
-      color: var(--text-secondary);
-      padding: 3px 9px;
-      border-radius: 12px;
-      border: 1px solid var(--border-subtle);
-      font-family: monospace;
-    }
-
-    /* Header Live Request Progress Bar */
-    .network-bar {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 2px;
-      background: transparent;
-      overflow: hidden;
-    }
-
-    .network-bar-fill {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent-spark), var(--accent-blue));
-      transition: width 0.3s ease;
-    }
-
-    .network-bar.active .network-bar-fill {
-      width: 80%;
-      animation: pulseProgress 1.8s infinite ease-in-out;
-    }
-
-    @keyframes pulseProgress {
-      0% { transform: translateX(-100%); width: 40%; }
-      50% { transform: translateX(50%); width: 60%; }
-      100% { transform: translateX(150%); width: 40%; }
-    }
-
-    /* Conversation Viewport */
-    main {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      max-width: 800px;
-      width: 100%;
-      margin: 0 auto;
-      scroll-behavior: smooth;
-    }
-
-    .message-row {
-      display: flex;
-      gap: 12px;
-      width: 100%;
-      contain: layout;
-    }
-
-    .message-row.user {
-      justify-content: flex-end;
-    }
-
-    .avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--surface);
-    }
-
-    .content-block {
-      max-width: 84%;
-      font-size: 0.94rem;
-      line-height: 1.55;
-      color: var(--text-primary);
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .message-row.user .content-block {
-      background: var(--surface);
-      padding: 10px 16px;
-      border-radius: 18px;
-      border-bottom-right-radius: 4px;
-      color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-    }
-
-    /* Sub-Bubble Status Elements */
-    .msg-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      margin-top: 5px;
-    }
-
-    .status-tick {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-    }
-
-    .mini-spinner {
-      width: 10px;
-      height: 10px;
-      border: 1.5px solid rgba(255, 255, 255, 0.2);
-      border-top-color: var(--accent-blue);
-      border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .retry-chip {
-      background: rgba(242, 139, 130, 0.12);
-      color: var(--danger-color);
-      border: 1px solid var(--danger-color);
-      padding: 2px 7px;
-      border-radius: 6px;
-      font-size: 0.72rem;
-      cursor: pointer;
-      margin-top: 4px;
-    }
-
-    .message-row.model .content-block {
-      padding-top: 2px;
-    }
-
-    /* Gemini Pulse Wave Skeleton */
-    .shimmer-container {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      width: 220px;
-      padding-top: 6px;
-    }
-
-    .shimmer-line {
-      height: 13px;
-      border-radius: 6px;
-      background: linear-gradient(90deg, #1e1f20 25%, #2d2f31 50%, #1e1f20 75%);
-      background-size: 200% 100%;
-      animation: geminiShimmer 1.4s infinite;
-    }
-
+    .shimmer-container { display: flex; flex-direction: column; gap: 8px; width: 220px; padding-top: 6px; }
+    .shimmer-line { height: 13px; border-radius: 6px; background: linear-gradient(90deg, #1e1f20 25%, #2d2f31 50%, #1e1f20 75%); background-size: 200% 100%; animation: geminiShimmer 1.4s infinite; }
     .shimmer-line.short { width: 55%; }
+    @keyframes geminiShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    @keyframes geminiShimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
+    .interactive-card { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .actions-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .option-chip { background: var(--surface); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 8px 14px; border-radius: 12px; font-size: 0.86rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+    .option-chip:hover:not(:disabled) { background: var(--surface-variant); border-color: var(--accent-spark); }
+    .option-chip.cancel-chip { color: var(--danger-color); border-color: rgba(242, 139, 130, 0.3); }
+    .option-chip:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+    .chip-meta { font-size: 0.72rem; color: var(--text-muted); background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 6px; }
 
-    /* Dynamic Button Lists & Disambiguation */
-    .interactive-card {
-      margin-top: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .actions-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .option-chip {
-      background: var(--surface);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      padding: 8px 14px;
-      border-radius: 12px;
-      font-size: 0.86rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-
-    .option-chip:hover:not(:disabled) {
-      background: var(--surface-variant);
-      border-color: var(--accent-spark);
-    }
-
-    .option-chip.cancel-chip {
-      color: var(--danger-color);
-      border-color: rgba(242, 139, 130, 0.3);
-    }
-
-    .option-chip:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-
-    .chip-meta {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      background: rgba(0, 0, 0, 0.3);
-      padding: 2px 6px;
-      border-radius: 6px;
-    }
-
-    /* Inline Manual Price Box */
-    .manual-price-box {
-      background: var(--surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 14px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .manual-item-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .manual-item-name {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
-      flex: 1;
-    }
-
-    .manual-input {
-      width: 100px;
-      background: #131314;
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 7px 10px;
-      color: #fff;
-      font-size: 0.9rem;
-      outline: none;
-      text-align: right;
-    }
-
+    .manual-price-box { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .manual-item-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .manual-item-name { font-size: 0.88rem; color: var(--text-secondary); flex: 1; }
+    .manual-input { width: 100px; background: #131314; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 7px 10px; color: #fff; font-size: 0.9rem; outline: none; text-align: right; }
     .manual-input:focus { border-color: var(--accent-blue); }
-
-    .submit-prices-btn {
-      background: var(--accent-blue);
-      color: #04101d;
-      font-weight: 600;
-      border: none;
-      padding: 9px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.86rem;
-    }
-
+    .submit-prices-btn { background: var(--accent-blue); color: #04101d; font-weight: 600; border: none; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 0.86rem; }
     .submit-prices-btn:disabled { opacity: 0.5; }
 
-    /* Bottom Input Bar */
-    .input-wrapper {
-      flex-shrink: 0;
-      padding: 10px 16px 18px 16px;
-      max-width: 800px;
-      width: 100%;
-      margin: 0 auto;
-    }
-
-    .input-box {
-      background: var(--input-bg);
-      border-radius: 30px;
-      display: flex;
-      align-items: center;
-      padding: 5px 12px 5px 18px;
-      border: 1px solid transparent;
-      transition: border-color 0.2s, background 0.2s;
-    }
-
-    .input-box:focus-within {
-      border-color: var(--border-subtle);
-      background: #232427;
-    }
-
-    .input-box input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: var(--text-primary);
-      font-size: 0.98rem;
-      line-height: 1.5;
-    }
-
+    .input-wrapper { flex-shrink: 0; padding: 10px 16px 18px 16px; max-width: 800px; width: 100%; margin: 0 auto; }
+    .input-box { background: var(--input-bg); border-radius: 30px; display: flex; align-items: center; padding: 5px 12px 5px 18px; border: 1px solid transparent; transition: border-color 0.2s, background 0.2s; }
+    .input-box:focus-within { border-color: var(--border-subtle); background: #232427; }
+    .input-box input { flex: 1; background: transparent; border: none; outline: none; color: var(--text-primary); font-size: 0.98rem; line-height: 1.5; }
     .input-box input::placeholder { color: var(--text-muted); }
-
-    .send-btn {
-      background: transparent;
-      border: none;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: var(--text-muted);
-      transition: color 0.2s;
-    }
-
+    .input-box input:disabled { opacity: 0.5; }
+    .send-btn { background: transparent; border: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
     .send-btn.active { color: var(--accent-blue); }
     .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   </style>
@@ -415,58 +84,43 @@
 
   <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
     <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7cacf8" />
-      <stop offset="50%" stop-color="#9b7bf7" />
-      <stop offset="100%" stop-color="#d96570" />
+      <stop offset="0%" stop-color="#7cacf8" /><stop offset="50%" stop-color="#9b7bf7" /><stop offset="100%" stop-color="#d96570" />
     </linearGradient>
   </svg>
 
   <header>
     <div class="brand">
-      <svg class="gemini-spark" viewBox="0 0 24 24">
-        <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-      </svg>
+      <svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg>
       Sunny AI POS
     </div>
     <div class="status-group">
       <div class="connection-dot" id="connDot" title="Live Link Active"></div>
-      <div class="tag-badge" id="latencyBadge">Ready</div>
+      <div class="tag-badge" id="latencyBadge">Turbo Ready</div>
     </div>
-    <div class="network-bar" id="networkBar">
-      <div class="network-bar-fill"></div>
-    </div>
+    <div class="network-bar" id="networkBar"><div class="network-bar-fill"></div></div>
   </header>
 
   <main id="chatFeed">
     <div class="message-row model">
-      <div class="avatar">
-        <svg class="gemini-spark" viewBox="0 0 24 24">
-          <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-        </svg>
-      </div>
-      <div class="content-block">Sunny AI POS active. Command dein (e.g. "2 Pepsi naqad", "Tibbet + Dew").</div>
+      <div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>
+      <div class="content-block">Turbo Engine Active. Sub-second responses enabled! ⚡</div>
     </div>
   </main>
 
   <div class="input-wrapper">
     <form class="input-box" id="commandForm" onsubmit="handleFormSubmit(event)">
-      <input 
-        type="text" 
-        id="userInput" 
-        placeholder="Type a sale, search, or stock query..." 
-        autocomplete="off"
-      />
-      <button type="submit" id="submitBtn" class="send-btn" disabled aria-label="Send message">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-        </svg>
-      </button>
+      <input type="text" id="userInput" placeholder="Type a sale, search, or stock query..." autocomplete="off" />
+      <button type="submit" id="submitBtn" class="send-btn" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
     </form>
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec";
-    const TIMEOUT_LIMIT_MS = 14000;
+    // ---------------------------------------------------------
+    // CONFIGURATION
+    // ---------------------------------------------------------
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec"; // Ensure your deployment URL is placed here!
+    const TIMEOUT_LIMIT_MS = 25000;
+    const QUEUE_KEY = "sunny_pos_queue";
 
     const chatFeed = document.getElementById("chatFeed");
     const userInput = document.getElementById("userInput");
@@ -475,43 +129,189 @@
     const connDot = document.getElementById("connDot");
     const networkBar = document.getElementById("networkBar");
 
-    let isPrewarmed = false;
+    // ---------------------------------------------------------
+    // TURBO QUEUE ENGINE
+    // ---------------------------------------------------------
+    let commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
+    let isProcessingQueue = false;
+    let isAwaitingInput = false;
 
-    // Fast-typing Pre-Warm Trigger
-    userInput.addEventListener("input", () => {
-      const val = userInput.value.trim();
-      const hasValue = val.length > 0;
-      submitBtn.disabled = !hasValue;
-      submitBtn.classList.toggle("active", hasValue);
+    function saveQueue() {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(commandQueue));
+    }
 
-      // On first keystroke, pre-warm the HTTP connection silently
-      if (hasValue && !isPrewarmed) {
-        isPrewarmed = true;
-        preWarmConnection();
-      }
-    });
-
-    /**
-     * Keep Connection Warm: Periodically keeps the cloud runtime container active
-     */
+    // Auto-sync catalog in the background without showing a chat bubble
     async function preWarmConnection() {
       try {
+        const id = 'txn_sync_' + Date.now();
         await fetch(GAS_ENDPOINT_URL, {
-          method: "GET",
-          mode: "no-cors",
-          cache: "no-store"
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "sync_catalog", client_txn_id: id })
         });
-        connDot.style.background = "var(--success-green)";
-        connDot.style.boxShadow = "0 0 6px var(--success-green)";
       } catch (err) {
-        connDot.style.background = "var(--warning-color)";
-        connDot.style.boxShadow = "0 0 6px var(--warning-color)";
+        console.warn("Catalog sync failed in background", err);
       }
     }
 
-    // Ping every 45s to avoid GAS idle timeouts
-    preWarmConnection();
-    setInterval(preWarmConnection, 45000);
+    window.addEventListener('DOMContentLoaded', () => {
+      commandQueue.forEach(item => {
+        const row = appendUserMessage(item.displayLabel, item.id);
+        const origText = item.originalMessage || item.displayLabel;
+
+        if (item.status === 'interactive' && item.interactiveData) {
+          updateBubbleStatus(row, 'delivered');
+          isAwaitingInput = true;
+          toggleInput(true);
+          
+          if (item.interactiveData.type === "need_missing_resolution") {
+            renderMissingResolution(item.interactiveData, item.id, origText);
+          } else if (item.interactiveData.type === "need_clarification") {
+            renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
+          }
+        } else {
+          updateBubbleStatus(row, item.status === 'failed' ? 'failed' : 'queued');
+        }
+      });
+      if (commandQueue.length > 0 && navigator.onLine) processQueue();
+      
+      // Auto-sync catalog on load
+      preWarmConnection();
+    });
+
+    window.addEventListener('online', () => {
+      latencyBadge.textContent = "Online";
+      connDot.style.background = "var(--success-green)";
+      connDot.style.boxShadow = "0 0 6px var(--success-green)";
+      if (commandQueue.length > 0) processQueue();
+    });
+
+    window.addEventListener('offline', () => {
+      latencyBadge.textContent = "Offline";
+      connDot.style.background = "var(--warning-color)";
+      connDot.style.boxShadow = "0 0 6px var(--warning-color)";
+    });
+
+    setInterval(() => {
+      if (commandQueue.length > 0 && navigator.onLine && !isProcessingQueue) {
+        processQueue();
+      }
+    }, 2000);
+
+    function enqueueCommand(payload, displayLabel) {
+      const id = 'txn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      const qItem = { id, payload, displayLabel, originalMessage: displayLabel, status: 'queued', timestamp: Date.now() };
+
+      commandQueue.push(qItem);
+      saveQueue();
+
+      const bubble = appendUserMessage(displayLabel, id);
+      updateBubbleStatus(bubble, 'queued');
+
+      processQueue();
+    }
+
+    async function processQueue() {
+      if (isProcessingQueue) return;
+      if (!navigator.onLine) return;
+      if (commandQueue.length === 0) return;
+
+      const currentItem = commandQueue[0];
+      if (currentItem.status === 'interactive') {
+        isAwaitingInput = true;
+        return;
+      }
+
+      isProcessingQueue = true;
+      const bubble = document.getElementById(currentItem.id);
+      
+      if (bubble) updateBubbleStatus(bubble, 'sending');
+      
+      latencyBadge.textContent = "Syncing...";
+      const shimmer = appendShimmer();
+      setNetworkProgress(true);
+
+      try {
+        const finalPayload = { ...currentItem.payload, client_txn_id: currentItem.id };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_LIMIT_MS);
+
+        const startTime = performance.now();
+        const response = await fetch(GAS_ENDPOINT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(finalPayload),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+
+        const data = await response.json();
+        const duration = Math.round(performance.now() - startTime);
+        latencyBadge.textContent = `${data.ms || duration}ms`;
+
+        shimmer.remove();
+        setNetworkProgress(false);
+
+        const origText = currentItem.originalMessage || currentItem.displayLabel;
+
+        if (data.type === "need_missing_resolution" || data.type === "need_clarification") {
+          currentItem.status = 'interactive';
+          currentItem.interactiveData = data;
+          saveQueue();
+
+          isAwaitingInput = true;
+          toggleInput(true);
+          if (bubble) updateBubbleStatus(bubble, 'delivered');
+
+          if (data.type === "need_missing_resolution") {
+            renderMissingResolution(data, currentItem.id, origText);
+          } else {
+            renderClarification(data.reply, data.options, data.pending_context, currentItem.id, origText);
+          }
+        } else {
+          commandQueue.shift();
+          saveQueue();
+
+          isAwaitingInput = false;
+          toggleInput(false);
+          if (bubble) updateBubbleStatus(bubble, 'delivered');
+          
+          await streamModelResponse(data.reply || "No reply from engine.");
+        }
+
+      } catch (err) {
+        shimmer.remove();
+        setNetworkProgress(false);
+        latencyBadge.textContent = "Retrying...";
+        currentItem.status = 'failed';
+        saveQueue();
+        
+        if (bubble) updateBubbleStatus(bubble, 'failed');
+      } finally {
+        isProcessingQueue = false;
+        setTimeout(() => {
+          if (commandQueue.length > 0 && navigator.onLine) {
+            processQueue();
+          }
+        }, 300);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // INPUT FORM
+    // ---------------------------------------------------------
+
+    userInput.addEventListener("input", () => {
+      const val = userInput.value.trim();
+      submitBtn.disabled = val.length === 0;
+      submitBtn.classList.toggle("active", val.length > 0);
+    });
+
+    function toggleInput(disabled) {
+      userInput.disabled = disabled;
+      if (disabled) userInput.placeholder = "Please respond to the prompts above...";
+      else userInput.placeholder = "Type a sale, search, or stock query...";
+    }
 
     function disableAllPreviousActions() {
       const els = document.querySelectorAll(".interactive-card button, .interactive-card input");
@@ -524,204 +324,117 @@
       if (!message) return;
 
       disableAllPreviousActions();
-      userInput.blur(); // Drop keypad instantly so UI never stretches
-
-      // Instant Optimistic Message Render
-      const userBubble = appendUserMessage(message);
       userInput.value = "";
       submitBtn.disabled = true;
       submitBtn.classList.remove("active");
-      toggleInput(true);
 
-      const shimmer = appendShimmer();
-      setNetworkProgress(true);
-
-      await dispatchPayload({ message: message }, shimmer, userBubble);
+      enqueueCommand({ message: message }, message);
     }
 
-    async function handleDisambiguationSelection(selectedKey, selectedName, pendingContext) {
+    // ---------------------------------------------------------
+    // DISAMBIGUATION & MISSING PRICING
+    // ---------------------------------------------------------
+    
+    function handleDisambiguationSelection(selectedKey, selectedName, pendingContext, queueItemId) {
       disableAllPreviousActions();
-      userInput.blur();
+      isAwaitingInput = false;
+      toggleInput(false);
 
-      const userBubble = appendUserMessage(`Selected: ${selectedName}`);
-      toggleInput(true);
+      const qItem = commandQueue.find(q => q.id === queueItemId);
+      if (qItem) {
+        const newTxnId = qItem.id + "_res_" + Date.now();
+        qItem.id = newTxnId;
+        qItem.payload = {
+          action: "resolve_clarification",
+          selected_product_key: selectedKey,
+          selected_product: selectedName,
+          pending_context: pendingContext
+        };
+        qItem.displayLabel = `Selected: ${selectedName}`;
+        qItem.status = 'queued';
+        delete qItem.interactiveData;
+        saveQueue();
 
-      const shimmer = appendShimmer();
-      setNetworkProgress(true);
-
-      const payload = {
-        action: "resolve_clarification",
-        selected_product_key: selectedKey,
-        selected_product: selectedName,
-        pending_context: pendingContext
-      };
-
-      await dispatchPayload(payload, shimmer, userBubble);
+        const resBubble = appendUserMessage(qItem.displayLabel, newTxnId);
+        updateBubbleStatus(resBubble, 'queued');
+        processQueue();
+      }
     }
 
-    async function handleMissingResolution(decision, dataBundle) {
+    function handleMissingResolution(decision, dataBundle, queueItemId) {
       disableAllPreviousActions();
-      userInput.blur();
+      isAwaitingInput = false;
+      toggleInput(false);
 
       let label = "Cancel Sale";
       if (decision === "skip") label = "Skip Missing & Continue";
       if (decision === "manual") label = "Apply Manual Prices";
 
-      const userBubble = appendUserMessage(label);
-      toggleInput(true);
+      const qItem = commandQueue.find(q => q.id === queueItemId);
+      if (qItem) {
+        const newTxnId = qItem.id + "_res_" + Date.now();
+        qItem.id = newTxnId;
+        qItem.payload = {
+          action: "resolve_missing",
+          decision: decision,
+          missing_indices: dataBundle.missingIndices,
+          manual_prices: dataBundle.manualPrices || {},
+          pending_context: dataBundle.pendingContext
+        };
+        qItem.displayLabel = label;
+        qItem.status = 'queued';
+        delete qItem.interactiveData;
+        saveQueue();
 
-      const shimmer = appendShimmer();
-      setNetworkProgress(true);
-
-      const payload = {
-        action: "resolve_missing",
-        decision: decision,
-        missing_indices: dataBundle.missingIndices,
-        manual_prices: dataBundle.manualPrices || {},
-        pending_context: dataBundle.pendingContext
-      };
-
-      await dispatchPayload(payload, shimmer, userBubble);
-    }
-
-    async function dispatchPayload(payload, shimmer, userBubble) {
-      const startTime = performance.now();
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_LIMIT_MS);
-
-      try {
-        latencyBadge.textContent = "Sending...";
-        updateBubbleStatus(userBubble, "sending");
-
-        const response = await fetch(GAS_ENDPOINT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        });
-
-        clearTimeout(timer);
-        updateBubbleStatus(userBubble, "delivered");
-
-        const data = await response.json();
-        const duration = Math.round(performance.now() - startTime);
-        latencyBadge.textContent = `${data.ms || duration}ms`;
-
-        shimmer.remove();
-        setNetworkProgress(false);
-
-        if (data.type === "need_missing_resolution") {
-          renderMissingResolution(data);
-        } else if (data.type === "need_clarification") {
-          renderClarification(data.reply, data.options, data.pending_context);
-        } else {
-          await streamModelResponse(data.reply || "No reply from engine.");
-        }
-      } catch (err) {
-        clearTimeout(timer);
-        shimmer.remove();
-        setNetworkProgress(false);
-
-        const isTimeout = err.name === "AbortError";
-        updateBubbleStatus(userBubble, "failed", () => {
-          const retryShimmer = appendShimmer();
-          setNetworkProgress(true);
-          dispatchPayload(payload, retryShimmer, userBubble);
-        });
-
-        appendModelMessage(isTimeout ? "⚠️ Request timeout. Network slow hai, dubara try karein." : "⚠️ Network error. Internet check karein.");
-        latencyBadge.textContent = "Error";
-      } finally {
-        toggleInput(false);
-        userInput.blur();
-        isPrewarmed = false; // Reset for next typing session
+        const resBubble = appendUserMessage(label, newTxnId);
+        updateBubbleStatus(resBubble, 'queued');
+        processQueue();
       }
     }
 
-    /* Renders User Bubble with Live Status Icons */
-    function appendUserMessage(text) {
+    // ---------------------------------------------------------
+    // RENDER FACTORY
+    // ---------------------------------------------------------
+
+    function appendUserMessage(text, id) {
       const row = document.createElement("div");
       row.className = "message-row user";
+      if (id) row.id = id;
+      
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
       row.innerHTML = `
         <div class="content-block">
           <div>${escapeHtml(text)}</div>
           <div class="msg-meta">
             <span class="status-time">${time}</span>
-            <span class="status-tick"><div class="mini-spinner"></div></span>
+            <span class="status-tick"></span>
           </div>
         </div>
       `;
-
       chatFeed.appendChild(row);
       scrollBottom();
       return row;
     }
 
-    function updateBubbleStatus(bubbleEl, status, retryFn) {
+    function updateBubbleStatus(bubbleEl, status) {
       if (!bubbleEl) return;
       const tick = bubbleEl.querySelector(".status-tick");
-      const meta = bubbleEl.querySelector(".msg-meta");
 
-      if (status === "sending") {
+      if (status === "queued") {
+        tick.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>`;
+      } else if (status === "sending") {
         tick.innerHTML = '<div class="mini-spinner"></div>';
       } else if (status === "delivered") {
-        // Double blue checkmarks
-        tick.innerHTML = `
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-blue)">
-            <path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.41 11.93l-1.41 1.41 5.66 5.66 12-12-1.42-1.41zM.41 13.34l5.66 5.66 1.41-1.41-5.66-5.66-1.41 1.41z"/>
-          </svg>
-        `;
+        tick.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-blue)"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.41 11.93l-1.41 1.41 5.66 5.66 12-12-1.42-1.41zM.41 13.34l5.66 5.66 1.41-1.41-5.66-5.66-1.41 1.41z"/></svg>`;
       } else if (status === "failed") {
-        tick.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger-color)">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-          </svg>
-        `;
-        if (retryFn && !meta.querySelector(".retry-chip")) {
-          const btn = document.createElement("button");
-          btn.className = "retry-chip";
-          btn.textContent = "Retry ↻";
-          btn.onclick = () => {
-            btn.remove();
-            retryFn();
-          };
-          meta.appendChild(btn);
-        }
+        tick.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger-color)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
       }
-    }
-
-    function appendModelMessage(text) {
-      const row = document.createElement("div");
-      row.className = "message-row model";
-      row.innerHTML = `
-        <div class="avatar">
-          <svg class="gemini-spark" viewBox="0 0 24 24">
-            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-          </svg>
-        </div>
-        <div class="content-block">${escapeHtml(text)}</div>
-      `;
-      chatFeed.appendChild(row);
-      scrollBottom();
-      return row;
     }
 
     function appendShimmer() {
       const row = document.createElement("div");
       row.className = "message-row model";
-      row.innerHTML = `
-        <div class="avatar">
-          <svg class="gemini-spark" viewBox="0 0 24 24">
-            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-          </svg>
-        </div>
-        <div class="shimmer-container">
-          <div class="shimmer-line"></div>
-          <div class="shimmer-line short"></div>
-        </div>
-      `;
+      row.innerHTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div><div class="shimmer-container"><div class="shimmer-line"></div><div class="shimmer-line short"></div></div>`;
       chatFeed.appendChild(row);
       scrollBottom();
       return row;
@@ -730,168 +443,108 @@
     async function streamModelResponse(fullText) {
       const row = document.createElement("div");
       row.className = "message-row model";
-      row.innerHTML = `
-        <div class="avatar">
-          <svg class="gemini-spark" viewBox="0 0 24 24">
-            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-          </svg>
-        </div>
-        <div class="content-block"></div>
-      `;
+      row.innerHTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div><div class="content-block"></div>`;
       chatFeed.appendChild(row);
-
       const block = row.querySelector(".content-block");
-      const tokens = fullText.split(/(\s+)/);
-
-      for (let i = 0; i < tokens.length; i++) {
-        block.textContent += tokens[i];
+      
+      const chunks = fullText.split(/(\n+)/);
+      for (let i = 0; i < chunks.length; i++) {
+        block.textContent += chunks[i];
         scrollBottom();
-        await new Promise(r => setTimeout(r, 14));
+        if (chunks[i].trim().length > 0) {
+          await new Promise(r => setTimeout(r, 4));
+        }
       }
     }
 
-    function renderClarification(msg, options, pendingContext) {
+    function renderClarification(msg, options, pendingContext, queueItemId, originalText) {
       const row = document.createElement("div");
       row.className = "message-row model";
-      row.innerHTML = `
-        <div class="avatar">
-          <svg class="gemini-spark" viewBox="0 0 24 24">
-            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-          </svg>
-        </div>
-        <div class="content-block">
-          <div>${escapeHtml(msg)}</div>
-          <div class="interactive-card actions-grid"></div>
-        </div>
-      `;
+      
+      const quoteHtml = originalText ? `<div class="quote-block">Replying to: <i>"${escapeHtml(originalText)}"</i></div>` : '';
 
+      row.innerHTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div><div class="content-block">${quoteHtml}<div>${escapeHtml(msg)}</div><div class="interactive-card actions-grid"></div></div>`;
       const grid = row.querySelector(".actions-grid");
       (options || []).forEach(opt => {
         const chip = document.createElement("button");
         chip.className = "option-chip";
         chip.innerHTML = `<span>${escapeHtml(opt.name)}</span><span class="chip-meta">Rs ${opt.price} | Stock: ${opt.stock}</span>`;
-        chip.onclick = () => handleDisambiguationSelection(opt.key, opt.name, pendingContext);
+        chip.onclick = () => handleDisambiguationSelection(opt.key, opt.name, pendingContext, queueItemId);
         grid.appendChild(chip);
       });
-
       chatFeed.appendChild(row);
       scrollBottom();
     }
 
-    function renderMissingResolution(data) {
+    function renderMissingResolution(data, queueItemId, originalText) {
       const row = document.createElement("div");
       row.className = "message-row model";
-      row.innerHTML = `
-        <div class="avatar">
-          <svg class="gemini-spark" viewBox="0 0 24 24">
-            <path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/>
-          </svg>
-        </div>
-        <div class="content-block">
-          <div>${escapeHtml(data.reply)}</div>
-          <div class="interactive-card">
-            <div class="actions-grid" id="missingGrid"></div>
-            <div id="manualPriceBox" style="display: none;"></div>
-          </div>
-        </div>
-      `;
+      
+      const quoteHtml = originalText ? `<div class="quote-block">Replying to: <i>"${escapeHtml(originalText)}"</i></div>` : '';
 
-      const grid = row.querySelector("#missingGrid");
-      const manualBox = row.querySelector("#manualPriceBox");
-      const missingIndices = (data.missing_items || []).map(m => m.index);
-
-      // Skip Chip
-      const skipBtn = document.createElement("button");
-      skipBtn.className = "option-chip";
-      skipBtn.textContent = "Skip Missing & Continue";
-      skipBtn.onclick = () => handleMissingResolution("skip", { missingIndices, pendingContext: data.pending_context });
+      row.innerHTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div><div class="content-block">${quoteHtml}<div>${escapeHtml(data.reply)}</div><div class="interactive-card"><div class="actions-grid" id="missingGrid"></div><div id="manualPriceBox" style="display: none;"></div></div></div>`;
+      const grid = row.querySelector("#missingGrid"), manualBox = row.querySelector("#manualPriceBox");
+      const missingIndices = (data.missing_items || []).map(m => Number(m.index));
+      
+      const skipBtn = document.createElement("button"); 
+      skipBtn.className = "option-chip"; 
+      skipBtn.textContent = "Skip Missing & Continue"; 
+      skipBtn.onclick = () => handleMissingResolution("skip", { missingIndices, pendingContext: data.pending_context }, queueItemId); 
       grid.appendChild(skipBtn);
-
-      // Manual Price Chip
-      const manualBtn = document.createElement("button");
-      manualBtn.className = "option-chip";
-      manualBtn.textContent = "Enter Manual Price";
-      manualBtn.onclick = () => {
-        grid.style.display = "none";
-        manualBox.style.display = "block";
-        scrollBottom();
-      };
+      
+      const manualBtn = document.createElement("button"); 
+      manualBtn.className = "option-chip"; 
+      manualBtn.textContent = "Enter Manual Price"; 
+      manualBtn.onclick = () => { grid.style.display = "none"; manualBox.style.display = "block"; scrollBottom(); }; 
       grid.appendChild(manualBtn);
-
-      // Cancel Chip
-      const cancelBtn = document.createElement("button");
-      cancelBtn.className = "option-chip cancel-chip";
-      cancelBtn.textContent = "Cancel Entire Sale";
-      cancelBtn.onclick = () => handleMissingResolution("cancel", { missingIndices, pendingContext: data.pending_context });
+      
+      const cancelBtn = document.createElement("button"); 
+      cancelBtn.className = "option-chip cancel-chip"; 
+      cancelBtn.textContent = "Cancel Entire Sale"; 
+      cancelBtn.onclick = () => handleMissingResolution("cancel", { missingIndices, pendingContext: data.pending_context }, queueItemId); 
       grid.appendChild(cancelBtn);
 
-      // Build Form
-      const form = document.createElement("div");
-      form.className = "manual-price-box";
+      const form = document.createElement("div"); 
+      form.className = "manual-price-box"; 
       form.innerHTML = `<div style="font-size: 0.8rem; color: var(--text-muted);">Missing items ki sale price likhein:</div>`;
-
+      
       const inputMap = {};
       (data.missing_items || []).forEach(item => {
-        const line = document.createElement("div");
+        const line = document.createElement("div"); 
         line.className = "manual-item-row";
-        line.innerHTML = `
-          <span class="manual-item-name">${escapeHtml(item.product)} (${item.qty || 1}x)</span>
-          <input type="number" class="manual-input" placeholder="Price (Rs)" min="1" step="any" required />
-        `;
-        inputMap[item.index] = line.querySelector("input");
+        line.innerHTML = `<span class="manual-item-name">${escapeHtml(item.product)} (${item.qty || 1}x)</span><input type="number" class="manual-input" placeholder="Price (Rs)" min="1" step="any" required />`;
+        inputMap[Number(item.index)] = line.querySelector("input"); 
         form.appendChild(line);
       });
-
-      const confirmBtn = document.createElement("button");
-      confirmBtn.className = "submit-prices-btn";
+      
+      const confirmBtn = document.createElement("button"); 
+      confirmBtn.className = "submit-prices-btn"; 
       confirmBtn.textContent = "Confirm & Proceed Sale";
       confirmBtn.onclick = () => {
-        const manualPrices = {};
+        const manualPrices = {}; 
         let valid = true;
-
-        for (const idx of missingIndices) {
-          const val = Number(inputMap[idx].value);
-          if (!val || val <= 0) {
-            inputMap[idx].style.borderColor = "var(--danger-color)";
-            valid = false;
-          } else {
-            inputMap[idx].style.borderColor = "var(--border-subtle)";
-            manualPrices[idx] = val;
-          }
+        for (const idx of missingIndices) { 
+          const val = Number(inputMap[idx].value); 
+          if (!val || val <= 0) { 
+            inputMap[idx].style.borderColor = "var(--danger-color)"; 
+            valid = false; 
+          } else { 
+            inputMap[idx].style.borderColor = "var(--border-subtle)"; 
+            manualPrices[idx] = val; 
+          } 
         }
-        if (!valid) return;
-
-        handleMissingResolution("manual", {
-          missingIndices,
-          manualPrices,
-          pendingContext: data.pending_context
-        });
+        if (valid) handleMissingResolution("manual", { missingIndices, manualPrices, pendingContext: data.pending_context }, queueItemId);
       };
-
-      form.appendChild(confirmBtn);
+      form.appendChild(confirmBtn); 
       manualBox.appendChild(form);
-
-      chatFeed.appendChild(row);
+      chatFeed.appendChild(row); 
       scrollBottom();
     }
 
-    function setNetworkProgress(active) {
-      networkBar.classList.toggle("active", active);
-    }
-
-    function toggleInput(disabled) {
-      userInput.disabled = disabled;
-    }
-
-    function scrollBottom() {
-      chatFeed.scrollTop = chatFeed.scrollHeight;
-    }
-
-    function escapeHtml(str) {
-      const d = document.createElement("div");
-      d.textContent = str;
-      return d.innerHTML;
-    }
+    function setNetworkProgress(active) { networkBar.classList.toggle("active", active); }
+    function toggleInput(disabled) { userInput.disabled = disabled; }
+    function scrollBottom() { chatFeed.scrollTop = chatFeed.scrollHeight; }
+    function escapeHtml(str) { const d = document.createElement("div"); d.textContent = str; return d.innerHTML; }
   </script>
 </body>
 </html>
