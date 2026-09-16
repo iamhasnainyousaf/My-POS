@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <title>Sunny AI POS - Ultra Fast</title>
   
-  <link rel="preconnect" href="https://script.google.com" crossorigin>
-  <link rel="dns-prefetch" href="https://script.google.com">
+  <link rel="preconnect" href="[https://script.google.com](https://script.google.com)" crossorigin>
+  <link rel="dns-prefetch" href="[https://script.google.com](https://script.google.com)">
 
   <style>
     :root {
@@ -115,7 +115,10 @@
   </div>
 
   <script>
-    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec"; 
+    // ---------------------------------------------------------
+    // CONFIGURATION
+    // ---------------------------------------------------------
+    const GAS_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzgN_9LRT0U3gRRgMI3nbkCjTHG9az62mQXYf6S3ZQT1FxodIMPk5gPrvFJZ75eBo7F/exec"; // Ensure your deployment URL is placed here!
     const TIMEOUT_LIMIT_MS = 25000;
     const QUEUE_KEY = "sunny_pos_queue";
 
@@ -126,92 +129,53 @@
     const connDot = document.getElementById("connDot");
     const networkBar = document.getElementById("networkBar");
 
-    let commandQueue = [];
+    // ---------------------------------------------------------
+    // TURBO QUEUE ENGINE
+    // ---------------------------------------------------------
+    let commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
     let isProcessingQueue = false;
     let isAwaitingInput = false;
 
-    // Is function ko DOM load hone se PEHLE call kiya jayega taake screen par fake bubble na aye
-    function syncWithAndroid() {
-        if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
-            try {
-                let androidData = window.AndroidBridge.getOfflineDataFromAndroid();
-                if (androidData && androidData !== "") {
-                    localStorage.setItem(QUEUE_KEY, androidData); 
-                }
-            } catch (e) { }
-        }
-        
-        commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
-        syncUIWithQueue(); 
-    }
-
-    function syncUIWithQueue() {
-        document.querySelectorAll('.shimmer-container').forEach(el => {
-            const row = el.closest('.message-row');
-            if(row) row.remove();
-        });
-        setNetworkProgress(false);
-
-        const allTxnBubbles = document.querySelectorAll('.message-row.user[id^="txn_"]');
-        allTxnBubbles.forEach(bubble => {
-            const exists = commandQueue.find(q => q.id === bubble.id);
-            if (!exists) {
-                let next = bubble.nextElementSibling;
-                while (next && next.classList.contains('model')) {
-                    const toRemove = next;
-                    next = next.nextElementSibling;
-                    toRemove.remove();
-                }
-                bubble.remove(); 
-            }
-        });
-
-        commandQueue.forEach(item => {
-            let bubble = document.getElementById(item.id);
-            if (!bubble) {
-                bubble = appendUserMessage(item.displayLabel, item.id);
-            }
-
-            if (item.status === 'interactive' && item.interactiveData) {
-                updateBubbleStatus(bubble, 'delivered');
-                let next = bubble.nextElementSibling;
-                let hasCard = false;
-                while (next && next.classList.contains('model')) {
-                    if (next.querySelector('.interactive-card')) hasCard = true;
-                    next = next.nextElementSibling;
-                }
-                if (!hasCard) {
-                    const origText = item.originalMessage || item.displayLabel;
-                    if (item.interactiveData.type === "need_missing_resolution") {
-                        renderMissingResolution(item.interactiveData, item.id, origText);
-                    } else if (item.interactiveData.type === "need_clarification") {
-                        renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
-                    }
-                }
-            } else {
-                updateBubbleStatus(bubble, item.status === 'failed' ? 'failed' : 'queued');
-            }
-        });
-
-        isAwaitingInput = commandQueue.some(i => i.status === 'interactive');
-        toggleInput(isAwaitingInput);
-    }
-
     function saveQueue() {
       localStorage.setItem(QUEUE_KEY, JSON.stringify(commandQueue));
-      if (window.AndroidBridge) {
-          window.AndroidBridge.saveOfflineDataToAndroid(JSON.stringify(commandQueue));
+    }
+
+    // Auto-sync catalog in the background without showing a chat bubble
+    async function preWarmConnection() {
+      try {
+        const id = 'txn_sync_' + Date.now();
+        await fetch(GAS_ENDPOINT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "sync_catalog", client_txn_id: id })
+        });
+      } catch (err) {
+        console.warn("Catalog sync failed in background", err);
       }
     }
 
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === 'visible') {
-            syncWithAndroid(); 
-        }
-    });
-
     window.addEventListener('DOMContentLoaded', () => {
-      syncWithAndroid(); // Screen render hone se pehle update check karo
+      commandQueue.forEach(item => {
+        const row = appendUserMessage(item.displayLabel, item.id);
+        const origText = item.originalMessage || item.displayLabel;
+
+        if (item.status === 'interactive' && item.interactiveData) {
+          updateBubbleStatus(row, 'delivered');
+          isAwaitingInput = true;
+          toggleInput(true);
+          
+          if (item.interactiveData.type === "need_missing_resolution") {
+            renderMissingResolution(item.interactiveData, item.id, origText);
+          } else if (item.interactiveData.type === "need_clarification") {
+            renderClarification(item.interactiveData.reply, item.interactiveData.options, item.interactiveData.pending_context, item.id, origText);
+          }
+        } else {
+          updateBubbleStatus(row, item.status === 'failed' ? 'failed' : 'queued');
+        }
+      });
+      if (commandQueue.length > 0 && navigator.onLine) processQueue();
+      
+      // Auto-sync catalog on load
       preWarmConnection();
     });
 
@@ -219,13 +183,7 @@
       latencyBadge.textContent = "Online";
       connDot.style.background = "var(--success-green)";
       connDot.style.boxShadow = "0 0 6px var(--success-green)";
-      
-      // FIX: Net aate hi HTML khud se process karna shuru na kare, 
-      // balke Java ko background upload ke liye 3 second ka time de.
-      setTimeout(() => {
-          syncWithAndroid(); 
-          if (commandQueue.length > 0) processQueue();
-      }, 3000); 
+      if (commandQueue.length > 0) processQueue();
     });
 
     window.addEventListener('offline', () => {
@@ -236,10 +194,9 @@
 
     setInterval(() => {
       if (commandQueue.length > 0 && navigator.onLine && !isProcessingQueue) {
-          syncWithAndroid(); // Har dafa fetch se pehle check karo ke Java ne upload toh nahi kar diya
-          if (commandQueue.length > 0) processQueue();
+        processQueue();
       }
-    }, 4000); // 4 second ka waqfa taake collision na ho
+    }, 2000);
 
     function enqueueCommand(payload, displayLabel) {
       const id = 'txn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
@@ -251,7 +208,7 @@
       const bubble = appendUserMessage(displayLabel, id);
       updateBubbleStatus(bubble, 'queued');
 
-      if (navigator.onLine) processQueue();
+      processQueue();
     }
 
     async function processQueue() {
@@ -340,6 +297,10 @@
       }
     }
 
+    // ---------------------------------------------------------
+    // INPUT FORM
+    // ---------------------------------------------------------
+
     userInput.addEventListener("input", () => {
       const val = userInput.value.trim();
       submitBtn.disabled = val.length === 0;
@@ -370,6 +331,10 @@
       enqueueCommand({ message: message }, message);
     }
 
+    // ---------------------------------------------------------
+    // DISAMBIGUATION & MISSING PRICING
+    // ---------------------------------------------------------
+    
     function handleDisambiguationSelection(selectedKey, selectedName, pendingContext, queueItemId) {
       disableAllPreviousActions();
       isAwaitingInput = false;
@@ -392,8 +357,7 @@
 
         const resBubble = appendUserMessage(qItem.displayLabel, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
-        
-        if (navigator.onLine) processQueue();
+        processQueue();
       }
     }
 
@@ -424,10 +388,13 @@
 
         const resBubble = appendUserMessage(label, newTxnId);
         updateBubbleStatus(resBubble, 'queued');
-        
-        if (navigator.onLine) processQueue();
+        processQueue();
       }
     }
+
+    // ---------------------------------------------------------
+    // RENDER FACTORY
+    // ---------------------------------------------------------
 
     function appendUserMessage(text, id) {
       const row = document.createElement("div");
