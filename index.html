@@ -132,9 +132,27 @@
     // ---------------------------------------------------------
     // TURBO QUEUE ENGINE
     // ---------------------------------------------------------
+        // ---------------------------------------------------------
+    // TURBO QUEUE ENGINE
+    // ---------------------------------------------------------
+    
+    // NAYA CODE: App khulte hi pehle Android se check karo
+    if (window.AndroidBridge && typeof window.AndroidBridge.getOfflineDataFromAndroid === "function") {
+        try {
+            let androidData = window.AndroidBridge.getOfflineDataFromAndroid();
+            // Agar Android ne background mein memory saaf kar di hai (yani data bhej diya hai)
+            if (androidData === "[]") {
+                localStorage.setItem(QUEUE_KEY, "[]"); // Website ki queue bhi khali kar do
+            }
+        } catch (e) {
+            console.warn("Android Sync check failed:", e);
+        }
+    }
+
     let commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
     let isProcessingQueue = false;
     let isAwaitingInput = false;
+
 
     function saveQueue() {
       localStorage.setItem(QUEUE_KEY, JSON.stringify(commandQueue));
