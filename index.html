@@ -97,7 +97,7 @@
     </div>
     <div class="status-group">
       <div class="connection-dot" id="connDot" title="Live Link Active"></div>
-      <div class="tag-badge" id="latencyBadge">Pure Intent Brain</div>
+      <div class="tag-badge" id="latencyBadge">True Semantic v1.0</div>
     </div>
     <div class="network-bar" id="networkBar"><div class="network-bar-fill"></div></div>
   </header>
@@ -105,7 +105,7 @@
   <main id="chatFeed">
     <div class="message-row model">
       <div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>
-      <div class="content-block">Salam! Main ab rigid keywords pe nahi, balkay pure intent pe kaam karta hoon. Qeemat, Price, Rate—jo marzi bolein, main ek insaan ki tarah samajh jaunga! ⚡</div>
+      <div class="content-block">Salam! Ab main rigid rules se azaad hoon. "Udhaar", "Khata", "Lene hain", "Balance"—jo marzi bolein, main ek insaan ki tarah neeyat samajh kar action lunga. ⚡</div>
     </div>
   </main>
 
@@ -215,38 +215,21 @@
     }
 
     async function requestGroqParsingWithFallback(message, products) {
-      const systemPrompt = `Sunny AI POS. You are a highly intelligent, human-like store manager. 
-Understand the user's true intent from their natural language (Urdu, Roman Urdu, Punjabi, Pashto, English). DO NOT rely on rigid keywords; use your semantic understanding. Synonyms (like qeemat/price/rate, wapis/return, khata/udhaar/balance) all mean the exact same thing.
+      const systemPrompt = `Sunny AI POS. Universal Semantic Brain. Return ONLY valid JSON.
+Actions: sale, return, stock, report, chat, customer_balance, customer_payment, customer_cash_out, add_new_product_form, update_price_request, update_cost_request, update_stock_request, update_price_direct, update_cost_direct, update_stock_direct, update_stock_add, low_stock, list_products
 
-AVAILABLE ACTIONS & REQUIRED JSON FORMAT:
-1. "sale" : Selling items (Cash or Credit). Use 'amount' if monetary value is given ("200 ki daal"), use 'qty' if quantity is given ("2 dew").
-   {"action":"sale", "payment":"cash"|"credit", "customer":"Name"(if credit), "items":[{"product":"Name", "qty":num, "amount":num}]}
-2. "return" : Customer returning items.
-   {"action":"return", "customer":"Name"(optional), "items":[{"product":"Name", "qty":num, "amount":num}]}
-3. "update_price_direct" : Setting a new sale price, qeemat, or rate to an EXACT number.
-   {"action":"update_price_direct", "product":"Name", "value": number}
-4. "update_cost_direct" : Setting a new cost/khareed price.
-   {"action":"update_cost_direct", "product":"Name", "value": number}
-5. "update_stock_direct" : Setting exact stock quantity to a specific number.
-   {"action":"update_stock_direct", "product":"Name", "value": number}
-6. "update_stock_add" : Increasing/adding to current stock by a number.
-   {"action":"update_stock_add", "product":"Name", "value": number}
-7. "update_price_request" | "update_cost_request" | "update_stock_request" : User wants to change price/cost/stock but DID NOT provide the new number in the message.
-   {"action":"<action_name>", "product":"Name"}
-8. "stock" : Inquiring about current stock, price, or details of a product.
-   {"action":"stock", "product":"Name"}
-9. "customer_balance" : Checking a customer's ledger, balance, udhaar, or hisaab.
-   {"action":"customer_balance", "customer":"Name"}
-10. "customer_payment" | "customer_cash_out" : Receiving cash from or giving cash to a customer.
-   {"action":"<action_name>", "customer":"Name", "amount": number}
-11. "add_new_product_form" : Request to add a new item.
-   {"action":"add_new_product_form", "reply":"[Mirror user language]"}
-12. "chat" : Casual conversation.
-   {"action":"chat", "reply":"[Mirror user language]"}
+COGNITIVE INSTRUCTIONS:
+1. Act like an intelligent human store manager. Understand the user's intent implicitly, regardless of how they phrase it, use slang, or make typos.
+2. LANGUAGE & TONE MIRRORING: Always mirror the user's exact language, script, dialect, and tone in the "reply" field when talking or prompting.
+3. CORE INTENT MAPPING:
+   - CUSTOMER BALANCE / UDHAAR INQUIRY: Any question checking a customer's ledger, balance, dues, "khata", "hisaab", "udhaar dena/lena" -> {"action":"customer_balance","customer":"CustomerName"}
+   - SALE (Cash / Credit): Customer name + items -> credit sale. Amount-based sale ("200 ki daal") -> amount sale.
+   - RETURNS: Any phrasing indicating wapsi or returning items -> {"action":"return", ...}
+   - STOCK / PRICE INQUIRY: Inquiring about stock or price ("Pepsi ka stock dikhao", "batao kitna hai") -> {"action":"stock","product":"ProductName"}
+   - MODIFICATIONS / UPDATES: Changing prices, costs, or stock levels (with or without explicit values) -> appropriate update actions.
+   - CHAT / CONVERSATION: General greetings or chat -> {"action":"chat","reply":"[Mirror user language/style]"}
 
-OUTPUT INSTRUCTIONS:
-- Return ONLY valid JSON.
-- ALWAYS extract numbers accurately. If user says "qeemat 50 kr do", action is update_price_direct, and value is 50.`;
+OUTPUT FORMAT: Return ONLY a valid JSON object. No explanations.`;
 
       let lastError = "";
 
@@ -295,7 +278,7 @@ OUTPUT INSTRUCTIONS:
     async function safeUnderstandCommand(message, products) {
       const lower = message.toLowerCase().trim();
       
-      // Explicit routing
+      // Explicit routing for common standard queries to bypass AI
       if (/^(stats|report|reports|aj ki report|aaj ki report|today report|today stats|aaj ki sale|aj ki sale|total sale|total naqad sale|total naqad sales|naqad sale|sale dikhao)$/.test(lower)) return { action: "report", period: "daily" };
       if (/^(yesterday report|kal ki report|pichle din|yesterday stats|yesterday|kal|kal ki sale)$/.test(lower)) return { action: "report", period: "yesterday" };
       if (/^(is month|is mahine|this month|monthly report|is month ki report|this month stats|is month ki sale)$/.test(lower)) return { action: "report", period: "monthly" };
@@ -880,85 +863,6 @@ OUTPUT INSTRUCTIONS:
       const safeCustomerKey = sanitizeFirebaseKey(customer);
       const balance = await firebaseRequest(`Customers/${safeCustomerKey}/Balance`, "GET") || 0;
       return { ok: true, reply: `⚖️ Balance for ${customer}:\nRs ${formatNumber(balance)}\n\n(Note: Agar balance positive (+) hai to iska matlab customer ne udhaar dena hai. Agar negative (-) hai to aap ne wapis karna hai.)` };
-    }
-
-    function normalizeReportPeriod(period) {
-      period = String(period || "daily").toLowerCase();
-      if (["today", "daily", "day"].includes(period)) return "daily";
-      if (["yesterday", "kal"].includes(period)) return "yesterday";
-      if (["week", "weekly"].includes(period)) return "weekly";
-      if (["month", "monthly"].includes(period)) return "monthly";
-      if (["year", "yearly"].includes(period)) return "yearly";
-      if (["all", "lifetime"].includes(period)) return "lifetime";
-      return period.includes("previous_") ? period : "daily";
-    }
-
-    function formatStatsReport(stats, period, globalCash) {
-      const map = { daily: "Today's", yesterday: "Yesterday's", weekly: "This Week's", previous_week: "Previous Week", monthly: "This Month's", previous_month: "Previous Month", yearly: "This Year's", previous_year: "Previous Year", lifetime: "Lifetime" };
-      let reply = `📊 ${(map[normalizeReportPeriod(period)] || "General")} Report\n\n`;
-      reply += `💰 Total Sales: Rs ${formatNumber(stats.TotalSales || 0)}\n📦 Total Cost: Rs ${formatNumber(stats.TotalCost || 0)}\n📈 Total Profit: Rs ${formatNumber(stats.TotalProfit || 0)}\n💵 Naqad Sales: Rs ${formatNumber(stats.TotalCash || 0)}\n🧾 Udhaar Sales: Rs ${formatNumber(stats.TotalCredit || 0)}\n`;
-      if (stats.CashIn > 0 || stats.CashOut > 0) reply += `\n💱 Cash Flow:\n   Cash In (+): Rs ${formatNumber(stats.CashIn || 0)}\n   Cash Out (-): Rs ${formatNumber(stats.CashOut || 0)}\n`;
-      reply += `\n🏦 Total Cash In Hand: Rs ${formatNumber(globalCash.CashInHand || 0)}\n🛒 Sales Count: ${formatNumber(stats.SaleCount || 0)}`;
-      
-      const rows = Object.keys(stats.Products || {}).map(k => stats.Products[k]).filter(p => p.Revenue !== 0 || p.Qty !== 0).sort((a, b) => b.Revenue - a.Revenue);
-      if (rows.length) {
-        reply += "\n\n🛍️ Product Sales:";
-        rows.forEach((p, index) => { reply += `\n\n${index + 1}. ${p.Name}\n   Sold: ${formatNumber(p.Qty || 0)} | Times: ${formatNumber(p.TimesSold || 0)}\n   Rev: Rs ${formatNumber(p.Revenue || 0)} | Profit: Rs ${formatNumber(p.Profit || 0)}`; });
-      }
-      return { ok: true, reply };
-    }
-
-    async function processReport(command) {
-      const period = normalizeReportPeriod(command.period);
-      const globalCash = await firebaseRequest("CashManagement", "GET") || { CashInHand: 0, CashIn: 0, CashOut: 0 };
-      if (["daily", "weekly", "monthly", "yearly", "lifetime"].includes(period)) {
-        const stats = await firebaseRequest(getStatsBucketPaths(new Date())[period], "GET");
-        if (stats && typeof stats === "object") return formatStatsReport(stats, period, globalCash);
-      }
-      return { ok: true, reply: "📊 Cannot generate report for complex custom period directly from client." };
-    }
-
-    async function processProductReport(command, products) {
-      const match = findProduct(command.product, products);
-      if (match.status !== "found") return { ok: false, reply: "❌ Product nahi mila." };
-      const product = match.product, targetName = canonicalProductName(product.Name || product._key), period = normalizeReportPeriod(command.period || "monthly");
-      
-      if (["daily", "weekly", "monthly", "yearly", "lifetime"].includes(period)) {
-        const stats = await firebaseRequest(getStatsBucketPaths(new Date())[period], "GET");
-        if (stats && stats.Products) {
-          const keys = Object.keys(stats.Products);
-          for (let i = 0; i < keys.length; i++) {
-            if (canonicalProductName(keys[i]) === targetName || canonicalProductName(stats.Products[keys[i]].Name) === targetName) {
-               const p = stats.Products[keys[i]];
-               return { ok: true, reply: `📊 ${product.Name || product._key}\n\nPeriod: ${period}\n\nSold: ${formatNumber(p.Qty || 0)}\n🔢 Times Sold: ${formatNumber(p.TimesSold || 0)}\n💰 Revenue: Rs ${formatNumber(p.Revenue || 0)}\n📦 Cost: Rs ${formatNumber(p.Cost || 0)}\n📈 Profit: Rs ${formatNumber(p.Profit || 0)}` };
-            }
-          }
-        }
-      }
-      return { ok: false, reply: "📊 No data found for this period." };
-    }
-
-    async function processChatHistory() {
-      const dates = [];
-      const now = new Date();
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
-        dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
-      }
-      const responses = await firebaseParallelGet(dates.map(d => `ChatHistory/${d}`));
-      let allChats = [];
-      responses.forEach(dayData => { if (dayData) Object.values(dayData).forEach(c => allChats.push(c)); });
-      
-      if (allChats.length === 0) return { ok: true, reply: "📭 Pichle 7 din ki koi chat history nahi mili." };
-      allChats.sort((a, b) => a.timestamp - b.timestamp);
-      
-      let reply = "📜 Last 7 Days Chat History:\n\n";
-      allChats.slice(-40).forEach(c => {
-        const d = new Date(c.timestamp);
-        const timeStr = `${d.getDate()} ${d.toLocaleString('default',{month:'short'})}, ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
-        reply += `👤 [${timeStr}]\n💬 You: ${c.user}\n🤖 AI: ${c.ai}\n${"-".repeat(20)}\n`;
-      });
-      return { ok: true, reply: reply.trim() };
     }
 
     // ---------------------------------------------------------
