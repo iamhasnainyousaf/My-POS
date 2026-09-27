@@ -1,1 +1,282 @@
-gg
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Sunny AI POS - Ultra Fast</title>
+  <link rel="preconnect" href="https://api.groq.com" crossorigin>
+  <link rel="dns-prefetch" href="https://api.groq.com">
+  <style>
+    :root {
+      --bg-main:#131314;--surface:#1e1f20;--surface-variant:#282a2c;
+      --text-primary:#e3e3e3;--text-secondary:#c4c7c5;--text-muted:#8e918f;
+      --accent-blue:#a8c7fa;--accent-spark:#7cacf8;--input-bg:#1e1f20;
+      --border-subtle:#444746;--danger-color:#f28b82;--warning-color:#fdd663;
+      --success-green:#34a853;--font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:var(--font-family);-webkit-tap-highlight-color:transparent}
+    html,body{background-color:var(--bg-main);color:var(--text-primary);width:100%;height:100%;height:100dvh;overflow:hidden;position:fixed}
+    body{display:flex;flex-direction:column}
+    header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:rgba(19,19,20,.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.06);z-index:10;position:relative}
+    .brand{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:500}
+    .gemini-spark{width:20px;height:20px;fill:url(#gemini-gradient)}
+    .status-group{display:flex;align-items:center;gap:8px}
+    .connection-dot{width:8px;height:8px;border-radius:50%;background:var(--success-green);box-shadow:0 0 6px var(--success-green);transition:background .3s,box-shadow .3s}
+    .tag-badge{font-size:.75rem;background:var(--surface-variant);color:var(--text-secondary);padding:3px 9px;border-radius:12px;border:1px solid var(--border-subtle);font-family:monospace}
+    .network-bar{position:absolute;bottom:0;left:0;width:100%;height:2px;background:transparent;overflow:hidden}
+    .network-bar-fill{width:0%;height:100%;background:linear-gradient(90deg,var(--accent-spark),var(--accent-blue));transition:width .3s ease}
+    .network-bar.active .network-bar-fill{width:80%;animation:pulseProgress 1.8s infinite ease-in-out}
+    @keyframes pulseProgress{0%{transform:translateX(-100%);width:40%}50%{transform:translateX(50%);width:60%}100%{transform:translateX(150%);width:40%}}
+    main{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:20px;max-width:800px;width:100%;margin:0 auto;scroll-behavior:smooth}
+    .message-row{display:flex;gap:12px;width:100%;contain:layout}
+    .message-row.user{justify-content:flex-end}
+    .avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface)}
+    .content-block{max-width:84%;font-size:.94rem;line-height:1.55;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
+    .message-row.user .content-block{background:var(--surface);padding:10px 16px;border-radius:18px;border-bottom-right-radius:4px;color:#fff;display:flex;flex-direction:column;align-items:flex-end}
+    .quote-block{font-size:.82rem;color:var(--text-secondary);background:rgba(124,172,248,.1);padding:6px 10px;border-left:3px solid var(--accent-spark);border-radius:4px;margin-bottom:10px;font-style:italic;word-break:break-word}
+    .msg-meta{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--text-muted);margin-top:5px}
+    .status-tick{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px}
+    .mini-spinner{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.2);border-top-color:var(--accent-blue);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .message-row.model .content-block{padding-top:2px}
+    .shimmer-container{display:flex;flex-direction:column;gap:8px;width:220px;padding-top:6px}
+    .shimmer-line{height:13px;border-radius:6px;background:linear-gradient(90deg,#1e1f20 25%,#2d2f31 50%,#1e1f20 75%);background-size:200% 100%;animation:geminiShimmer 1.4s infinite}
+    .shimmer-line.short{width:55%}
+    @keyframes geminiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .interactive-card{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+    .actions-grid{display:flex;flex-wrap:wrap;gap:8px}
+    .option-chip{background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary);padding:8px 14px;border-radius:12px;font-size:.86rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+    .option-chip:hover:not(:disabled){background:var(--surface-variant);border-color:var(--accent-spark)}
+    .option-chip.cancel-chip{color:var(--danger-color);border-color:rgba(242,139,130,.3)}
+    .option-chip:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+    .chip-meta{font-size:.72rem;color:var(--text-muted);background:rgba(0,0,0,.3);padding:2px 6px;border-radius:6px}
+    .manual-price-box{background:var(--surface);border:1px solid var(--border-subtle);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .manual-item-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+    .manual-item-name{font-size:.88rem;color:var(--text-secondary);flex:1}
+    .manual-input{width:120px;background:#131314;border:1px solid var(--border-subtle);border-radius:8px;padding:7px 10px;color:#fff;font-size:.9rem;outline:none;text-align:right}
+    .manual-input:focus{border-color:var(--accent-blue)}
+    .form-btn-group{display:flex;gap:8px;margin-top:6px}
+    .submit-prices-btn{background:var(--accent-blue);color:#04101d;font-weight:600;border:none;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.86rem;flex:1}
+    .cancel-form-btn{background:rgba(242,139,130,.15);color:var(--danger-color);font-weight:600;border:1px solid rgba(242,139,130,.3);padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.86rem}
+    .submit-prices-btn:disabled,.cancel-form-btn:disabled{opacity:.5}
+    .input-wrapper{flex-shrink:0;padding:10px 16px 18px 16px;max-width:800px;width:100%;margin:0 auto}
+    .input-box{background:var(--input-bg);border-radius:30px;display:flex;align-items:center;padding:5px 12px 5px 18px;border:1px solid transparent;transition:border-color .2s,background .2s}
+    .input-box:focus-within{border-color:var(--border-subtle);background:#232427}
+    .input-box input{flex:1;background:transparent;border:none;outline:none;color:var(--text-primary);font-size:.98rem;line-height:1.5}
+    .input-box input::placeholder{color:var(--text-muted)}
+    .input-box input:disabled{opacity:.5}
+    .send-btn{background:transparent;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:color .2s}
+    .send-btn.active{color:var(--accent-blue)}
+    .send-btn:disabled{opacity:.3;cursor:not-allowed}
+  </style>
+</head>
+<body>
+  <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7cacf8"/><stop offset="50%" stop-color="#9b7bf7"/><stop offset="100%" stop-color="#d96570"/>
+    </linearGradient>
+  </svg>
+
+  <header>
+    <div class="brand">
+      <svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg>
+      Sunny AI POS
+    </div>
+    <div class="status-group">
+      <div class="connection-dot" id="connDot" title="Live Link Active"></div>
+      <div class="tag-badge" id="latencyBadge">Ready</div>
+    </div>
+    <div class="network-bar" id="networkBar"><div class="network-bar-fill"></div></div>
+  </header>
+
+  <main id="chatFeed">
+    <div class="message-row model">
+      <div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>
+      <div class="content-block">Salam! Sunny AI POS tayyar hai. Sale, return, report ya khata likhein. ⚡</div>
+    </div>
+  </main>
+
+  <div class="input-wrapper">
+    <form class="input-box" id="commandForm" onsubmit="handleFormSubmit(event)">
+      <input type="text" id="userInput" placeholder="Type sale, update price, chat..." autocomplete="off"/>
+      <button type="submit" id="submitBtn" class="send-btn" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // ─── CONFIG ───────────────────────────────────────────────
+    const FIREBASE_URL = "https://shop-pos-59971-default-rtdb.firebaseio.com";
+    const GROQ_API_KEY = "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";
+    const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
+    const GROQ_MODEL   = "openai/gpt-oss-20b";
+
+    const PRODUCT_CACHE_KEY  = "SUNNY_PRODUCTS_CACHE_V33";
+    const CUSTOMER_CACHE_KEY = "SUNNY_CUSTOMERS_CACHE_V33";
+    const QUEUE_KEY          = "sunny_pos_queue";
+    const LAST_TXN_KEY       = "sunny_last_txn";
+    const CACHE_TTL          = 900000; // 15 min
+
+    const AVATAR_HTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>`;
+
+    const chatFeed    = document.getElementById("chatFeed");
+    const userInput   = document.getElementById("userInput");
+    const submitBtn   = document.getElementById("submitBtn");
+    const latencyBadge = document.getElementById("latencyBadge");
+    const connDot     = document.getElementById("connDot");
+    const networkBar  = document.getElementById("networkBar");
+
+    // ─── FIREBASE ─────────────────────────────────────────────
+    async function firebaseRequest(path, method="GET", data=null) {
+      const url = `${FIREBASE_URL}/${path.replace(/^\/+|\/+$/g,"")}.json`;
+      const opts = { method, headers:{} };
+      if (data !== null) { opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(data); }
+      const r = await fetch(url, opts);
+      if (!r.ok) { if (method!=="GET") throw new Error(`Firebase ${method} HTTP ${r.status}`); return null; }
+      return r.json();
+    }
+
+    async function firebaseParallelGet(paths) {
+      const rs = await Promise.all(paths.map(p=>fetch(`${FIREBASE_URL}/${p.replace(/^\/+|\/+$/g,"")}.json`)));
+      return Promise.all(rs.map(r=>r.ok?r.json():null));
+    }
+
+    function addInc(updates, path, n) {
+      n = Number(n);
+      if (!isFinite(n) || n===0) return;
+      const cur = updates[path];
+      const base = (cur&&cur[".sv"]) ? (Number(cur[".sv"].increment)||0) : 0;
+      updates[path] = {".sv":{"increment": base+n}};
+    }
+
+    // ─── CACHE ────────────────────────────────────────────────
+    function readCache(key) {
+      try {
+        const c = localStorage.getItem(key);
+        if (!c) return null;
+        const p = JSON.parse(c);
+        return (Date.now()-p.timestamp < CACHE_TTL) ? p.data : null;
+      } catch(e){ return null; }
+    }
+    function writeCache(key, data) {
+      try { localStorage.setItem(key, JSON.stringify({timestamp:Date.now(), data})); } catch(e){}
+    }
+
+    async function getProductsCached() {
+      const cached = readCache(PRODUCT_CACHE_KEY);
+      if (cached) return cached;
+      const products = await firebaseRequest("Products","GET") || {};
+      writeCache(PRODUCT_CACHE_KEY, products);
+      return products;
+    }
+    async function getCustomersCached() {
+      const cached = readCache(CUSTOMER_CACHE_KEY);
+      if (cached) return cached;
+      const customers = await firebaseRequest("Customers","GET") || {};
+      writeCache(CUSTOMER_CACHE_KEY, customers);
+      return customers;
+    }
+    async function preloadCaches() {
+      try { await Promise.all([getProductsCached(), getCustomersCached()]); } catch(e){}
+    }
+
+    function patchLocalCaches(updates) {
+      try {
+        const pRaw = localStorage.getItem(PRODUCT_CACHE_KEY);
+        const cRaw = localStorage.getItem(CUSTOMER_CACHE_KEY);
+        const pCache = pRaw ? JSON.parse(pRaw) : null;
+        const cCache = cRaw ? JSON.parse(cRaw) : null;
+        if (!pCache && !cCache) return;
+        const pData = pCache?.data, cData = cCache?.data;
+        let pChanged=false, cChanged=false;
+
+        for (const path of Object.keys(updates)) {
+          const parts = path.split('/');
+          if (parts[0]==='Products' && pData) {
+            const k=parts[1];
+            if (!pData[k]) pData[k]={};
+            if (parts[2]==='Stock' && updates[path]?.['.sv']) {
+              pData[k].Stock = (Number(pData[k].Stock)||0) + Number(updates[path]['.sv'].increment);
+            } else if (parts[2] && typeof updates[path]!=='object') {
+              pData[k][parts[2]] = updates[path];
+            } else if (!parts[2]) {
+              pData[k] = updates[path];
+            }
+            pChanged=true;
+          } else if (parts[0]==='Customers' && cData) {
+            const k=parts[1];
+            if (!cData[k]) cData[k]={};
+            if (parts[2]==='Balance' && updates[path]?.['.sv']) {
+              cData[k].Balance = (Number(cData[k].Balance)||0) + Number(updates[path]['.sv'].increment);
+            } else if (!parts[2]) {
+              cData[k] = updates[path];
+            }
+            cChanged=true;
+          }
+        }
+        if (pChanged) writeCache(PRODUCT_CACHE_KEY, pData);
+        if (cChanged) writeCache(CUSTOMER_CACHE_KEY, cData);
+      } catch(e){}
+    }
+
+    async function commitResult(res) {
+      if (!res?.updates) return res;
+      const txKey = Object.keys(res.updates).find(k=>/^Transactions\/[^/]+$/.test(k));
+      if (txKey) {
+        const existing = await firebaseRequest(`${txKey}/id`,"GET");
+        if (existing) { delete res.updates; return {ok:true,reply:"ℹ️ Yeh entry pehle hi record ho chuki hai."}; }
+      }
+      await firebaseRequest("","PATCH",res.updates);
+      if (txKey) {
+        const t = res.updates[txKey];
+        if (t && ["sale","return","payment","cash_out","expense","supplier_purchase","supplier_payment","purchase"].includes(t.type))
+          localStorage.setItem(LAST_TXN_KEY, t.id);
+      }
+      patchLocalCaches(res.updates);
+      delete res.updates;
+      res.saved=true;
+      return res;
+    }
+
+    // ─── AI SYSTEM PROMPT (token-optimised, intent-driven) ─────
+    // NOTE: All intent understanding is done by the AI itself — no hardcoded
+    // per-phrase regex here. The rules below describe MEANING/INTENT patterns
+    // in any language/script/slang (Urdu, Roman Urdu, English, mixed, rough
+    // spelling) so the model generalizes instead of matching fixed words.
+    const SYSTEM_PROMPT = `Role:Sunny AI POS (Pakistan shopkeeper assistant). Input:Urdu script/Roman Urdu/English/slang/mixed, often misspelled. Understand INTENT not exact wording. Output:ONLY JSON,no markdown.
+HARD RULE: "action" must ALWAYS be one of the ACTIONS listed below — never omit it, never invent an unlisted name, never leave a part undecided. If more than one action seems possible, pick the single most likely one(a message containing any product-like word is almost always sale) rather than refusing to decide. Only use chat when there is truly no store-related content(pure greeting/small-talk/nonsense); every chat MUST include a non-empty "reply", and if the message was too vague to act on, let that reply itself ask a short natural clarifying question in the user's own script/tone — never return an object with a missing/invalid action and no reply.
+Numbers:sau=100,hazar=1000,lakh=100000,pawa/pao=0.25,adha=0.5,dhai=2.5,sawa=1.25. Digits may be spelled out, any language.
+Items:{product,qty?,amount?}(amount=total Rs when price given as total not per-unit).
+
+MULTI:1 msg can hold 2+ instructions(diff action types, or same action for diff customer/product), joined by ANY separator — word(or/aur/and/ya), symbol(+,&,/,-,newline), punctuation(,/.), or plain back-to-back/spaces. Return {parts:[cmd,...]} in spoken order. New part=action changes OR same action for new customer/subject. Multi-item sale/return for ONE customer/payment=still ONE part — split every separator(word or symbol,e.g."+") into a new items[] entry inside that SAME part, never into a new part. A number attaches only to the item right beside it; a later item in the same joined list with no number of its own simply omits qty(defaults to 1) rather than inheriting the earlier number. Single instruction→still {parts:[cmd]}.
+
+RULE query-vs-update: asking("kitni/kya hai/batao/check karo")→stock(read-only),never *_direct. instructing+number("kr do/set karo/kr diya/X rakh do/increase by X")→matching *_direct,number in "value". "stock me X add karo"(adding)→update_stock_direct,value:X,value_mode:add. "stock X kr do"(replace)→value_mode:set/omit. No number stated→*_request(opens form),never guess.
+
+RULE payment: no customer→cash(omit payment). customer named+no cash word(naqad/cash/nqd)→omit payment or credit(udhaar),NEVER cash. customer named+cash word→cash. Partial now+rest owed→split+paid_amount. NEVER invent a customer — only set customer for an actual proper name; word could be product or name→treat as product(omit customer).
+
+RULE unclear words: word not matching Matches/known items→still put in items as product exactly as written(items:[{product:"<word>",qty}]),qty from msg. Never turn into customer/payment/different action just because unfamiliar — let product-lookup report not-found.
+
+RULE bare item: message is JUST product word(s) — maybe with a qty, nothing else, no verb, no customer, no question→still action:sale,payment:cash,one items[] entry per product word/word-group(split by MULTI's separators above). A single bare product word by itself("mirinda") is already a complete sale, not chat and not "unclear" — never fall back to a generic error just because a verb or number is missing.
+
+RULE lookalikes: Roman Urdu sometimes spells a word exactly like an unrelated English word — read it by shopkeeper context, not literal English meaning. e.g. "or"=aur(and — joins items/customers together),not the English choice-word "or"; "sub"=sab(all); "kam"=kaam(work) or kam(less) depending on context. Between two products or two customers in one sale, such a word almost always means "aur" and should join them into the same list, not split them into alternatives.
+
+RULE chat: greetings/thanks/small-talk/general questions with no store action(e.g. "kesay ho","shukriya","acha theek hai","kya kar rahe ho")→chat. reply must be warm,natural,SHORT(1 sentence,same language/script/tone as user — Roman Urdu in, Roman Urdu out), never robotic/generic, never force it into an unrelated action just because chat has few rules.
+
+ACTIONS(field list per action; "?"=optional):
+sale:payment(cash|credit|split)?,customer?,paid_amount?,discount?,discount_percent?,items[{product,qty?,amount?}]
+return:payment?,customer?,items
+customer_payment:customer,amount — customer paid toward what they owe
+customer_cash_out:customer,amount — shopkeeper gave cash to customer
+customer_balance:customer — one customer's khata/udhaar
+all_balances: — everyone's khata,no name given
+supplier_balance:supplier | all_supplier_balances:
+cash_balance: — register cash
+list_products: | low_stock: | list_recent_transactions:
+expense_add:category,amount,note?
+supplier_purchase:supplier,items[{product,qty,cost}],amount?
+supplier_payment:supplier,amount
+report:period(daily|yesterday|weekly|monthly|yearly)
+expense_report:period | product_report:product,period
+stock:product — qty/price/cost of one product
+update_price_direct/update
