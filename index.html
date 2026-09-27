@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Sunny AI POS - Ultra Fast</title>
+  <link rel="preconnect" href="https://api.groq.com" crossorigin>
+  <link rel="dns-prefetch" href="https://api.groq.com">
+  <style>
+    :root {
+      --bg-main:#131314;--surface:#1e1f20;--surface-variant:#282a2c;
+      --text-primary:#e3e3e3;--text-secondary:#c4c7c5;--text-muted:#8e918f;
+      --accent-blue:#a8c7fa;--accent-spark:#7cacf8;--input-bg:#1e1f20;
+      --border-subtle:#444746;--danger-color:#f28b82;--warning-color:#fdd663;
+      --success-green:#34a853;--font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:var(--font-family);-webkit-tap-highlight-color:transparent}
+    html,body{background-color:var(--bg-main);color:var(--text-primary);width:100%;height:100%;height:100dvh;overflow:hidden;position:fixed}
+    body{display:flex;flex-direction:column}
+    header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:rgba(19,19,20,.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.06);z-index:10;position:relative}
+    .brand{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:500}
+    .gemini-spark{width:20px;height:20px;fill:url(#gemini-gradient)}
+    .status-group{display:flex;align-items:center;gap:8px}
+    .connection-dot{width:8px;height:8px;border-radius:50%;background:var(--success-green);box-shadow:0 0 6px var(--success-green);transition:background .3s,box-shadow .3s}
+    .tag-badge{font-size:.75rem;background:var(--surface-variant);color:var(--text-secondary);padding:3px 9px;border-radius:12px;border:1px solid var(--border-subtle);font-family:monospace}
+    .network-bar{position:absolute;bottom:0;left:0;width:100%;height:2px;background:transparent;overflow:hidden}
+    .network-bar-fill{width:0%;height:100%;background:linear-gradient(90deg,var(--accent-spark),var(--accent-blue));transition:width .3s ease}
+    .network-bar.active .network-bar-fill{width:80%;animation:pulseProgress 1.8s infinite ease-in-out}
+    @keyframes pulseProgress{0%{transform:translateX(-100%);width:40%}50%{transform:translateX(50%);width:60%}100%{transform:translateX(150%);width:40%}}
+    main{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:20px;max-width:800px;width:100%;margin:0 auto;scroll-behavior:smooth}
+    .message-row{display:flex;gap:12px;width:100%;contain:layout}
+    .message-row.user{justify-content:flex-end}
+    .avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface)}
+    .content-block{max-width:84%;font-size:.94rem;line-height:1.55;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
+    .message-row.user .content-block{background:var(--surface);padding:10px 16px;border-radius:18px;border-bottom-right-radius:4px;color:#fff;display:flex;flex-direction:column;align-items:flex-end}
+    .quote-block{font-size:.82rem;color:var(--text-secondary);background:rgba(124,172,248,.1);padding:6px 10px;border-left:3px solid var(--accent-spark);border-radius:4px;margin-bottom:10px;font-style:italic;word-break:break-word}
+    .msg-meta{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--text-muted);margin-top:5px}
+    .status-tick{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px}
+    .mini-spinner{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.2);border-top-color:var(--accent-blue);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .message-row.model .content-block{padding-top:2px}
+    .shimmer-container{display:flex;flex-direction:column;gap:8px;width:220px;padding-top:6px}
+    .shimmer-line{height:13px;border-radius:6px;background:linear-gradient(90deg,#1e1f20 25%,#2d2f31 50%,#1e1f20 75%);background-size:200% 100%;animation:geminiShimmer 1.4s infinite}
+    .shimmer-line.short{width:55%}
+    @keyframes geminiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .interactive-card{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+    .actions-grid{display:flex;flex-wrap:wrap;gap:8px}
+    .option-chip{background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary);padding:8px 14px;border-radius:12px;font-size:.86rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+    .option-chip:hover:not(:disabled){background:var(--surface-variant);border-color:var(--accent-spark)}
+    .option-chip.cancel-chip{color:var(--danger-color);border-color:rgba(242,139,130,.3)}
+    .option-chip:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+    .chip-meta{font-size:.72rem;color:var(--text-muted);background:rgba(0,0,0,.3);padding:2px 6px;border-radius:6px}
+    .manual-price-box{background:var(--surface);border:1px solid var(--border-subtle);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .manual-item-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+    .manual-item-name{font-size:.88rem;color:var(--text-secondary);flex:1}
+    .manual-input{width:120px;background:#131314;border:1px solid var(--border-subtle);border-radius:8px;padding:7px 10px;color:#fff;font-size:.9rem;outline:none;text-align:right}
+    .manual-input:focus{border-color:var(--accent-blue)}
+    .form-btn-group{display:flex;gap:8px;margin-top:6px}
+    .submit-prices-btn{background:var(--accent-blue);color:#04101d;font-weight:600;border:none;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.86rem;flex:1}
+    .cancel-form-btn{background:rgba(242,139,130,.15);color:var(--danger-color);font-weight:600;border:1px solid rgba(242,139,130,.3);padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.86rem}
+    .submit-prices-btn:disabled,.cancel-form-btn:disabled{opacity:.5}
+    .input-wrapper{flex-shrink:0;padding:10px 16px 18px 16px;max-width:800px;width:100%;margin:0 auto}
+    .input-box{background:var(--input-bg);border-radius:30px;display:flex;align-items:center;padding:5px 12px 5px 18px;border:1px solid transparent;transition:border-color .2s,background .2s}
+    .input-box:focus-within{border-color:var(--border-subtle);background:#232427}
+    .input-box input{flex:1;background:transparent;border:none;outline:none;color:var(--text-primary);font-size:.98rem;line-height:1.5}
+    .input-box input::placeholder{color:var(--text-muted)}
+    .input-box input:disabled{opacity:.5}
+    .send-btn{background:transparent;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:color .2s}
+    .send-btn.active{color:var(--accent-blue)}
+    .send-btn:disabled{opacity:.3;cursor:not-allowed}
+  </style>
+</head>
+<body>
+  <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7cacf8"/><stop offset="50%" stop-color="#9b7bf7"/><stop offset="100%" stop-color="#d96570"/>
+    </linearGradient>
+  </svg>
+
+  <header>
+    <div class="brand">
+      <svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg>
+      Sunny AI POS
+    </div>
+    <div class="status-group">
+      <div class="connection-dot" id="connDot" title="Live Link Active"></div>
+      <div class="tag-badge" id="latencyBadge">Ready</div>
+    </div>
+    <div class="network-bar" id="networkBar"><div class="network-bar-fill"></div></div>
+  </header>
+
+  <main id="chatFeed">
+    <div class="message-row model">
+      <div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>
+      <div class="content-block">Salam! Sunny AI POS tayyar hai. Sale, return, report ya khata likhein. ⚡</div>
+    </div>
+  </main>
+
+  <div class="input-wrapper">
+    <form class="input-box" id="commandForm" onsubmit="handleFormSubmit(event)">
+      <input type="text" id="userInput" placeholder="Type sale, update price, chat..." autocomplete="off"/>
+      <button type="submit" id="submitBtn" class="send-btn" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // ─── CONFIG ───────────────────────────────────────────────
+    const FIREBASE_URL = "https://shop-pos-59971-default-rtdb.firebaseio.com";
+    const GROQ_API_KEY = "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";
+    const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
+    const GROQ_MODEL   = "openai/gpt-oss-20b";
+
+    const PRODUCT_CACHE_KEY  = "SUNNY_PRODUCTS_CACHE_V33";
+    const CUSTOMER_CACHE_KEY = "SUNNY_CUSTOMERS_CACHE_V33";
+    const QUEUE_KEY          = "sunny_pos_queue";
+    const LAST_TXN_KEY       = "sunny_last_txn";
+    const CACHE_TTL          = 900000; // 15 min
+
+    const AVATAR_HTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>`;
+
+    const chatFeed    = document.getElementById("chatFeed");
+    const userInput   = document.getElementById("userInput");
+    const submitBtn   = document.getElementById("submitBtn");
+    const latencyBadge = document.getElementById("latencyBadge");
+    const connDot     = document.getElementById("connDot");
+    const networkBar  = document.getElementById("networkBar");
+
+    // ─── FIREBASE ─────────────────────────────────────────────
+    async function firebaseRequest(path, method="GET", data=null) {
+      const url = `${FIREBASE_URL}/${path.replace(/^\/+|\/+$/g,"")}.json`;
+      const opts = { method, headers:{} };
+      if (data !== null) { opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(data); }
+      const r = await fetch(url, opts);
+      if (!r.ok) { if (method!=="GET") throw new Error(`Firebase ${method} HTTP ${r.status}`); return null; }
+      return r.json();
+    }
+
+    async function firebaseParallelGet(paths) {
+      const rs = await Promise.all(paths.map(p=>fetch(`${FIREBASE_URL}/${p.replace(/^\/+|\/+$/g,"")}.json`)));
+      return Promise.all(rs.map(r=>r.ok?r.json():null));
+    }
+
+    function addInc(updates, path, n) {
+      n = Number(n);
+      if (!isFinite(n) || n===0) return;
+      const cur = updates[path];
+      const base = (cur&&cur[".sv"]) ? (Number(cur[".sv"].increment)||0) : 0;
+      updates[path] = {".sv":{"increment": base+n}};
+    }
+
+    // ─── CACHE ────────────────────────────────────────────────
+    function readCache(key) {
+      try {
+        const c = localStorage.getItem(key);
+        if (!c) return null;
+        const p = JSON.parse(c);
+        return (Date.now()-p.timestamp < CACHE_TTL) ? p.data : null;
+      } catch(e){ return null; }
+    }
+    function writeCache(key, data) {
+      try { localStorage.setItem(key, JSON.stringify({timestamp:Date.now(), data})); } catch(e){}
+    }
+
+    async function getProductsCached() {
+      const cached = readCache(PRODUCT_CACHE_KEY);
+      if (cached) return cached;
+      const products = await firebaseRequest("Products","GET") || {};
+      writeCache(PRODUCT_CACHE_KEY, products);
+      return products;
+    }
+    async function getCustomersCached() {
+      const cached = readCache(CUSTOMER_CACHE_KEY);
+      if (cached) return cached;
+      const customers = await firebaseRequest("Customers","GET") || {};
+      writeCache(CUSTOMER_CACHE_KEY, customers);
+      return customers;
+    }
+    async function preloadCaches() {
+      try { await Promise.all([getProductsCached(), getCustomersCached()]); } catch(e){}
+    }
+
+    function patchLocalCaches(updates) {
+      try {
+        const pRaw = localStorage.getItem(PRODUCT_CACHE_KEY);
+        const cRaw = localStorage.getItem(CUSTOMER_CACHE_KEY);
+        const pCache = pRaw ? JSON.parse(pRaw) : null;
+        const cCache = cRaw ? JSON.parse(cRaw) : null;
+        if (!pCache && !cCache) return;
+        const pData = pCache?.data, cData = cCache?.data;
+        let pChanged=false, cChanged=false;
+
+        for (const path of Object.keys(updates)) {
+          const parts = path.split('/');
+          if (parts[0]==='Products' && pData) {
+            const k=parts[1];
+            if (!pData[k]) pData[k]={};
+            if (parts[2]==='Stock' && updates[path]?.['.sv']) {
+              pData[k].Stock = (Number(pData[k].Stock)||0) + Number(updates[path]['.sv'].increment);
+            } else if (parts[2] && typeof updates[path]!=='object') {
+              pData[k][parts[2]] = updates[path];
+            } else if (!parts[2]) {
+              pData[k] = updates[path];
+            }
+            pChanged=true;
+          } else if (parts[0]==='Customers' && cData) {
+            const k=parts[1];
+            if (!cData[k]) cData[k]={};
+            if (parts[2]==='Balance' && updates[path]?.['.sv']) {
+              cData[k].Balance = (Number(cData[k].Balance)||0) + Number(updates[path]['.sv'].increment);
+            } else if (!parts[2]) {
+              cData[k] = updates[path];
+            }
+            cChanged=true;
+          }
+        }
+        if (pChanged) writeCache(PRODUCT_CACHE_KEY, pData);
+        if (cChanged) writeCache(CUSTOMER_CACHE_KEY, cData);
+      } catch(e){}
+    }
+
+    async function commitResult(res) {
+      if (!res?.updates) return res;
+      const txKey = Object.keys(res.updates).find(k=>/^Transactions\/[^/]+$/.test(k));
+      if (txKey) {
+        const existing = await firebaseRequest(`${txKey}/id`,"GET");
+        if (existing) { delete res.updates; return {ok:true,reply:"ℹ️ Yeh entry pehle hi record ho chuki hai."}; }
+      }
+      await firebaseRequest("","PATCH",res.updates);
+      if (txKey) {
+        const t = res.updates[txKey];
+        if (t && ["sale","return","payment","cash_out","expense","supplier_purchase","supplier_payment","purchase"].includes(t.type))
+          localStorage.setItem(LAST_TXN_KEY, t.id);
+      }
+      patchLocalCaches(res.updates);
+      delete res.updates;
+      res.saved=true;
+      return res;
+    }
+
+    // ─── AI SYSTEM PROMPT (token-optimised, intent-driven) ─────
+    // NOTE: All intent understanding is done by the AI itself — no hardcoded
+    // per-phrase regex here. The rules below describe MEANING/INTENT patterns
+    // in any language/script/slang (Urdu, Roman Urdu, English, mixed, rough
+    // spelling) so the model generalizes instead of matching fixed words.
+    const SYSTEM_PROMPT = `Role:Sunny AI POS (Pakistan shopkeeper assistant). Input:Urdu script/Roman Urdu/English/slang/mixed, often misspelled. Understand INTENT not exact wording. Output:ONLY JSON,no markdown.
+HARD RULE: "action" must ALWAYS be one of the ACTIONS listed below — never omit it, never invent an unlisted name, never leave a part undecided. If more than one action seems possible, pick the single most likely one(a message containing any product-like word is almost always sale) rather than refusing to decide. Only use chat when there is truly no store-related content(pure greeting/small-talk/nonsense); every chat MUST include a non-empty "reply", and if the message was too vague to act on, let that reply itself ask a short natural clarifying question in the user's own script/tone — never return an object with a missing/invalid action and no reply.
+Numbers:sau=100,hazar=1000,lakh=100000,pawa/pao=0.25,adha=0.5,dhai=2.5,sawa=1.25. Digits may be spelled out, any language.
+Items:{product,qty?,amount?}(amount=total Rs when price given as total not per-unit).
+
+MULTI:1 msg can hold 2+ instructions(diff action types, or same action for diff customer/product), joined by ANY separator — word(or/aur/and/ya), symbol(+,&,/,-,newline), punctuation(,/.), or plain back-to-back/spaces. Return {parts:[cmd,...]} in spoken order. New part=action changes OR same action for new customer/subject. Multi-item sale/return for ONE customer/payment=still ONE part — split every separator(word or symbol,e.g."+") into a new items[] entry inside that SAME part, never into a new part. A number attaches only to the item right beside it; a later item in the same joined list with no number of its own simply omits qty(defaults to 1) rather than inheriting the earlier number. Single instruction→still {parts:[cmd]}.
+
+RULE query-vs-update: asking("kitni/kya hai/batao/check karo")→stock(read-only),never *_direct. instructing+number("kr do/set karo/kr diya/X rakh do/increase by X")→matching *_direct,number in "value". "stock me X add karo"(adding)→update_stock_direct,value:X,value_mode:add. "stock X kr do"(replace)→value_mode:set/omit. No number stated→*_request(opens form),never guess.
+
+RULE payment: no customer→cash(omit payment). customer named+no cash word(naqad/cash/nqd)→omit payment or credit(udhaar),NEVER cash. customer named+cash word→cash. Partial now+rest owed→split+paid_amount. NEVER invent a customer — only set customer for an actual proper name; word could be product or name→treat as product(omit customer).
+
+RULE unclear words: word not matching Matches/known items→still put in items as product exactly as written(items:[{product:"<word>",qty}]),qty from msg. Never turn into customer/payment/different action just because unfamiliar — let product-lookup report not-found.
+
+RULE bare item: message is JUST product word(s) — maybe with a qty, nothing else, no verb, no customer, no question→still action:sale,payment:cash,one items[] entry per product word/word-group(split by MULTI's separators above). A single bare product word by itself("mirinda") is already a complete sale, not chat and not "unclear" — never fall back to a generic error just because a verb or number is missing.
+
+RULE lookalikes: Roman Urdu sometimes spells a word exactly like an unrelated English word — read it by shopkeeper context, not literal English meaning. e.g. "or"=aur(and — joins items/customers together),not the English choice-word "or"; "sub"=sab(all); "kam"=kaam(work) or kam(less) depending on context. Between two products or two customers in one sale, such a word almost always means "aur" and should join them into the same list, not split them into alternatives.
+
+RULE chat: greetings/thanks/small-talk/general questions with no store action(e.g. "kesay ho","shukriya","acha theek hai","kya kar rahe ho")→chat. reply must be warm,natural,SHORT(1 sentence,same language/script/tone as user — Roman Urdu in, Roman Urdu out), never robotic/generic, never force it into an unrelated action just because chat has few rules.
+
+ACTIONS(field list per action; "?"=optional):
+sale:payment(cash|credit|split)?,customer?,paid_amount?,discount?,discount_percent?,items[{product,qty?,amount?}]
+return:payment?,customer?,items
+customer_payment:customer,amount — customer paid toward what they owe
+customer_cash_out:customer,amount — shopkeeper gave cash to customer
+customer_balance:customer — one customer's khata/udhaar
+all_balances: — everyone's khata,no name given
+supplier_balance:supplier | all_supplier_balances:
+cash_balance: — register cash
+list_products: | low_stock: | list_recent_transactions:
+expense_add:category,amount,note?
+supplier_purchase:supplier,items[{product,qty,cost}],amount?
+supplier_payment:supplier,amount
+report:period(daily|yesterday|weekly|monthly|yearly)
+expense_report:period | product_report:product,period
+stock:product — qty/price/cost of one product
+update_price_direct/update_cost_direct/update_stock_direct:product,value,value_mode?(set|add)
+update_price_request/update_cost_request/update_stock_request:product
+void_transaction:search | undo_last:
+add_to_khata:customer,items[{product,qty?}] — ONLY a raw note into khata,no price/payment mentioned; if price context exists use sale instead
+chat:reply — greetings/small-talk/no store action fits (see RULE chat)
+
+Examples(→ shows parts array shorthand, action name first):
+"pepsi stock 20 kr do"→update_stock_direct,value:20(set)
+"pepsi stock me 10 add kr do"→update_stock_direct,value:10,value_mode:add
+"pepsi stock kitna hai"→stock(query)
+"qasim ne 2 tibbet liye"→sale,customer:qasim,items:[{tibbet,2}],payment omitted(=credit,no cash word)
+"qasim ne naqad 2 tibbet liye"→sale,customer:qasim,payment:cash
+"qasim ka khata dikhao"→customer_balance,customer:qasim
+"gallay mein kitne paise hain"→cash_balance
+"qasim ne 2 dew wapis kiye or 2 pepsi 1 coke liye"→parts:[{return,customer:qasim,items:[{dew,2}]},{sale,customer:qasim,items:[{pepsi,2},{coke,1}]}]
+"qasim ne 2 tibbet li aur 500 diye"→parts:[{sale,customer:qasim,payment:split,paid_amount:500,items:[{tibbet,2}]}]
+"zaheer ne 2 kg ghee lia aur abad ne 3 pepsi li"→parts:[{sale,customer:zaheer,items:[{ghee,2}]},{sale,customer:abad,items:[{pepsi,3}]}]
+"qasim k khate me 2 dew add kr do"→parts:[{add_to_khata,customer:qasim,items:[{dew,2}]}]
+"2 stings"(unmatched word,no customer)→parts:[{sale,payment:cash,items:[{stings,2}]}]
+"mirinda"(one bare product word,nothing else)→parts:[{sale,payment:cash,items:[{mirinda}]}]
+"2 sprite+anda"(symbol-joined items,no customer)→parts:[{sale,payment:cash,items:[{sprite,2},{anda}]}]
+"ahmed ne 2 cola or fanta li"("or"=aur here,one customer,one sale)→parts:[{sale,customer:ahmed,items:[{cola,2},{fanta}]}]
+"kesay ho sunny"→chat,reply:"Mai theek hoon! Aap batayein, kya karna hai?"
+"shukriya"→chat,reply:"Koi baat nahi, khushi hui madad kar ke!"`;
+
+    const VALID_ACTIONS = new Set(["sale","return","purchase","add_stock","stock","product_search","report","product_report","chat","chat_history","customer_balance","all_balances","cash_balance","customer_payment","customer_cash_out","add_new_product_form","update_price_direct","update_cost_direct","update_stock_direct","update_stock_add","update_price_request","update_cost_request","update_stock_request","update_price","update_cost","list_products","low_stock","undo_last","expense_add","expense_report","supplier_purchase","supplier_payment","supplier_balance","all_supplier_balances","list_recent_transactions","void_transaction","add_to_khata"]);
+
+    function normalizeCommand(cmd) {
+      const fallback = {action:"chat",reply:"Maaf kijiye, samajh nahi aaya. Thora saaf likh dein?"};
+      if (!cmd||typeof cmd!=="object"||Array.isArray(cmd)) return fallback;
+      cmd.action = String(cmd.action||"").toLowerCase().trim();
+      if (!VALID_ACTIONS.has(cmd.action)) return cmd.reply?{action:"chat",reply:String(cmd.reply)}:fallback;
+      ["customer","product","supplier","category","note","search"].forEach(f=>{
+        if (cmd[f]!==undefined) cmd[f]=String(cmd[f]==null?"":cmd[f]).trim();
+      });
+      if (!cmd.customer) delete cmd.customer;
+      if (!cmd.supplier) delete cmd.supplier;
+      const num = v=>{const n=Number(String(v).replace(/,/g,""));return isFinite(n)?n:undefined;};
+      ["value","amount","qty","price","cost","stock","discount","discount_percent","paid_amount"].forEach(f=>{
+        if (cmd[f]!==undefined){const n=num(cmd[f]);if(n===undefined)delete cmd[f];else cmd[f]=n;}
+      });
+      if (Array.isArray(cmd.items)) {
+        cmd.items = cmd.items.slice(0,25).map(it=>{
+          if (!it||typeof it!=="object") return null;
+          const o={product:String(it.product||"").trim()};
+          ["qty","amount","price","cost"].forEach(f=>{
+            if(it[f]!==undefined){const n=num(it[f]);if(n!==undefined&&n>0)o[f]=n;}
+          });
+          return o.product?o:null;
+        }).filter(Boolean);
+      } else if (cmd.items!==undefined) delete cmd.items;
+      return cmd;
+    }
+
+    // Normalizes the AI's raw reply into a flat array of individual commands.
+    // Accepts {parts:[...]} (new multi-action shape), a bare single command
+    // (legacy/fallback shape), or a bare array — always returns Array<cmd>.
+    function normalizeParts(raw) {
+      if (!raw||typeof raw!=="object") return [normalizeCommand(raw)];
+      let list;
+      if (Array.isArray(raw.parts)) list=raw.parts;
+      else if (Array.isArray(raw)) list=raw;
+      else list=[raw];
+      if (!list.length) return [normalizeCommand(null)];
+      return list.slice(0,10).map(normalizeCommand);
+    }
+
+    async function requestGroqParsing(message, products, customers) {
+      const hints = buildContextHints(message, products, customers);
+      let userContent = hints.products.length ? `Matches:${hints.products.join("|")}\n` : "";
+      userContent += `Input:"${message}"`;
+
+      const payload = {
+        model: GROQ_MODEL,
+        messages:[{role:"system",content:SYSTEM_PROMPT},{role:"user",content:userContent}],
+        temperature:0.1,
+        max_completion_tokens:320,
+        reasoning_effort:"low",
+        reasoning_format:"hidden", // Groq defaults to "raw", which wraps chain-of-thought
+        // in <think>...</think> INSIDE message.content — that free-form reasoning
+        // text (which can itself contain stray { } characters) was corrupting our
+        // {-to-} JSON extraction below and causing silent fallbacks to the generic
+        // "samajh nahi aaya" message. "hidden" makes Groq return ONLY the final
+        // JSON in content, fixing both parsing reliability and reducing tokens
+        // (hidden reasoning isn't included in the response at all).
+        response_format:{type:"json_object"}, // structurally guarantees valid JSON
+        // output from Groq itself (gpt-oss-20b supports this) instead of relying
+        // on the model merely following the "Output:ONLY JSON" prompt instruction.
+        // Groq requires reasoning_format to be "parsed" or "hidden" (not "raw")
+        // whenever json_object mode is used, which is already satisfied above.
+        top_p:1
+      };
+
+      for (let attempt=0; attempt<2; attempt++) {
+        try {
+          const r = await fetch(GROQ_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${GROQ_API_KEY}`},body:JSON.stringify(payload)});
+          if (!r.ok) { await new Promise(res=>setTimeout(res,600)); continue; }
+          const data = await r.json();
+          if (data.usage) {
+            const u=data.usage, cached=u.prompt_tokens_details?.cached_tokens||0;
+            console.log(`Tokens: prompt=${u.prompt_tokens} (cached=${cached}, fresh=${u.prompt_tokens-cached}) completion=${u.completion_tokens} total=${u.total_tokens}`);
+          }
+          let content = (data.choices?.[0]?.message?.content)||"";
+          // Defense-in-depth: even with reasoning_format:"hidden", strip any
+          // stray <think>...</think> reasoning block before hunting for JSON,
+          // so leftover chain-of-thought text (which can itself contain { or }
+          // characters) never corrupts the brace-matching below.
+          content = content.replace(/<think>[\s\S]*?<\/think>/gi,"").trim();
+          content = content.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```$/i,"").trim();
+          // Prefer the outer {parts:[...]} object if present; fall back to a
+          // bare {...} object (legacy single-command shape) if parts wasn't used.
+          const arrS=content.indexOf("["), arrE=content.lastIndexOf("]");
+          const objS=content.indexOf("{"), objE=content.lastIndexOf("}");
+          if (objS!==-1&&objE>objS) {
+            try { return JSON.parse(content.substring(objS,objE+1)); } catch(e){}
+          }
+          if (arrS!==-1&&arrE>arrS) {
+            try { return {parts:JSON.parse(content.substring(arrS,arrE+1))}; } catch(e){}
+          }
+          return {action:"chat",reply:content||"Maaf kijiye, thora saaf dobara likh dein?"};
+        } catch(e) {
+          await new Promise(res=>setTimeout(res,600));
+        }
+      }
+      return {action:"chat",reply:"Network busy. Please try again."};
+    }
+
+    // ─── FUZZY MATCHING ───────────────────────────────────────
+    function sanitizeFirebaseKey(key) { return String(key||"").replace(/[.#$[\]\/]/g,"_").trim(); }
+    function custKey(cmd) { return cmd.customer_key||sanitizeFirebaseKey(cmd.customer); }
+    function supKey(cmd)  { return cmd.supplier_key ||sanitizeFirebaseKey(cmd.supplier); }
+    function canonicalName(text) {
+      text=String(text||"");
+      try{text=decodeURIComponent(text);}catch(e){}
+      return text.toLowerCase().trim().replace(/\s+/g," ");
+    }
+    function normMatch(text) { return canonicalName(text).replace(/[^a-z0-9]+/gi," ").replace(/\s+/g," ").trim(); }
+
+    function levenshtein(a,b) {
+      if (!a.length) return b.length; if (!b.length) return a.length;
+      const m=[];
+      for (let i=0;i<=a.length;i++) m[i]=[i];
+      for (let j=0;j<=b.length;j++) m[0][j]=j;
+      for (let i=1;i<=a.length;i++)
+        for (let j=1;j<=b.length;j++) {
+          const c=a[i-1]===b[j-1]?0:1;
+          m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+c);
+        }
+      return m[a.length][b.length];
+    }
+
+    function simScore(a,b) {
+      a=normMatch(a).replace(/(.)\1+/g,"$1");
+      b=normMatch(b).replace(/(.)\1+/g,"$1");
+      if (!a||!b) return 0; if (a===b) return 100;
+      const mx=Math.max(a.length,b.length);
+      return mx?Math.round((1-levenshtein(a,b)/mx)*100):100;
+    }
+
+    function buildContextHints(message, products, customers) {
+      const words = normMatch(message).split(" ").filter(w=>w.length>=3&&!/^\d+$/.test(w));
+      const rank = obj=>{
+        const out=[];
+        for (const k of Object.keys(obj||{})) {
+          const name=String(obj[k]?.Name||k);
+          const dbW=normMatch(name).split(" ");
+          let best=0;
+          words.forEach(w=>dbW.forEach(d=>{const s=simScore(w,d);if(s>best)best=s;}));
+          if (best>=65) out.push({name,best});
+        }
+        return out.sort((a,b)=>b.best-a.best).map(x=>x.name);
+      };
+      return {products:rank(products).slice(0,5), customers:rank(customers).slice(0,3)};
+    }
+
+    function strongProductMatch(word, products) {
+      const w=normMatch(word);
+      if (!w) return false;
+      return Object.keys(products||{}).some(k=>{
+        const n=normMatch(products[k]?.Name||k);
+        return n===w||n.split(" ").includes(w)||simScore(w,n)>=80;
+      });
+    }
+
+    function findProduct(searchName, products) {
+      const query=canonicalName(searchName), nQ=normMatch(searchName);
+      if (!query||!nQ) return {status:"not_found"};
+      const qWords=nQ.split(" ");
+      const exact=[], cands=[];
+
+      for (const k of Object.keys(products||{})) {
+        const p=products[k]||{};
+        const item={...p,_key:k};
+        const pNorm=normMatch(p.Name||k);
+        if (nQ===pNorm||query===canonicalName(p.Name||k)||k===searchName) { exact.push({product:item,score:100}); continue; }
+        const dbW=pNorm.split(" ");
+        let sum=0;
+        qWords.forEach(qw=>{ let best=0; dbW.forEach(dw=>{const s=simScore(qw,dw);if(s>best)best=s;}); sum+=best; });
+        const score=Math.round(Math.max(sum/qWords.length,simScore(nQ,pNorm)));
+        if (score>=60) cands.push({product:item,score});
+      }
+
+      const toMatches=arr=>arr.slice(0,5).map(x=>({key:String(x.product._key),name:String(x.product.Name||x.product._key),price:Number(x.product.Price||0),stock:Number(x.product.Stock||0)}));
+      if (exact.length===1) return {status:"found",product:exact[0].product};
+      if (exact.length>1)   return {status:"multiple",matches:toMatches(exact)};
+      if (!cands.length)    return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      const eligible=cands.filter(x=>(best.score-x.score)<=10);
+      if (eligible.length>1) return {status:"multiple",matches:toMatches(eligible)};
+      return {status:"found",product:best.product};
+    }
+
+    function findCustomer(searchName, customers) {
+      if (!searchName) return {status:"not_found"};
+      const query=canonicalName(searchName);
+      if (!query) return {status:"not_found"};
+      const keys=Object.keys(customers||{});
+      for (const k of keys) {
+        if (canonicalName(customers[k].Name||k)===query)
+          return {status:"found",customer:{_key:k,Name:customers[k].Name||k}};
+      }
+      const cands=[];
+      keys.forEach(k=>{
+        const cName=customers[k].Name||k, n=canonicalName(cName);
+        let score=0;
+        if (n===query) score=100;
+        else if (n.includes(query)||query.includes(n)) score=90-Math.abs(n.length-query.length)*2;
+        else score=Math.round((simScore(query,n)+simScore(query,canonicalName(k)))/2);
+        if (score>=60) cands.push({customer:{_key:k,Name:cName},score});
+      });
+      if (!cands.length) return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      if (best.score<65) return {status:"not_found"};
+      if (best.score>=90) return {status:"found",customer:best.customer};
+      const eligible=cands.filter(x=>x.score>=65&&(best.score-x.score)<=15).slice(0,4);
+      return {status:"multiple",matches:eligible.map(x=>({key:String(x.customer._key),name:String(x.customer.Name)}))};
+    }
+
+    function findSupplier(searchName, suppliers) {
+      if (!searchName) return {status:"not_found"};
+      const query=canonicalName(searchName);
+      if (!query) return {status:"not_found"};
+      const keys=Object.keys(suppliers||{});
+      for (const k of keys) {
+        if (canonicalName(suppliers[k].Name||k)===query)
+          return {status:"found",supplier:{_key:k,Name:suppliers[k].Name||k}};
+      }
+      const cands=[];
+      keys.forEach(k=>{
+        const sName=suppliers[k].Name||k, n=canonicalName(sName);
+        let score=n.includes(query)||query.includes(n)?90-Math.abs(n.length-query.length)*2:Math.round((simScore(query,n)+simScore(query,canonicalName(k)))/2);
+        if (score>=60) cands.push({supplier:{_key:k,Name:sName},score});
+      });
+      if (!cands.length) return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      if (best.score<65) return {status:"not_found"};
+      if (best.score>=90) return {status:"found",supplier:best.supplier};
+      const eligible=cands.filter(x=>x.score>=65&&(best.score-x.score)<=15).slice(0,4);
+      return {status:"multiple",matches:eligible.map(x=>({key:String(x.supplier._key),name:String(x.supplier.Name)}))};
+    }
+
+    function formatNumber(value) {
+      const n=Number(value);if(!isFinite(n))return "0";
+      if (Math.abs(n-Math.round(n))<0.000001) return String(Math.round(n));
+      return n.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+    }
+    function getTodayString() {
+      const d=new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function getStatsBucketPaths(date) {
+      const d=date||new Date();
+      const daily=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      const dC=new Date(d.getTime());dC.setHours(0,0,0,0);dC.setDate(dC.getDate()+3-(dC.getDay()+6)%7);
+      const w1=new Date(dC.getFullYear(),0,4);
+      const weekly=`${dC.getFullYear()}-W${("0"+(1+Math.round(((dC-w1)/86400000-3+(w1.getDay()+6)%7)/7))).slice(-2)}`;
+      const monthly=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+      return {
+        daily:`Stats/Daily/${daily}`,weekly:`Stats/Weekly/${weekly}`,
+        monthly:`Stats/Monthly/${monthly}`,yearly:`Stats/Yearly/${d.getFullYear()}`,
+        lifetime:"Stats/Lifetime/All"
+      };
+    }
+
+    function addStatsDeltas(updates, transaction, reverse=false) {
+      const type=transaction.type;
+      if (!["sale","return","payment","cash_out","expense"].includes(type)) return;
+      const ts=Number(transaction.timestamp||0);if(!ts)return;
+      const dir=reverse?-1:1;
+      const bases=Object.values(getStatsBucketPaths(new Date(ts)));
+      const total=Number(transaction.total||0);
+      const payMode=String(transaction.payment||"").toLowerCase();
+      const isCredit=payMode==="credit", isSplit=payMode==="split";
+      const splitPaid=isSplit?Number(transaction.paid_amount||0):0;
+
+      if (type==="expense") {
+        const amt=Number(transaction.amount||0);
+        bases.forEach(base=>addInc(updates,`${base}/TotalExpense`,dir*amt));
+        return;
+      }
+      if (type==="sale"||type==="return") {
+        const sign=(type==="sale"?1:-1)*dir;
+        let totalCost=0;
+        const lines=(transaction.items||[]).map(item=>{
+          const qty=Number(item.qty||0),cost=Number(item.cost||0);
+          const revenue=Number(item.total!==undefined?item.total:qty*Number(item.price||0));
+          const itemCost=qty*cost; totalCost+=itemCost;
+          return {key:sanitizeFirebaseKey(canonicalName(item.product))||"unknown",name:String(item.product||"").trim(),qty,revenue,itemCost};
+        });
+        bases.forEach(base=>{
+          addInc(updates,`${base}/TotalSales`,sign*total);
+          addInc(updates,`${base}/TotalCost`,sign*totalCost);
+          addInc(updates,`${base}/TotalProfit`,sign*(total-totalCost));
+          if (isSplit) {
+            addInc(updates,`${base}/TotalCash`,sign*splitPaid);
+            addInc(updates,`${base}/TotalCredit`,sign*(total-splitPaid));
+          } else {
+            addInc(updates,`${base}/${isCredit?"TotalCredit":"TotalCash"}`,sign*total);
+          }
+          if (type==="sale") addInc(updates,`${base}/SaleCount`,dir);
+          else { addInc(updates,`${base}/TotalReturns`,dir*total); addInc(updates,`${base}/ReturnCount`,dir); }
+          lines.forEach(l=>{
+            updates[`${base}/Products/${l.key}/Name`]=l.name;
+            addInc(updates,`${base}/Products/${l.key}/Qty`,sign*l.qty);
+            if (type==="sale") addInc(updates,`${base}/Products/${l.key}/TimesSold`,dir);
+            addInc(updates,`${base}/Products/${l.key}/Revenue`,sign*l.revenue);
+            addInc(updates,`${base}/Products/${l.key}/Cost`,sign*l.itemCost);
+            addInc(updates,`${base}/Products/${l.key}/Profit`,sign*(l.revenue-l.itemCost));
+          });
+        });
+      } else if (type==="payment") {
+        bases.forEach(base=>addInc(updates,`${base}/CashIn`,dir*Number(transaction.amount||0)));
+      } else if (type==="cash_out") {
+        bases.forEach(base=>addInc(updates,`${base}/CashOut`,dir*Number(transaction.amount||0)));
+      }
+    }
+
+    // ─── COMMAND SHORTCUTS (Zero AI tokens) ───────────────────
+    // Returns an ARRAY of one or more normalized commands (multi-action support).
+    // Shortcut phrases below are exact whole-message matches only (zero intent
+    // guessing) purely to skip an API call for common single-intent lookups;
+    // every other phrasing — including anything with multiple instructions —
+    // is understood entirely by the AI, which decides the split into parts.
+    async function safeUnderstandCommand(message, products) {
+      const lower=message.toLowerCase().trim();
+      // Daily shortcuts
+      if (/^(stats|report|reports|aj ki report|aaj ki report|today report|today stats|aaj ki sale|aj ki sale|total sale|total naqad sale|total naqad sales|naqad sale|sale dikhao)$/.test(lower))
+        return [{action:"report",period:"daily"}];
+      if (/^(yesterday report|kal ki report|pichle din|yesterday stats|yesterday|kal|kal ki sale)$/.test(lower))
+        return [{action:"report",period:"yesterday"}];
+      if (/^(is month|is mahine|this month|monthly report|is month ki report|this month stats|is month ki sale)$/.test(lower))
+        return [{action:"report",period:"monthly"}];
+      if (/^(pichle month|last month|previous month|pichlay mahine)$/.test(lower))
+        return [{action:"report",period:"previous_month"}];
+      if (/^(chat history|show chat history|pichli chat|last 7 days chat|history dikhao)$/.test(lower))
+        return [{action:"chat_history"}];
+      if (/^(all products|list products|list items|sari items|sab saman|tamam products|products list)$/.test(lower))
+        return [{action:"list_products"}];
+      if (/^(low stock|kam stock|khatam hone wala saman)$/.test(lower))
+        return [{action:"low_stock"}];
+      if (/^(cash balance|cash|gallay mein kitne paise|gallay ka hisab|cash in hand)$/.test(lower))
+        return [{action:"cash_balance"}];
+      if (/^(sab khatay|kis ka kitna udhaar hai|all balances|sab ka udhaar)$/.test(lower))
+        return [{action:"all_balances"}];
+      if (/^(supplier ka udhaar|suppliers ka udhaar|hum par kitna udhaar hai|all supplier balances)$/.test(lower))
+        return [{action:"all_supplier_balances"}];
+      if (/^(recent entries|pichli entries|recent transactions|last entries dikhao|entries dikhao)$/.test(lower))
+        return [{action:"list_recent_transactions"}];
+      if (/^(aaj ka kharcha|is hafte ka kharcha|kharcha report|expense report|total kharcha)$/.test(lower))
+        return [{action:"expense_report",period:"daily"}];
+      // Single-word fast sale: only for a bare, unambiguous exact-ish product name
+      // with nothing else in the message (no qty words, no customer, no payment talk).
+      // Common one-word greetings/acknowledgements are excluded outright so a
+      // fuzzy name-similarity match can never silently record a fake sale for
+      // something like "acha"/"theek"/"ok" just because it resembles a product.
+      // Anything with real phrasing goes to the AI so intent understanding stays AI-driven.
+      const CASUAL_ONE_WORDERS=/^(acha|ok|okay|theek|thik|shukriya|thanks|thank|hmm|hm|haan|han|nahi|no|yes|salam|assalam|hello|hi|bye|khuda|allah|hafiz)$/;
+      if (!/\s/.test(lower)&&!CASUAL_ONE_WORDERS.test(lower)&&!/^(stats|report|reports|chat|wapis|return)$/.test(lower)&&strongProductMatch(lower,products))
+        return [{action:"sale",payment:"cash",items:[{product:message.trim(),qty:1}]}];
+      // NOTE: intentionally no other shortcut-guessing here. All multi-word,
+      // slang, mixed-language, or rough-phrasing commands — single or multi-part — are parsed by the AI.
+
+      const customers = await getCustomersCached();
+      return normalizeParts(await requestGroqParsing(message, products, customers));
+    }
+
+    // ─── BUSINESS LOGIC ───────────────────────────────────────
+    function processListProducts(products) {
+      const keys=Object.keys(products||{});
+      if (!keys.length) return {ok:true,reply:"📭 Firebase mein koi products nahi mile."};
+      let reply="📦 All Products Catalog:\n\n";
+      keys.forEach((k,i)=>{
+        const p=products[k];
+        reply+=`${i+1}. ${p.Name||k}\n   Price:Rs ${formatNumber(p.Price||0)} | Stock:${formatNumber(p.Stock||0)} ${p.Unit||"pcs"} | Cost:Rs ${formatNumber(p.Cost||0)}\n\n`;
+      });
+      return {ok:true,reply:reply.trim()};
+    }
+    function processLowStock(products) {
+      const low=Object.keys(products||{}).filter(k=>Number(products[k].Stock||0)<=5);
+      if (!low.length) return {ok:true,reply:"✅ Sab products ka stock theek hai."};
+      let reply="⚠️ Low Stock (Stock ≤5):\n\n";
+      low.forEach((k,i)=>{const p=products[k];reply+=`${i+1}. ${p.Name||k} — ${formatNumber(p.Stock||0)} ${p.Unit||"pcs"}\n`;});
+      return {ok:true,reply:reply.trim()};
+    }
+    function processStock(command, products) {
+      let p = products[command.product] ? {...products[command.product],_key:command.product} : null;
+      if (!p) {
+        const m=findProduct(command.product,products);
+        if (m.status==="not_found") return {ok:false,reply:`❌ Product nahi mila: ${command.product}`};
+        if (m.status==="multiple") return {ok:true,type:"need_clarification",reply:`⚠️ "${command.product}" ke liye ek se zyada products match huay. Sahi product select karein:`,options:m.matches,pending_context:command};
+        p=m.product;
+      }
+      return {ok:true,reply:`📦 ${p.Name||p._key}\nStock:${formatNumber(p.Stock||0)} ${p.Unit||"pcs"}\nSale Price:Rs ${formatNumber(p.Price||0)}\nCost:Rs ${formatNumber(p.Cost||0)}`};
+    }
+
+    async function processSale(command, products) {
+      const items=command.items||[];
+      if (!items.length) return {ok:false,reply:"❌ Product aur quantity batayein."};
+      const customer=command.customer?String(command.customer).trim():"";
+      const rawPay=String(command.payment||"").toLowerCase().trim();
+      const saysSplit=rawPay==="split"||rawPay==="partial"||(command.paid_amount!==undefined&&customer);
+      const saysCash=rawPay==="cash"||rawPay==="naqad"||/\b(naqad|cash|nqd)\b/i.test(command.user_text||"");
+      let payment="cash";
+      if (saysSplit) { if (!customer) return {ok:false,reply:"❌ Split payment ke liye customer ka naam batayein."}; payment="split"; }
+      else if (customer) {
+        // Customer named: default is credit (udhaar) unless an explicit cash word is present.
+        // This holds even if the AI mistakenly sent payment:"cash" without cash wording in the
+        // original text, so a named customer never silently becomes a cash sale.
+        payment=saysCash?"cash":"credit";
+      }
+      else if (rawPay==="credit"||rawPay==="udhaar") return {ok:false,reply:"❌ Udhaar ke liye customer ka naam batayein."};
+
+      const missing=[];
+      for (let i=0;i<items.length;i++) {
+        const itm=items[i];
+        if (itm.is_misc||itm._resolvedProduct) continue;
+        const m=findProduct(itm.product,products);
+        if (m.status==="not_found") missing.push({index:i,product:itm.product,qty:itm.qty||1,amount:itm.amount||null});
+        else if (m.status==="multiple") return {ok:true,type:"need_clarification",reply:`⚠️ "${itm.product}" ke liye ek se zyada products match huay. Sahi product select karein:`,options:m.matches,pending_context:{action:"sale",customer,payment,target_index:i,items}};
+      }
+      if (missing.length) return {ok:true,type:"need_missing_resolution",reply:`⚠️ Yeh products database mein nahi mile:\n👉 ${missing.map(m=>`"${m.product}"`).join(", ")}\n\nSkip karke baqi bechna hai, ya unlisted price lagani hai?`,missing_items:missing,pending_context:{action:"sale",customer,payment,items}};
+
+      const updates={}, txItems=[], stockUsed={};
+      let total=0;
+
+      for (const item of items) {
+        if (item.is_misc) {
+          const amt=Number(item.amount||item.price||item.qty||0);
+          if (amt>0){total+=amt;txItems.push({product:item.product||"Khula Misc",qty:1,price:amt,cost:0,total:amt,is_misc:true});}
+          continue;
+        }
+        const p=item._resolvedProduct||findProduct(item.product,products).product;
+        const price=Number(p.Price||0);
+        if (price<=0) return {ok:false,reply:`❌ ${p.Name||p._key} ka sale price set nahi hai.`};
+        let saleTotal=0,finalQty=0;
+        if (item.amount>0){saleTotal=Number(item.amount);finalQty=saleTotal/price;}
+        else if(item.qty>0){finalQty=Number(item.qty);saleTotal=finalQty*price;}
+        else{finalQty=1;saleTotal=price;}
+        const curStock=Number(p.Stock||0), already=stockUsed[p._key]||0;
+        if (finalQty+already>curStock+0.001) return {ok:false,reply:`❌ ${p.Name||p._key} ka stock sirf ${formatNumber(curStock)} hai.`};
+        stockUsed[p._key]=already+finalQty;
+        addInc(updates,`Products/${sanitizeFirebaseKey(p._key)}/Stock`,-finalQty);
+        total+=saleTotal;
+        txItems.push({product:p.Name||p._key,qty:finalQty,price,cost:Number(p.Cost||0),total:saleTotal});
+      }
+
+      const gross=total;
+      let disc=Number(command.discount||0);
+      if (command.discount_percent>0) disc+=gross*(Number(command.discount_percent)/100);
+      disc=Math.max(0,Math.min(disc,gross));
+      total=gross-disc;
+
+      let paidNow=0,creditPortion=0;
+      if (payment==="split") {
+        paidNow=Math.max(0,Math.min(Number(command.paid_amount||0),total));
+        creditPortion=total-paidNow;
+        if (creditPortion<=0.001) payment="cash";
+        else if (paidNow<=0.001) payment="credit";
+      }
+
+      const txId=command.client_txn_id||("T"+Date.now());
+      const tx={id:txId,client_txn_id:command.client_txn_id||"",type:"sale",items:txItems,total,discount:disc,paid_amount:payment==="split"?paidNow:undefined,customer,customer_key:customer?custKey(command):"",payment,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      if (customer&&payment==="credit"){const ck=custKey(command);addInc(updates,`Customers/${ck}/Balance`,total);updates[`Customers/${ck}/Name`]=customer;}
+      else if(customer&&payment==="split"){const ck=custKey(command);addInc(updates,`Customers/${ck}/Balance`,creditPortion);updates[`Customers/${ck}/Name`]=customer;addInc(updates,"CashManagement/CashInHand",paidNow);}
+      else if(payment==="cash") addInc(updates,"CashManagement/CashInHand",total);
+      addStatsDeltas(updates,tx);
+
+      let reply="✅ Sale recorded\n"+txItems.map(x=>x.is_misc?`➕ Rs ${formatNumber(x.total)} (${x.product})`:`${formatNumber(x.qty)} × ${x.product} (Rs ${formatNumber(x.total)})`).join("\n");
+      if (disc>0.001) reply+=`\n🏷️ Discount:-Rs ${formatNumber(disc)}`;
+      reply+=`\n💰 Total:Rs ${formatNumber(total)}`;
+      if (payment==="split") reply+=`\n💵 Naqad:Rs ${formatNumber(paidNow)}\n🧾 Khate Mein:Rs ${formatNumber(creditPortion)}`;
+      else reply+=payment==="cash"?"\n💵 Naqad":"\n🧾 Udhaar";
+      if (customer) reply+=`\n👤 ${customer}`;
+      return {ok:true,type:"completed",reply,transaction:tx,updates};
+    }
+
+    async function processReturn(command, products) {
+      const items=command.items||[];
+      if (!items.length) return {ok:false,reply:"❌ Return item aur miqdaar batayein."};
+      const customer=command.customer?String(command.customer).trim():"";
+      const cashRefund=!customer||String(command.payment||"").toLowerCase()==="cash"||/\b(naqad|cash)\b/i.test(command.user_text||"");
+      const payment=cashRefund?"cash":"credit";
+      const updates={}, txItems=[];
+      let total=0;
+      for (let i=0;i<items.length;i++) {
+        const item=items[i];
+        const cleanName=String(item.product||"").replace(/\b(wapis|wapos|wapas|return)\b/gi,"").trim();
+        const m=item._resolvedProduct?{status:"found",product:item._resolvedProduct}:findProduct(cleanName,products);
+        if (m.status==="multiple") return {ok:true,type:"need_clarification",reply:`⚠️ "${cleanName}" ke liye ek se zyada products match huay. Sahi product select karein:`,options:m.matches,pending_context:{action:"return",customer,target_index:i,items}};
+        if (m.status!=="found") return {ok:false,reply:`❌ Return product database mein nahi mila: ${cleanName}`};
+        const p=m.product, price=Number(p.Price||0), cost=Number(p.Cost||0);
+        let returnQty=0, lineTotal=0;
+        if(item.amount>0){lineTotal=Number(item.amount);returnQty=price>0?lineTotal/price:1;}
+        else if(item.qty>0){returnQty=Number(item.qty);lineTotal=returnQty*price;}
+        else{returnQty=1;lineTotal=price;}
+        if (!isFinite(returnQty)||returnQty<=0) return {ok:false,reply:`❌ Return quantity galat hai: ${cleanName}`};
+        addInc(updates,`Products/${sanitizeFirebaseKey(p._key)}/Stock`,returnQty);
+        total+=lineTotal;
+        txItems.push({product:p.Name||p._key,qty:returnQty,price,cost,total:lineTotal});
+      }
+      const txId=command.client_txn_id||("R"+Date.now());
+      const tx={id:txId,client_txn_id:command.client_txn_id||"",type:"return",items:txItems,total,customer,customer_key:customer?custKey(command):"",payment,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      if(customer&&payment==="credit"){const ck=custKey(command);addInc(updates,`Customers/${ck}/Balance`,-total);updates[`Customers/${ck}/Name`]=customer;}
+      else addInc(updates,"CashManagement/CashInHand",-total);
+      addStatsDeltas(updates,tx);
+      let reply=`↩️ Return recorded\n${txItems.map(x=>`${formatNumber(x.qty)} × ${x.product} (Rs ${formatNumber(x.total)})`).join("\n")}\n💰 Total:Rs -${formatNumber(total)}`;
+      reply+=customer?(payment==="credit"?`\n👤 ${customer} (Khata se minus)`:`\n👤 ${customer} (Naqad wapis)`):`\n💵 Naqad wapis`;
+      return {ok:true,reply,transaction:tx,updates};
+    }
+
+    async function processPurchase(command, products) {
+      const items=command.items||[];
+      if (!items.length) return {ok:false,reply:"❌ Purchase item batayein."};
+      const updates={}, msgs=[], txItems=[];
+      let total=0;
+      for (const item of items) {
+        const m=findProduct(item.product,products);
+        if (m.status!=="found") return {ok:false,reply:`❌ Product issue: ${item.product}`};
+        const p=m.product, qty=Number(item.qty||0);
+        if (!isFinite(qty)||qty<=0) return {ok:false,reply:`❌ Quantity galat: ${item.product}`};
+        const cleanKey=sanitizeFirebaseKey(p._key);
+        addInc(updates,`Products/${cleanKey}/Stock`,qty);
+        const cost=Number(item.cost!==undefined?item.cost:p.Cost||0);
+        if (cost>0) updates[`Products/${cleanKey}/Cost`]=cost;
+        total+=cost*qty;
+        txItems.push({product:p.Name||p._key,qty,cost,total:cost*qty});
+        msgs.push(`📦 ${formatNumber(qty)} × ${p.Name||p._key}`);
+      }
+      const txId=command.client_txn_id||("P"+Date.now());
+      updates[`Transactions/${txId}`]={id:txId,client_txn_id:command.client_txn_id||"",type:"purchase",items:txItems,total,timestamp:Date.now(),date:getTodayString()};
+      addInc(updates,"CashManagement/CashInHand",-total);
+      return {ok:true,reply:`✅ Purchase recorded\n${msgs.join("\n")}\n💰 Total cost:Rs -${formatNumber(total)}`,updates};
+    }
+
+    async function processCustomerPayment(command) {
+      const customer=String(command.customer).trim(), amount=Number(command.amount);
+      if (!customer||!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Customer ya amount theek se samajh nahi aaya."};
+      const ck=custKey(command);
+      const oldBal=Number(await firebaseRequest(`Customers/${ck}/Balance`,"GET")||0);
+      const updates={};
+      addInc(updates,`Customers/${ck}/Balance`,-amount);
+      updates[`Customers/${ck}/Name`]=customer;
+      const txId=command.client_txn_id||("PAY_"+Date.now());
+      const tx={id:txId,type:"payment",amount,customer,customer_key:ck,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      addInc(updates,"CashManagement/CashIn",amount);
+      addInc(updates,"CashManagement/CashInHand",amount);
+      addStatsDeltas(updates,tx);
+      return {ok:true,reply:`✅ Cash In Recorded\n👤 ${customer}\n💵 Amount:Rs +${formatNumber(amount)}\n⚖️ Remaining Balance:Rs ${formatNumber(oldBal-amount)}`,updates};
+    }
+
+    async function processCustomerCashOut(command) {
+      const customer=String(command.customer).trim(), amount=Number(command.amount);
+      if (!customer||!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Customer ya amount theek se samajh nahi aaya."};
+      const ck=custKey(command);
+      const oldBal=Number(await firebaseRequest(`Customers/${ck}/Balance`,"GET")||0);
+      const updates={};
+      addInc(updates,`Customers/${ck}/Balance`,amount);
+      updates[`Customers/${ck}/Name`]=customer;
+      const txId=command.client_txn_id||("CASHOUT_"+Date.now());
+      const tx={id:txId,type:"cash_out",amount,customer,customer_key:ck,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      addInc(updates,"CashManagement/CashOut",amount);
+      addInc(updates,"CashManagement/CashInHand",-amount);
+      addStatsDeltas(updates,tx);
+      return {ok:true,reply:`✅ Cash Out Recorded\n👤 ${customer}\n💵 Amount:Rs -${formatNumber(amount)}\n⚖️ Total Balance:Rs ${formatNumber(oldBal+amount)}`,updates};
+    }
+
+    async function processAllBalances() {
+      const customers=await firebaseRequest("Customers","GET")||{};
+      const rows=Object.keys(customers).map(k=>({name:(customers[k]?.Name)||k,bal:Number(customers[k]?.Balance||0)})).filter(r=>Math.abs(r.bal)>0.005);
+      if (!rows.length) return {ok:true,reply:"✅ Kisi ka udhaar baqi nahi hai."};
+      const owe=rows.filter(r=>r.bal>0).sort((a,b)=>b.bal-a.bal);
+      const adv=rows.filter(r=>r.bal<0).sort((a,b)=>a.bal-b.bal);
+      let reply="🧾 Khata List\n";
+      if (owe.length) {
+        reply+="\nUdhaar lene hain:\n"+owe.map((r,i)=>`${i+1}. ${r.name} — Rs ${formatNumber(r.bal)}`).join("\n");
+        reply+=`\n💰 Total:Rs ${formatNumber(owe.reduce((s,r)=>s+r.bal,0))}`;
+      }
+      if (adv.length) reply+="\n\nWapis dene hain:\n"+adv.map((r,i)=>`${i+1}. ${r.name} — Rs ${formatNumber(-r.bal)}`).join("\n");
+      return {ok:true,reply};
+    }
+
+    async function processCashBalance() {
+      const c=await firebaseRequest("CashManagement","GET")||{};
+      return {ok:true,reply:`🏦 Cash in hand:Rs ${formatNumber(c.CashInHand||0)}`};
+    }
+
+    async function processExpenseAdd(command) {
+      const amount=Number(command.amount);
+      if (!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Kharche ki amount batayein."};
+      const category=String(command.category||"Misc").trim()||"Misc";
+      const note=String(command.note||"").trim();
+      const updates={};
+      const txId=command.client_txn_id||("EXP_"+Date.now());
+      const tx={id:txId,type:"expense",amount,category,note,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      addInc(updates,"CashManagement/CashOut",amount);
+      addInc(updates,"CashManagement/CashInHand",-amount);
+      addStatsDeltas(updates,tx);
+      return {ok:true,reply:`✅ Kharcha Record Hua\n🏷️ ${category}${note?` (${note})`:""}ٍ\n💸 Amount:Rs -${formatNumber(amount)}`,updates,transaction:tx};
+    }
+
+    async function processExpenseReport(command) {
+      const period=normalizePeriod(command.period||"daily");
+      if (!["daily","weekly","monthly","yearly","lifetime"].includes(period)) return {ok:true,reply:"📊 Yeh period abhi support nahi hai."};
+      const stats=await firebaseRequest(getStatsBucketPaths(new Date())[period],"GET");
+      return {ok:true,reply:`💸 Expense Report\nTotal Kharcha:Rs ${formatNumber(stats?.TotalExpense||0)}`};
+    }
+
+    async function processSupplierPurchase(command, products) {
+      const supplier=String(command.supplier).trim(), items=command.items||[], sk=supKey(command);
+      const updates={};let total=0;const lines=[];
+      if (items.length) {
+        for (const item of items) {
+          const m=findProduct(item.product,products);
+          const qty=Number(item.qty||0);
+          const cost=Number(item.cost||(m.status==="found"?m.product.Cost:0)||0);
+          if (m.status==="found"&&qty>0) {
+            addInc(updates,`Products/${sanitizeFirebaseKey(m.product._key)}/Stock`,qty);
+            if (cost>0) updates[`Products/${sanitizeFirebaseKey(m.product._key)}/Cost`]=cost;
+          }
+          total+=cost*(qty||1);
+          lines.push(`📦 ${formatNumber(qty||1)} × ${item.product}`);
+        }
+      } else { total=Number(command.amount||0); lines.push("📦 Maal (amount based)"); }
+      if (!(total>0)) return {ok:false,reply:"❌ Supplier purchase ki amount ya items theek se samajh nahi aaye."};
+      const txId=command.client_txn_id||("SP_"+Date.now());
+      updates[`Transactions/${txId}`]={id:txId,type:"supplier_purchase",supplier,supplier_key:sk,total,timestamp:Date.now(),date:getTodayString()};
+      addInc(updates,`Suppliers/${sk}/Balance`,total);
+      updates[`Suppliers/${sk}/Name`]=supplier;
+      return {ok:true,reply:`✅ Supplier Purchase (Udhaar)\n🏭 ${supplier}\n${lines.join("\n")}\n💰 Total:Rs ${formatNumber(total)}\n⚠️ Ab is supplier ko dena hai.`,updates};
+    }
+
+    async function processSupplierPayment(command) {
+      const supplier=String(command.supplier).trim(), amount=Number(command.amount);
+      if (!supplier||!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Supplier ya amount theek se samajh nahi aaya."};
+      const sk=supKey(command);
+      const oldBal=Number(await firebaseRequest(`Suppliers/${sk}/Balance`,"GET")||0);
+      const updates={};
+      addInc(updates,`Suppliers/${sk}/Balance`,-amount);
+      updates[`Suppliers/${sk}/Name`]=supplier;
+      const txId=command.client_txn_id||("SPAY_"+Date.now());
+      updates[`Transactions/${txId}`]={id:txId,type:"supplier_payment",supplier,supplier_key:sk,amount,timestamp:Date.now(),date:getTodayString()};
+      addInc(updates,"CashManagement/CashOut",amount);
+      addInc(updates,"CashManagement/CashInHand",-amount);
+      return {ok:true,reply:`✅ Supplier Payment\n🏭 ${supplier}\n💵 Diye:Rs -${formatNumber(amount)}\n⚖️ Baqi Dena:Rs ${formatNumber(oldBal-amount)}`,updates};
+    }
+
+    async function processAllSupplierBalances() {
+      const sup=await firebaseRequest("Suppliers","GET")||{};
+      const rows=Object.keys(sup).map(k=>({name:sup[k]?.Name||k,bal:Number(sup[k]?.Balance||0)})).filter(r=>Math.abs(r.bal)>0.005);
+      if (!rows.length) return {ok:true,reply:"✅ Kisi supplier ka udhaar baqi nahi hai."};
+      rows.sort((a,b)=>b.bal-a.bal);
+      let reply="🏭 Suppliers ka Udhaar\n\n"+rows.map((r,i)=>`${i+1}. ${r.name} — Rs ${formatNumber(r.bal)}`).join("\n");
+      reply+=`\n\n💰 Total Dena:Rs ${formatNumber(rows.reduce((s,r)=>s+r.bal,0))}`;
+      return {ok:true,reply};
+    }
+
+    async function processListRecentTransactions() {
+      const all=await firebaseRequest("Transactions","GET")||{};
+      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void").sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,15);
+      if (!rows.length) return {ok:true,reply:"📭 Koi transaction nahi mili."};
+      const lbl=t=>{
+        if(t.type==="sale")     return `Sale Rs ${formatNumber(t.total)}${t.customer?" - "+t.customer:""}`;
+        if(t.type==="return")   return `Return Rs ${formatNumber(t.total)}${t.customer?" - "+t.customer:""}`;
+        if(t.type==="payment")  return `Cash In Rs ${formatNumber(t.amount)} - ${t.customer}`;
+        if(t.type==="cash_out") return `Cash Out Rs ${formatNumber(t.amount)} - ${t.customer}`;
+        if(t.type==="expense")  return `Expense Rs ${formatNumber(t.amount)} - ${t.category}`;
+        if(t.type==="supplier_purchase") return `Supplier Purchase Rs ${formatNumber(t.total)} - ${t.supplier}`;
+        if(t.type==="supplier_payment")  return `Supplier Payment Rs ${formatNumber(t.amount)} - ${t.supplier}`;
+        if(t.type==="purchase") return `Purchase Rs ${formatNumber(t.total)}`;
+        return t.type;
+      };
+      let reply='📜 Recent Entries (cancel ke liye e.g. "T2 cancel karo"):\n\n';
+      rows.forEach((t,i)=>{reply+=`T${i+1}. ${lbl(t)}\n`;});
+      return {ok:true,reply:reply.trim()};
+    }
+
+    async function processVoidTransaction(command, products) {
+      const search=String(command.search||command.user_text||"").trim();
+      if (!search) return {ok:false,reply:'❌ Kis entry ko cancel karna hai? (naam, amount, ya item)'};
+      const all=await firebaseRequest("Transactions","GET")||{};
+      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void").sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      if (!rows.length) return {ok:false,reply:"📭 Koi transaction nahi mili."};
+      let target=null;
+      const ref=search.match(/\bT(\d{1,2})\b/i);
+      if (ref){const idx=Number(ref[1])-1;if(idx>=0&&idx<rows.length)target=rows[idx];}
+      if (!target) {
+        const nW=normMatch(search).split(" ").filter(Boolean);
+        let best=null,bestScore=-1;
+        rows.slice(0,40).forEach(t=>{
+          const hay=normMatch([t.customer,t.supplier,t.category,t.total,t.amount,(t.items||[]).map(i=>i.product).join(" ")].filter(Boolean).join(" "));
+          let score=0;nW.forEach(w=>{if(hay.includes(w))score+=w.length>=3?2:1;});
+          if(score>bestScore){bestScore=score;best=t;}
+        });
+        if (best&&bestScore>0) target=best;
+      }
+      if (!target) return {ok:false,reply:`❌ "${search}" se milti koi entry nahi mili. "recent entries dikhao" bol kar list dekh lein.`};
+      return voidSpecificTransaction(target, products);
+    }
+
+    async function voidSpecificTransaction(tx, products) {
+      if (tx.voided) return {ok:true,reply:"ℹ️ Yeh entry pehle hi cancel ho chuki hai."};
+      const updates={};
+      const ck=tx.customer_key||sanitizeFirebaseKey(tx.customer||"");
+      const sk=tx.supplier_key||sanitizeFirebaseKey(tx.supplier||"");
+      const total=Number(tx.total||0), amount=Number(tx.amount||0);
+      const payment=tx.payment||(tx.customer?"credit":"cash");
+      const stockFor=(item,sign)=>{
+        if (item.is_misc) return;
+        const key=products[item.product]?item.product:(findProduct(item.product,products).product||{})._key;
+        if(key) addInc(updates,`Products/${sanitizeFirebaseKey(key)}/Stock`,sign*Number(item.qty||0));
+      };
+      let label;
+      if (tx.type==="sale") {
+        (tx.items||[]).forEach(it=>stockFor(it,1));
+        if (payment==="split"&&ck) {
+          const paidNow=Number(tx.paid_amount||0);
+          addInc(updates,`Customers/${ck}/Balance`,-(total-paidNow));
+          addInc(updates,"CashManagement/CashInHand",-paidNow);
+        } else if(payment==="credit"&&ck) addInc(updates,`Customers/${ck}/Balance`,-total);
+        else addInc(updates,"CashManagement/CashInHand",-total);
+        label=`Sale Rs ${formatNumber(total)}`;
+      } else if (tx.type==="return") {
+        (tx.items||[]).forEach(it=>stockFor(it,-1));
+        if(payment==="credit"&&ck) addInc(updates,`Customers/${ck}/Balance`,total);
+        else addInc(updates,"CashManagement/CashInHand",total);
+        label=`Return Rs ${formatNumber(total)}`;
+      } else if (tx.type==="payment") {
+        addInc(updates,`Customers/${ck}/Balance`,amount);
+        addInc(updates,"CashManagement/CashIn",-amount);
+        addInc(updates,"CashManagement/CashInHand",-amount);
+        label=`Cash In Rs ${formatNumber(amount)} (${tx.customer})`;
+      } else if (tx.type==="cash_out") {
+        addInc(updates,`Customers/${ck}/Balance`,-amount);
+        addInc(updates,"CashManagement/CashOut",-amount);
+        addInc(updates,"CashManagement/CashInHand",amount);
+        label=`Cash Out Rs ${formatNumber(amount)} (${tx.customer})`;
+      } else if (tx.type==="expense") {
+        addInc(updates,"CashManagement/CashOut",-amount);
+        addInc(updates,"CashManagement/CashInHand",amount);
+        label=`Expense Rs ${formatNumber(amount)} (${tx.category})`;
+      } else if (tx.type==="supplier_purchase") {
+        addInc(updates,`Suppliers/${sk}/Balance`,-total);
+        label=`Supplier Purchase Rs ${formatNumber(total)} (${tx.supplier})`;
+      } else if (tx.type==="supplier_payment") {
+        addInc(updates,`Suppliers/${sk}/Balance`,amount);
+        addInc(updates,"CashManagement/CashOut",-amount);
+        addInc(updates,"CashManagement/CashInHand",amount);
+        label=`Supplier Payment Rs ${formatNumber(amount)} (${tx.supplier})`;
+      } else if (tx.type==="purchase") {
+        (tx.items||[]).forEach(it=>stockFor(it,-1));
+        addInc(updates,"CashManagement/CashInHand",total);
+        label=`Purchase Rs ${formatNumber(total)}`;
+      } else {
+        return {ok:false,reply:"❌ Is qism ki entry cancel nahi ho sakti."};
+      }
+      addStatsDeltas(updates,tx,true);
+      updates[`Transactions/${tx.id}/voided`]=true;
+      updates[`Transactions/${tx.id}/voidedAt`]=Date.now();
+      updates[`Transactions/UNDO_${tx.id}`]={id:`UNDO_${tx.id}`,type:"void",ref:tx.id,timestamp:Date.now(),date:getTodayString()};
+      const items=(tx.items||[]).map(it=>`${formatNumber(it.qty)} × ${it.product}`).join(", ");
+      return {ok:true,reply:`↩️ Cancel ho gaya: ${label}${items?`\n📦 ${items}`:""}\nStock, cash aur khata wapis theek kar diya.`,updates};
+    }
+
+    async function processUndoLast(command, products) {
+      const id=localStorage.getItem(LAST_TXN_KEY);
+      if (!id) return {ok:false,reply:"❌ Undo ke liye koi recent entry nahi mili."};
+      const tx=await firebaseRequest(`Transactions/${id}`,"GET");
+      if (!tx) return {ok:false,reply:"❌ Woh entry database mein nahi mili."};
+      if (tx.voided){localStorage.removeItem(LAST_TXN_KEY);return {ok:true,reply:"ℹ️ Yeh entry pehle hi cancel ho chuki hai."};}
+      return voidSpecificTransaction(tx, products);
+    }
+
+    async function processCustomerBalance(command) {
+      if (!command.customer) return {ok:false,reply:"❌ Customer ka naam batayein."};
+      const customer=String(command.customer).trim();
+      const balance=await firebaseRequest(`Customers/${custKey(command)}/Balance`,"GET")||0;
+      return {ok:true,reply:`⚖️ Balance for ${customer}:\nRs ${formatNumber(balance)}\n\n(+) = udhaar dena hai. (-) = wapis karna hai.`};
+    }
+
+    function normalizePeriod(period) {
+      period=String(period||"daily").toLowerCase();
+      if (["today","daily","day"].includes(period)) return "daily";
+      if (["yesterday","kal"].includes(period)) return "yesterday";
+      if (["week","weekly"].includes(period)) return "weekly";
+      if (["month","monthly"].includes(period)) return "monthly";
+      if (["year","yearly"].includes(period)) return "yearly";
+      if (["all","lifetime"].includes(period)) return "lifetime";
+      return period.includes("previous_")?period:"daily";
+    }
+
+    function formatStatsReport(stats, period, globalCash) {
+      const map={
+        daily:"Today's",yesterday:"Yesterday's",weekly:"This Week's",
+        previous_week:"Previous Week",monthly:"This Month's",
+        previous_month:"Previous Month",yearly:"This Year's",
+        previous_year:"Previous Year",lifetime:"Lifetime"
+      };
+      let reply=`📊 ${map[normalizePeriod(period)]||"General"} Report\n\n`;
+      reply+=`💰 Total Sales:Rs ${formatNumber(stats.TotalSales||0)}\n`;
+      reply+=`📦 Total Cost:Rs ${formatNumber(stats.TotalCost||0)}\n`;
+      reply+=`📈 Total Profit:Rs ${formatNumber(stats.TotalProfit||0)}\n`;
+      reply+=`💵 Naqad Sales:Rs ${formatNumber(stats.TotalCash||0)}\n`;
+      reply+=`🧾 Udhaar Sales:Rs ${formatNumber(stats.TotalCredit||0)}\n`;
+      if (stats.TotalReturns>0) reply+=`↩️ Returns:Rs ${formatNumber(stats.TotalReturns||0)} (${formatNumber(stats.ReturnCount||0)})\n`;
+      if (stats.TotalExpense>0) reply+=`💸 Kharcha:Rs ${formatNumber(stats.TotalExpense||0)}\n`;
+      if (stats.CashIn>0||stats.CashOut>0) reply+=`\n💱 Cash Flow:\n   Cash In(+):Rs ${formatNumber(stats.CashIn||0)}\n   Cash Out(-):Rs ${formatNumber(stats.CashOut||0)}\n`;
+      reply+=`\n🏦 Cash In Hand:Rs ${formatNumber(globalCash.CashInHand||0)}\n🛒 Sales Count:${formatNumber(stats.SaleCount||0)}`;
+      const rows=Object.keys(stats.Products||{}).map(k=>stats.Products[k]).filter(p=>p.Revenue!==0||p.Qty!==0).sort((a,b)=>b.Revenue-a.Revenue);
+      if (rows.length) {
+        reply+="\n\n🛍️ Product Sales:";
+        rows.forEach((p,i)=>{reply+=`\n\n${i+1}. ${p.Name}\n   Sold:${formatNumber(p.Qty||0)} | Times:${formatNumber(p.TimesSold||0)}\n   Rev:Rs ${formatNumber(p.Revenue||0)} | Profit:Rs ${formatNumber(p.Profit||0)}`;});
+      }
+      return {ok:true,reply};
+    }
+
+    async function processReport(command) {
+      const period=normalizePeriod(command.period);
+      const globalCash=await firebaseRequest("CashManagement","GET")||{CashInHand:0,CashIn:0,CashOut:0};
+      if (["daily","weekly","monthly","yearly","lifetime"].includes(period)) {
+        const stats=await firebaseRequest(getStatsBucketPaths(new Date())[period],"GET");
+        if (stats&&typeof stats==="object") return formatStatsReport(stats,period,globalCash);
+        return {ok:true,reply:"📊 Is period ka abhi koi data nahi hai."};
+      }
+      if (period==="yesterday") {
+        const y=new Date();y.setDate(y.getDate()-1);
+        const stats=await firebaseRequest(getStatsBucketPaths(y).daily,"GET");
+        if (stats&&typeof stats==="object") return formatStatsReport(stats,period,globalCash);
+        return {ok:true,reply:"📊 Kal ka koi data nahi mila."};
+      }
+      if (period==="previous_month") {
+        const m=new Date();m.setDate(1);m.setMonth(m.getMonth()-1);
+        const stats=await firebaseRequest(getStatsBucketPaths(m).monthly,"GET");
+        if (stats&&typeof stats==="object") return formatStatsReport(stats,period,globalCash);
+        return {ok:true,reply:"📊 Pichle mahine ka koi data nahi mila."};
+      }
+      return {ok:true,reply:"📊 Yeh period abhi support nahi hai."};
+    }
+
+    async function processProductReport(command, products) {
+      const m=findProduct(command.product,products);
+      if (m.status!=="found") return {ok:false,reply:"❌ Product nahi mila."};
+      const p=m.product, targetName=canonicalName(p.Name||p._key), period=normalizePeriod(command.period||"monthly");
+      if (["daily","weekly","monthly","yearly","lifetime"].includes(period)) {
+        const stats=await firebaseRequest(getStatsBucketPaths(new Date())[period],"GET");
+        if (stats?.Products) {
+          for (const k of Object.keys(stats.Products)) {
+            if (canonicalName(k)===targetName||canonicalName(stats.Products[k].Name)===targetName) {
+              const pp=stats.Products[k];
+              return {ok:true,reply:`📊 ${p.Name||p._key}\nPeriod:${period}\nSold:${formatNumber(pp.Qty||0)}\n🔢 Times:${formatNumber(pp.TimesSold||0)}\n💰 Revenue:Rs ${formatNumber(pp.Revenue||0)}\n📦 Cost:Rs ${formatNumber(pp.Cost||0)}\n📈 Profit:Rs ${formatNumber(pp.Profit||0)}`};
+            }
+          }
+        }
+      }
+      return {ok:false,reply:"📊 No data found for this period."};
+    }
+
+    async function processChatHistory() {
+      const now=new Date(), dates=[];
+      for (let i=0;i<7;i++){const d=new Date(now-i*86400000);dates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`);}
+      const responses=await firebaseParallelGet(dates.map(d=>`ChatHistory/${d}`));
+      let allChats=[];
+      responses.forEach(day=>{if(day)Object.values(day).forEach(c=>allChats.push(c));});
+      if (!allChats.length) return {ok:true,reply:"📭 Pichle 7 din ki koi chat history nahi mili."};
+      allChats.sort((a,b)=>a.timestamp-b.timestamp);
+      let reply="📜 Last 7 Days Chat History:\n\n";
+      allChats.slice(-40).forEach(c=>{
+        const d=new Date(c.timestamp);
+        const t=`${d.getDate()} ${d.toLocaleString("default",{month:"short"})}, ${d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`;
+        reply+=`👤 [${t}]\n💬 You:${c.user}\n🤖 AI:${c.ai}\n${"-".repeat(20)}\n`;
+      });
+      return {ok:true,reply:reply.trim()};
+    }
+
+    async function processAddToKhata(command) {
+      const customer=String(command.customer||"").trim();
+      const items=command.items||[];
+      if (!customer) return {ok:false,reply:"❌ Customer ka naam batayein."};
+      if (!items.length) return {ok:false,reply:"❌ Kaunsa item khate mein add karna hai batayein."};
+      const label=items.map(it=>`${formatNumber(it.qty||1)} × ${it.product}`).join(", ");
+      const ck=custKey(command);
+      const updates={};
+      updates[`Customers/${ck}/Name`]=customer;
+      const txId=command.client_txn_id||("NOTE_"+Date.now());
+      updates[`Transactions/${txId}`]={id:txId,type:"khata_note",customer,customer_key:ck,items,note:label,timestamp:Date.now(),date:getTodayString()};
+      return {ok:true,reply:`📝 Khate mein note add ho gaya\n👤 ${customer}\n📦 ${label}\n\nℹ️ Yeh sirf note hai, price/balance nahi badla. Agar yeh sale/udhaar hai to "sale" bol kar dein.`,updates,transaction:{type:"khata_note"}};
+    }
+
+    async function processAddNewProduct(command) {
+      if (!command.product) return {ok:false,reply:"❌ Product ka naam batayein."};
+      const name=String(command.product).trim();
+      const productKey=sanitizeFirebaseKey(name);
+      const existing=await firebaseRequest(`Products/${productKey}`,"GET");
+      if (existing) return {ok:false,reply:`⚠️ Ye product pehle se database mein mojood hai: ${name}`};
+      const price=Number(command.price||0), cost=Number(command.cost||0);
+      const stock=Number(command.stock||0), unit=String(command.unit||"pcs").trim();
+      const updates={[`Products/${productKey}`]:{Name:name,Price:price,Cost:cost,Stock:stock,Unit:unit,updatedAt:Date.now()}};
+      return {ok:true,reply:`✅ New Product Added!\n📦 ${name}\n💰 Sale Price:Rs ${formatNumber(price)}\n📉 Cost:Rs ${formatNumber(cost)}\n📊 Stock:${formatNumber(stock)} (${unit})`,updates};
+    }
+
+    // Appends the customer's current balance to a result's reply, whenever this
+    // action just changed it. Covers "uska balance kitna reh gaya" automatically.
+    async function appendBalanceFootnote(res, command) {
+      if (res?.ok&&res?.saved&&command?.customer) {
+        try {
+          const ck=command.customer_key||custKey(command);
+          const bal=Number(await firebaseRequest(`Customers/${ck}/Balance`,"GET")||0);
+          res.reply=(res.reply||"")+`\n⚖️ Naya Balance:Rs ${formatNumber(bal)}`;
+        } catch(e){}
+      }
+      return res;
+    }
+
+    // ─── MASTER EXECUTOR ──────────────────────────────────────
+    async function executeCommand(command, products) {
+      if (!command?.action) return {ok:false,reply:"Command samajh nahi aayi."};
+      const action=String(command.action).toLowerCase();
+
+      if (action==="chat") return {ok:true,reply:command.reply||"Acha g, batayein aur kya madad kar sakta hoon?"};
+      if (action==="add_new_product_form") return {ok:true,type:"need_add_product_form",reply:command.reply||"📦 Naya product add karne ke liye form fill karein:"};
+
+      // Direct update actions → confirm first
+      if (["update_price_direct","update_cost_direct","update_stock_direct","update_stock_add"].includes(action)) {
+        const val=Number(command.value);
+        if (!command.product||!isFinite(val)) return {ok:false,reply:"❌ Product ya value theek se samajh nahi aayi."};
+        let p=products[command.product]?{...products[command.product],_key:command.product}:null;
+        if (!p){const m=findProduct(command.product,products);if(m.status==="not_found")return{ok:false,reply:`❌ Product nahi mila: ${command.product}`};if(m.status==="multiple")return{ok:true,type:"need_clarification",reply:`⚠️ "${command.product}" ke liye ek se zyada products match huay. Sahi product select karein:`,options:m.matches,pending_context:command};p=m.product;}
+        const fieldLabel=action==="update_cost_direct"?"Cost":action.includes("stock")?"Stock":"Price";
+        const isAdd=action==="update_stock_add"||(String(command.value_mode||"").toLowerCase()==="add"&&action.includes("stock"));
+        const curVal=action==="update_cost_direct"?Number(p.Cost||0):action.includes("stock")?Number(p.Stock||0):Number(p.Price||0);
+        const finalVal=isAdd?curVal+val:val;
+        const changeNote=isAdd?` (${curVal} + ${val})`:"";
+        return {ok:true,type:"need_direct_update_confirmation",reply:`⚠️ Kya aap ${p.Name||p._key} ka ${fieldLabel} update kar ke ${finalVal} karna chahte hain?${changeNote}`,product_key:p._key,product_name:p.Name||p._key,field:action,value:finalVal};
+      }
+
+      if (action==="resolve_direct_update") {
+        const pKey=sanitizeFirebaseKey(command.product_key);
+        const dbField=command.field==="update_cost_direct"?"Cost":command.field.includes("stock")?"Stock":"Price";
+        const val=Number(command.value);
+        const updates={[`Products/${pKey}/${dbField}`]:val,[`Products/${pKey}/updatedAt`]:Date.now()};
+        await firebaseRequest("","PATCH",updates);
+        patchLocalCaches(updates);
+        return {ok:true,saved:true,reply:`✅ ${dbField} updated to ${val} for ${command.product_name}!`};
+      }
+
+      // _request actions → show form
+      if (["update_price_request","update_cost_request","update_stock_request"].includes(action)) {
+        if (!command.product) return {ok:false,reply:"❌ Kis product ki detail update karni hai uska naam batayein."};
+        let p=products[command.product]?{...products[command.product],_key:command.product}:null;
+        if (!p){const m=findProduct(command.product,products);if(m.status==="not_found")return{ok:false,reply:`❌ Product nahi mila: ${command.product}`};if(m.status==="multiple")return{ok:true,type:"need_clarification",reply:`⚠️ "${command.product}" ke liye ek se zyada products match huay. Sahi product select karein:`,options:m.matches,pending_context:command};p=m.product;}
+        const fieldType=action.replace("_request","");
+        return {ok:true,type:"need_update_field_form",reply:`✏️ Update ${p.Name||p._key} (${fieldType.replace("update_","").toUpperCase()})`,product_key:p._key,product_name:p.Name||p._key,field:fieldType};
+      }
+
+      if (action==="resolve_update_field") {
+        const pKey=sanitizeFirebaseKey(command.product_key);
+        const dbField=command.field==="update_cost"?"Cost":command.field==="update_stock"?"Stock":"Price";
+        const val=Number(command.value);
+        if (!isFinite(val)||val<0) return {ok:false,reply:"❌ Value galat hai."};
+        const updates={[`Products/${pKey}/${dbField}`]:val,[`Products/${pKey}/updatedAt`]:Date.now()};
+        await firebaseRequest("","PATCH",updates);
+        patchLocalCaches(updates);
+        return {ok:true,saved:true,reply:`✅ ${dbField} updated to ${val} for ${command.product_name}!`};
+      }
+
+      // Customer resolution middleware
+      if (command.customer&&!command.customer_resolved&&action!=="resolve_customer_clarification") {
+        const customers=await getCustomersCached();
+        const m=findCustomer(command.customer,customers);
+        if (m.status==="multiple") return {ok:true,type:"need_customer_clarification",reply:`⚠️ "${command.customer}" naam se miltay jultay khatey hain. Sahi khata select karein ya naya banayein:`,options:m.matches,pending_context:command};
+        if (m.status==="found") { command.customer=m.customer.Name||m.customer._key; command.customer_key=m.customer._key; }
+        else {
+          if (action==="customer_balance") return {ok:false,reply:`❌ "${command.customer}" naam ka koi khata nahi mila.`};
+          return {ok:true,type:"need_customer_clarification",reply:`🆕 "${command.customer}" naam ka khata nahi mila. Naya khata banayein?`,options:[],pending_context:command};
+        }
+        command.customer_resolved=true;
+      }
+
+      if (action==="resolve_customer_clarification") {
+        const ctx=command.pending_context;
+        if (!ctx) return {ok:false,reply:"❌ Session context expire ho gaya hai."};
+        if (command.client_txn_id) ctx.client_txn_id=command.client_txn_id;
+        ctx.customer=command.selected_customer;
+        if (command.selected_customer_key) ctx.customer_key=command.selected_customer_key; else delete ctx.customer_key;
+        ctx.customer_resolved=true;
+        return executeCommand(ctx,products);
+      }
+
+      // Supplier resolution middleware
+      if (command.supplier&&!command.supplier_resolved&&action!=="resolve_supplier_clarification") {
+        const suppliers=await firebaseRequest("Suppliers","GET")||{};
+        const m=findSupplier(command.supplier,suppliers);
+        if (m.status==="multiple") return {ok:true,type:"need_customer_clarification",reply:`⚠️ "${command.supplier}" naam se miltay jultay suppliers hain. Sahi select karein ya naya banayein:`,options:m.matches,pending_context:command,is_supplier:true};
+        if (m.status==="found") { command.supplier=m.supplier.Name||m.supplier._key; command.supplier_key=m.supplier._key; }
+        else {
+          if (action==="supplier_balance") return {ok:false,reply:`❌ "${command.supplier}" naam ka koi supplier khata nahi mila.`};
+          return {ok:true,type:"need_customer_clarification",reply:`🆕 "${command.supplier}" naam ka supplier khata nahi mila. Naya banayein?`,options:[],pending_context:command,is_supplier:true};
+        }
+        command.supplier_resolved=true;
+      }
+
+      if (action==="resolve_supplier_clarification") {
+        const ctx=command.pending_context;
+        if (!ctx) return {ok:false,reply:"❌ Session context expire ho gaya hai."};
+        if (command.client_txn_id) ctx.client_txn_id=command.client_txn_id;
+        ctx.supplier=command.selected_customer;
+        if (command.selected_customer_key) ctx.supplier_key=command.selected_customer_key; else delete ctx.supplier_key;
+        ctx.supplier_resolved=true;
+        return executeCommand(ctx,products);
+      }
+
+      if (action==="resolve_clarification") {
+        const ctx=command.pending_context;
+        if (!ctx) return {ok:false,reply:"❌ Session context expire ho gaya hai."};
+        if (command.client_txn_id) ctx.client_txn_id=command.client_txn_id;
+        const selKey=command.selected_product_key||command.selected_product;
+        if (ctx.items) {
+          const idx=command.target_index!==undefined?command.target_index:(ctx.target_index||0);
+          let matched=null;
+          if (products[selKey]) matched={...products[selKey],_key:selKey};
+          else { const m=findProduct(command.selected_product,products); if(m.status==="found") matched=m.product; }
+          if (matched){ctx.items[idx]._resolvedProduct=matched;ctx.items[idx].product=matched.Name||matched._key;}
+          else ctx.items[idx].product=command.selected_product;
+          ctx.user_text=command.user_text;
+          return appendBalanceFootnote(await commitResult(await (ctx.action==="return"?processReturn(ctx,products):processSale(ctx,products))), ctx);
+        } else {
+          ctx.product=selKey;
+          return executeCommand(ctx,products);
+        }
+      }
+
+      if (action==="resolve_missing") {
+        const ctx=command.pending_context, decision=command.decision;
+        if (!ctx?.items) return {ok:false,reply:"❌ Session context expire ho gaya hai."};
+        if (decision==="cancel") return {ok:true,reply:"🚫 Transaction cancel kar di gayi."};
+        const missingIdx=(command.missing_indices||[]).map(Number);
+        if (decision==="skip") {
+          ctx.items=ctx.items.filter((_,i)=>!missingIdx.includes(i));
+          if (!ctx.items.length) return {ok:false,reply:"❌ Sari items missing theen."};
+          if (command.client_txn_id) ctx.client_txn_id=command.client_txn_id;
+          return appendBalanceFootnote(await commitResult(await (ctx.action==="return"?processReturn(ctx,products):processSale(ctx,products))), ctx);
+        }
+        if (decision==="manual") {
+          const mp=command.manual_prices||{};
+          ctx.items.forEach((item,i)=>{
+            if (!missingIdx.includes(i)) return;
+            const pv=Number(mp[i]!==undefined?mp[i]:mp[String(i)]||0);
+            item.is_misc=true;item.amount=pv;item.price=pv;item.qty=1;item._resolvedProduct=null;
+            item.product=String(item.product).replace(/\s*\(Unlisted\)/gi,"")+" (Unlisted)";
+          });
+          if (command.client_txn_id) ctx.client_txn_id=command.client_txn_id;
+          return appendBalanceFootnote(await commitResult(await (ctx.action==="return"?processReturn(ctx,products):processSale(ctx,products))), ctx);
+        }
+        return {ok:false,reply:"❌ Galat decision option."};
+      }
+
+      if ((action==="sale"||action==="return")&&!command.items&&command.product)
+        command.items=[command];
+
+      let res;
+      switch(action) {
+        case "sale":               res=await commitResult(await processSale(command,products)); break;
+        case "return":             res=await commitResult(await processReturn(command,products)); break;
+        case "purchase":           res=await commitResult(await processPurchase(command,products)); break;
+        case "add_new_product":    res=await commitResult(await processAddNewProduct(command)); break;
+        case "add_to_khata":       res=await commitResult(await processAddToKhata(command)); break;
+        case "customer_payment":   res=await commitResult(await processCustomerPayment(command)); break;
+        case "customer_cash_out":  res=await commitResult(await processCustomerCashOut(command)); break;
+        case "expense_add":        res=await commitResult(await processExpenseAdd(command)); break;
+        case "expense_report":     res=await processExpenseReport(command); break;
+        case "supplier_purchase":  res=await commitResult(await processSupplierPurchase(command,products)); break;
+        case "supplier_payment":   res=await commitResult(await processSupplierPayment(command)); break;
+        case "supplier_balance":   res=await (async()=>{if(!command.supplier)return{ok:false,reply:"❌ Supplier ka naam batayein."};const sk=supKey(command);const b=await firebaseRequest(`Suppliers/${sk}/Balance`,"GET")||0;return{ok:true,reply:`🏭 ${command.supplier} ko dena hai:Rs ${formatNumber(b)}`};})(); break;
+        case "all_supplier_balances": res=await processAllSupplierBalances(); break;
+        case "list_recent_transactions": res=await processListRecentTransactions(); break;
+        case "void_transaction":   res=await commitResult(await processVoidTransaction(command,products)); if(res.saved)localStorage.removeItem(LAST_TXN_KEY); break;
+        case "list_products":      res=processListProducts(products); break;
+        case "low_stock":          res=processLowStock(products); break;
+        case "stock":
+        case "product_search":     res=processStock(command,products); break;
+        case "customer_balance":   res=await processCustomerBalance(command); break;
+        case "all_balances":       res=await processAllBalances(); break;
+        case "cash_balance":       res=await processCashBalance(); break;
+        case "undo_last":          res=await commitResult(await processUndoLast(command,products)); if(res.saved)localStorage.removeItem(LAST_TXN_KEY); break;
+        case "report":             res=await processReport(command); break;
+        case "product_report":     res=await processProductReport(command,products); break;
+        case "chat_history":       res=await processChatHistory(); break;
+        default:                   res={ok:false,reply:`❌ Unknown action: ${command.action}`};
+      }
+      // Auto-append the customer's updated balance whenever this action just
+      // changed it (sale/return/payment/cash-out for a named customer), so the
+      // user doesn't have to ask separately — covers "uska balance kitna reh gaya".
+      if (["sale","return","customer_payment","customer_cash_out"].includes(action)) res=await appendBalanceFootnote(res,command);
+      return res;
+    }
+
+    // ─── QUEUE ENGINE ─────────────────────────────────────────
+    let commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY))||[];
+    let isProcessingQueue=false, isAwaitingInput=false;
+    function saveQueue(){ localStorage.setItem(QUEUE_KEY,JSON.stringify(commandQueue)); }
+
+    window.addEventListener("DOMContentLoaded",()=>{
+      preloadCaches();
+      commandQueue.forEach(item=>{
+        const row=appendUserMessage(item.displayLabel,item.id);
+        if (item.status==="interactive"&&item.interactiveData){
+          updateBubbleStatus(row,"delivered");isAwaitingInput=true;toggleInput(true);
+          renderInteractiveWidgets(item.interactiveData,item.id,item.originalMessage);
+        } else updateBubbleStatus(row,item.status==="failed"?"failed":"queued");
+      });
+      if (commandQueue.length>0&&navigator.onLine) processQueue();
+    });
+
+    window.addEventListener("online",()=>{
+      latencyBadge.textContent="Turbo Ready";connDot.style.background="var(--success-green)";connDot.style.boxShadow="0 0 6px var(--success-green)";
+      if (commandQueue.length>0) processQueue();
+    });
+    window.addEventListener("offline",()=>{
+      latencyBadge.textContent="Offline";connDot.style.background="var(--warning-color)";connDot.style.boxShadow="0 0 6px var(--warning-color)";
+    });
+    setInterval(()=>{if(commandQueue.length>0&&navigator.onLine&&!isProcessingQueue)processQueue();},2000);
+
+    function enqueueCommand(payload,displayLabel){
+      const id="txn_"+Date.now();
+      commandQueue.push({id,payload,displayLabel,originalMessage:displayLabel,status:"queued",timestamp:Date.now()});
+      saveQueue();
+      updateBubbleStatus(appendUserMessage(displayLabel,id),"queued");
+      processQueue();
+    }
+
+    const DIRECT_ACTIONS=new Set(["resolve_clarification","resolve_missing","resolve_customer_clarification","resolve_supplier_clarification","resolve_update_field","resolve_direct_update","add_new_product","update_price_direct","update_cost_direct","update_stock_direct","update_stock_add","add_to_khata"]);
+    const NON_SAVING_LOGGED_ACTIONS=new Set(["report","product_report","stock","chat","customer_balance","all_balances","cash_balance","list_products","low_stock","add_new_product_form","update_price_request","update_cost_request","update_stock_request","expense_report","supplier_balance","all_supplier_balances","list_recent_transactions"]);
+
+    // Runs a list of parsed commands (multi-action) one after another against a
+    // LIVE, continuously-refreshed products snapshot so a later part always sees
+    // stock/balance changes made by an earlier part in the same message. Stops
+    // and surfaces an interactive widget the moment a part needs one; earlier
+    // parts' results stay committed and their replies are already combined in.
+    // remaining is the not-yet-run tail of parts (part 0 = the one to run now).
+    // startIndex lets a resumed (post-clarification) call keep generating
+    // unique per-part transaction ids instead of reusing an earlier part's id.
+    async function runMultiCommand(remaining, txnId, origText, priorReplies, startIndex) {
+      const replies = priorReplies || [];
+      let idx = startIndex || 0;
+      while (remaining.length) {
+        const cmd = remaining[0];
+        // Each part MUST get its own unique transaction id — reusing the queue
+        // item's id across parts makes commitResult() think part 2+ is a
+        // duplicate of part 1 (same Transactions/{id} key) and silently skip
+        // saving it while reporting "already recorded".
+        cmd.client_txn_id = `${txnId}_p${idx}`;
+        cmd.user_text = origText;
+        const products = await getProductsCached(); // re-read so earlier parts' stock/balance edits are visible
+        const data = await executeCommand(cmd, products);
+
+        const INTERACTIVE=new Set(["need_missing_resolution","need_clarification","need_customer_clarification","need_add_product_form","need_update_field_form","need_direct_update_confirmation"]);
+        if (INTERACTIVE.has(data.type)) {
+          // Pause here so the eventual resolve_* call can resume the loop with
+          // the remaining parts intact. Carried on pending_context when that
+          // exists (sale/return/customer flows); otherwise as top-level fields
+          // (product field-update flows, which don't use pending_context).
+          const carry = {__multi_remaining: remaining.slice(1), __multi_replies: replies, __multi_orig: origText, __multi_index: idx};
+          if (data.pending_context) data.pending_context = {...data.pending_context, ...carry};
+          else Object.assign(data, carry);
+          return {ok:true, paused:true, data, replies};
+        }
+
+        if (data.ok&&(data.transaction||data.saved||NON_SAVING_LOGGED_ACTIONS.has(cmd.action))) {
+          const ds=getTodayString();
+          firebaseRequest(`ChatHistory/${ds}/${txnId}_p${idx}`,"PUT",{user:origText,ai:data.reply,timestamp:Date.now()}).catch(()=>{});
+        }
+        if (data.reply) replies.push(data.reply);
+        remaining = remaining.slice(1);
+        idx++;
+      }
+      return {ok:true, paused:false, replies};
+    }
+
+    function combineReplies(replies) {
+      return replies.filter(Boolean).join("\n\n" + "─".repeat(18) + "\n\n");
+    }
+
+    async function processQueue(){
+      if (isProcessingQueue||!navigator.onLine||commandQueue.length===0) return;
+      const item=commandQueue[0];
+      if (item.status==="interactive"){isAwaitingInput=true;return;}
+      if (item.status==="failed"){
+        item.retries=(item.retries||0)+1;
+        if (item.retries>2){commandQueue.shift();saveQueue();await streamModelResponse("❌ Yeh command process nahi ho saki. Baraye meherbani dobara likhein.");return;}
+      }
+      isProcessingQueue=true;
+      const bubble=document.getElementById(item.id);
+      if (bubble) updateBubbleStatus(bubble,"sending");
+      latencyBadge.textContent="Processing...";
+      const shimmer=appendShimmer();setNetworkProgress(true);
+
+      try {
+        const payload={...item.payload,client_txn_id:item.id};
+        const t0=performance.now();
+        const products=await getProductsCached();
+        let data;
+
+        if (DIRECT_ACTIONS.has(payload.action)||payload.action?.startsWith("resolve_")) {
+          // A resolve_* payload may be resuming a paused multi-command: if its
+          // pending_context (or, for field-update flows, the payload itself)
+          // carries __multi_remaining, continue the loop instead of treating
+          // this as a single isolated action.
+          const carrier = (payload.pending_context && Array.isArray(payload.pending_context.__multi_remaining)) ? payload.pending_context
+                         : (Array.isArray(payload.__multi_remaining) ? payload : null);
+          if (carrier) {
+            const resumedRemaining = carrier.__multi_remaining;
+            const priorReplies = carrier.__multi_replies || [];
+            const origText = carrier.__multi_orig || item.originalMessage;
+            const pausedIndex = Number(carrier.__multi_index||0);
+            delete carrier.__multi_remaining; delete carrier.__multi_replies; delete carrier.__multi_orig; delete carrier.__multi_index;
+            const stepRes = await executeCommand(payload, products); // resolves THIS part
+            if (stepRes.reply) priorReplies.push(stepRes.reply);
+            const rest = await runMultiCommand(resumedRemaining, item.id, origText, priorReplies, pausedIndex+1);
+            if (rest.paused) { data = rest.data; }
+            else { data = {ok:true, saved:true, reply: combineReplies(rest.replies)}; }
+          } else {
+            data=await executeCommand(payload,products);
+            if (data.ok&&(data.transaction||data.saved||payload.action?.startsWith("resolve_")||payload.action==="add_new_product"||payload.action==="add_to_khata")) {
+              const ds=getTodayString();
+              firebaseRequest(`ChatHistory/${ds}/${item.id}`,"PUT",{user:item.originalMessage,ai:data.reply,timestamp:Date.now()}).catch(()=>{});
+            }
+          }
+        } else {
+          const msg=String(payload.message||"").replace(/(\d),(?=\d{3}(?!\d))/g,"$1").replace(/\s+/g," ").trim();
+          const parts=await safeUnderstandCommand(msg,products);
+          const run = await runMultiCommand(parts, item.id, item.originalMessage, []);
+          if (run.paused) { data = run.data; }
+          else { data = {ok:true, saved:true, reply: combineReplies(run.replies) || "Done."}; }
+        }
+
+        latencyBadge.textContent=`${Math.round(performance.now()-t0)}ms`;
+        shimmer.remove();setNetworkProgress(false);
+
+        const INTERACTIVE=new Set(["need_missing_resolution","need_clarification","need_customer_clarification","need_add_product_form","need_update_field_form","need_direct_update_confirmation"]);
+        if (INTERACTIVE.has(data.type)) {
+          item.status="interactive";item.interactiveData=data;saveQueue();
+          isAwaitingInput=true;toggleInput(true);
+          if (bubble) updateBubbleStatus(bubble,"delivered");
+          renderInteractiveWidgets(data,item.id,item.originalMessage);
+        } else {
+          commandQueue.shift();saveQueue();isAwaitingInput=false;toggleInput(false);
+          if (bubble) updateBubbleStatus(bubble,"delivered");
+          await streamModelResponse(data.reply||"Done.");
+        }
+      } catch(err) {
+        shimmer.remove();setNetworkProgress(false);latencyBadge.textContent="Error";
+        item.status="failed";saveQueue();
+        if (bubble) updateBubbleStatus(bubble,"failed");
+        console.error(err);
+      } finally {
+        isProcessingQueue=false;
+        setTimeout(()=>{if(commandQueue.length>0&&navigator.onLine)processQueue();},300);
+      }
+    }
+
+    userInput.addEventListener("input",()=>{
+      const v=userInput.value.trim();
+      submitBtn.disabled=v.length===0;
+      submitBtn.classList.toggle("active",v.length>0);
+    });
+    function toggleInput(disabled){userInput.disabled=disabled;userInput.placeholder=disabled?"Please respond to prompts...":"Type a sale, report, search, or chat...";}
+    function disableAllPreviousActions(){document.querySelectorAll(".interactive-card button,.interactive-card input").forEach(el=>el.disabled=true);}
+    function handleFormSubmit(e){
+      e.preventDefault();const msg=userInput.value.trim();if(!msg)return;
+      disableAllPreviousActions();userInput.value="";submitBtn.disabled=true;submitBtn.classList.remove("active");
+      enqueueCommand({message:msg},msg);
+    }
+
+    // ─── INTERACTIVE WIDGETS ──────────────────────────────────
+    function renderInteractiveWidgets(data,qId,orig){
+      if(data.type==="need_add_product_form")        renderAddProductForm(data,qId,orig);
+      else if(data.type==="need_update_field_form")  renderUpdateFieldForm(data,qId,orig);
+      else if(data.type==="need_direct_update_confirmation") renderDirectUpdateConfirmation(data,qId,orig);
+      else if(data.type==="need_missing_resolution") renderMissingResolution(data,qId,orig);
+      else if(data.type==="need_customer_clarification") renderCustomerClarification(data.reply,data.options,data.pending_context,qId,orig,!!data.is_supplier);
+      else renderClarification(data.reply,data.options,data.pending_context,qId,orig);
+    }
+
+    function escapeHtml(str){const d=document.createElement("div");d.textContent=str;return d.innerHTML;}
+    function quoteHtml(t){return t?`<div class="quote-block">Replying to: <i>"${escapeHtml(t)}"</i></div>`:""}
+
+    // Shared cancel handler: drops the current interactive queue item, and if
+    // it was mid multi-command, tells the user how many further instructions
+    // in that same message were skipped (so nothing silently vanishes).
+    function cancelInteractiveItem(qId, baseReply, remainingList) {
+      disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+      commandQueue.shift();saveQueue();
+      appendUserMessage("Cancel",qId);
+      let reply=baseReply;
+      if (Array.isArray(remainingList)&&remainingList.length>0) reply+=`\n⚠️ Ismein baaqi ${remainingList.length} agla instruction bhi skip ho gaya hai — agar zaroorat ho to alag se dobara bhej dein.`;
+      streamModelResponse(reply);
+    }
+
+    function renderAddProductForm(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${escapeHtml(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="apfBox"></div></div></div>`;
+      const box=row.querySelector("#apfBox");
+      box.innerHTML=`
+        <div class="manual-item-row"><span class="manual-item-name">Product Name</span><input type="text" id="apfName" class="manual-input" style="text-align:left" placeholder="Naam" required/></div>
+        <div class="manual-item-row"><span class="manual-item-name">Cost Price (Rs)</span><input type="number" id="apfCost" class="manual-input" placeholder="0" min="0"/></div>
+        <div class="manual-item-row"><span class="manual-item-name">Sale Price (Rs)</span><input type="number" id="apfPrice" class="manual-input" placeholder="0" min="0" required/></div>
+        <div class="manual-item-row"><span class="manual-item-name">Initial Stock</span><input type="number" id="apfStock" class="manual-input" placeholder="0" min="0"/></div>
+        <div class="manual-item-row"><span class="manual-item-name">Unit (kg/pcs/pkt)</span><input type="text" id="apfUnit" class="manual-input" style="text-align:left" value="pcs"/></div>
+        <div class="form-btn-group">
+          <button type="button" class="cancel-form-btn" id="apfCancel">Cancel</button>
+          <button type="button" class="submit-prices-btn" id="apfSubmit">Add Product</button>
+        </div>`;
+      box.querySelector("#apfCancel").onclick=()=>cancelInteractiveItem(qId,"🚫 Product creation cancelled.",data.__multi_remaining);
+      box.querySelector("#apfSubmit").onclick=()=>{
+        const name=box.querySelector("#apfName").value.trim();
+        const price=Number(box.querySelector("#apfPrice").value);
+        if (!name||!price){alert("Product Name aur Sale Price dena lazmi hai!");return;}
+        const cost=Number(box.querySelector("#apfCost").value||0);
+        const stock=Number(box.querySelector("#apfStock").value||0);
+        const unit=box.querySelector("#apfUnit").value.trim()||"pcs";
+        disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+        const qi=commandQueue.find(q=>q.id===qId);
+        if (qi){qi.id=qi.id+"_ap_"+Date.now();qi.payload={action:"add_new_product",product:name,price,cost,stock,unit};qi.displayLabel=`Added:${name}`;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(qi.displayLabel,qi.id),"queued");processQueue();}
+      };
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderUpdateFieldForm(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${escapeHtml(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="uffBox"></div></div></div>`;
+      const box=row.querySelector("#uffBox");
+      box.innerHTML=`
+        <div class="manual-item-row"><span class="manual-item-name">New Value:</span><input type="number" id="uffVal" class="manual-input" placeholder="New amount" required/></div>
+        <div class="form-btn-group">
+          <button type="button" class="cancel-form-btn" id="uffCancel">Cancel</button>
+          <button type="button" class="submit-prices-btn" id="uffSubmit">Confirm & Update</button>
+        </div>`;
+      box.querySelector("#uffCancel").onclick=()=>cancelInteractiveItem(qId,"🚫 Update cancelled.",data.__multi_remaining);
+      box.querySelector("#uffSubmit").onclick=()=>{
+        const raw=box.querySelector("#uffVal").value,val=Number(raw);
+        if (raw===""||!isFinite(val)){alert("Sahi value enter karein!");return;}
+        disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+        const qi=commandQueue.find(q=>q.id===qId);
+        if (qi){qi.id=qi.id+"_uf_"+Date.now();qi.payload={action:"resolve_update_field",product_key:data.product_key,product_name:data.product_name,field:data.field,value:val,__multi_remaining:data.__multi_remaining,__multi_replies:data.__multi_replies,__multi_orig:data.__multi_orig};qi.displayLabel=`Update ${data.product_name} → ${val}`;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(qi.displayLabel,qi.id),"queued");processQueue();}
+      };
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderDirectUpdateConfirmation(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${escapeHtml(data.reply)}</div><div class="interactive-card actions-grid" id="ducGrid"></div></div>`;
+      const grid=row.querySelector("#ducGrid");
+      const cancelBtn=document.createElement("button");cancelBtn.className="option-chip cancel-chip";cancelBtn.textContent="❌ Cancel";
+      cancelBtn.onclick=()=>cancelInteractiveItem(qId,"🚫 Update cancelled.",data.__multi_remaining);
+      const okBtn=document.createElement("button");okBtn.className="option-chip";okBtn.style.borderColor="var(--success-green)";okBtn.textContent="✅ Ok, Update karo";
+      okBtn.onclick=()=>{
+        disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+        const qi=commandQueue.find(q=>q.id===qId);
+        if(qi){qi.id=qi.id+"_dc_"+Date.now();qi.payload={action:"resolve_direct_update",product_key:data.product_key,product_name:data.product_name,field:data.field,value:data.value,__multi_remaining:data.__multi_remaining,__multi_replies:data.__multi_replies,__multi_orig:data.__multi_orig};qi.displayLabel=`Confirm update: ${data.product_name}`;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(qi.displayLabel,qi.id),"queued");processQueue();}
+      };
+      grid.appendChild(cancelBtn);grid.appendChild(okBtn);
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function handleCustomerSelection(name,key,ctx,qId,isSupplier){
+      disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+      const qi=commandQueue.find(q=>q.id===qId);
+      if(qi){qi.id=qi.id+"_cr_"+Date.now();qi.payload={action:isSupplier?"resolve_supplier_clarification":"resolve_customer_clarification",selected_customer:name,selected_customer_key:key||"",pending_context:ctx};qi.displayLabel=`Selected ${isSupplier?"Supplier":"Khata"}:${name}`;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(qi.displayLabel,qi.id),"queued");processQueue();}
+    }
+
+    function renderCustomerClarification(msg,options,ctx,qId,orig,isSupplier){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${escapeHtml(msg)}</div><div class="interactive-card actions-grid"></div></div>`;
+      const grid=row.querySelector(".actions-grid");
+      const nameField=isSupplier?ctx.supplier:ctx.customer;
+      (options||[]).forEach(opt=>{
+        const chip=document.createElement("button");chip.className="option-chip";
+        chip.innerHTML=`<span>${isSupplier?"🏭":"👤"} ${escapeHtml(opt.name)}</span>`;
+        chip.onclick=()=>handleCustomerSelection(opt.name,opt.key,ctx,qId,isSupplier);
+        grid.appendChild(chip);
+      });
+      const newChip=document.createElement("button");newChip.className="option-chip";newChip.style.borderColor="var(--success-green)";
+      newChip.innerHTML=`<span>➕ Naya ${isSupplier?"Supplier":"Khata"}: "${escapeHtml(nameField)}"</span>`;
+      newChip.onclick=()=>handleCustomerSelection(nameField,"",ctx,qId,isSupplier);
+      grid.appendChild(newChip);
+      const cancelChip=document.createElement("button");cancelChip.className="option-chip cancel-chip";cancelChip.textContent="❌ Cancel";
+      cancelChip.onclick=()=>cancelInteractiveItem(qId,"🚫 Cancel kar diya.",ctx&&ctx.__multi_remaining);
+      grid.appendChild(cancelChip);
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function handleDisambiguationSelection(key,name,ctx,qId){
+      disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+      const qi=commandQueue.find(q=>q.id===qId);
+      if(qi){qi.id=qi.id+"_res_"+Date.now();qi.payload={action:"resolve_clarification",selected_product_key:key,selected_product:name,pending_context:ctx};qi.displayLabel=`Selected:${name}`;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(qi.displayLabel,qi.id),"queued");processQueue();}
+    }
+
+    function renderClarification(msg,options,ctx,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${escapeHtml(msg)}</div><div class="interactive-card actions-grid"></div></div>`;
+      const grid=row.querySelector(".actions-grid");
+      (options||[]).forEach(opt=>{
+        const chip=document.createElement("button");chip.className="option-chip";
+        chip.innerHTML=`<span>${escapeHtml(opt.name)}</span><span class="chip-meta">Rs ${opt.price} | Stock:${opt.stock}</span>`;
+        chip.onclick=()=>handleDisambiguationSelection(opt.key,opt.name,ctx,qId);
+        grid.appendChild(chip);
+      });
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function handleMissingResolution(decision,bundle,qId){
+      disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+      const label=decision==="skip"?"Skip Missing & Continue":decision==="manual"?"Apply Manual Prices":"Cancel Transaction";
+      const qi=commandQueue.find(q=>q.id===qId);
+      if(qi){qi.id=qi.id+"_mr_"+Date.now();qi.payload={action:"resolve_missing",decision,missing_indices:bundle.missingIndices,manual_prices:bundle.manualPrices||{},pending_context:bundle.pendingContext};qi.displayLabel=label;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(label,qi.id),"queued");processQueue();}
+    }
+
+    function renderMissingResolution(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${escapeHtml(data.reply)}</div><div class="interactive-card"><div class="actions-grid" id="mrGrid"></div><div id="mrManual" style="display:none"></div></div></div>`;
+      const grid=row.querySelector("#mrGrid"),manualBox=row.querySelector("#mrManual");
+      const missingIdx=(data.missing_items||[]).map(m=>Number(m.index));
+
+      const skipBtn=document.createElement("button");skipBtn.className="option-chip";skipBtn.textContent="Skip Missing & Continue";skipBtn.onclick=()=>handleMissingResolution("skip",{missingIndices:missingIdx,pendingContext:data.pending_context},qId);grid.appendChild(skipBtn);
+      const manBtn=document.createElement("button");manBtn.className="option-chip";manBtn.textContent="Enter Manual Price";manBtn.onclick=()=>{grid.style.display="none";manualBox.style.display="block";scrollBottom();};grid.appendChild(manBtn);
+      const canBtn=document.createElement("button");canBtn.className="option-chip cancel-chip";canBtn.textContent="Cancel Transaction";canBtn.onclick=()=>handleMissingResolution("cancel",{missingIndices:missingIdx,pendingContext:data.pending_context},qId);grid.appendChild(canBtn);
+
+      const form=document.createElement("div");form.className="manual-price-box";
+      form.innerHTML=`<div style="font-size:.8rem;color:var(--text-muted)">Missing items ki sale price likhein:</div>`;
+      const inputMap={};
+      (data.missing_items||[]).forEach(item=>{
+        const line=document.createElement("div");line.className="manual-item-row";
+        line.innerHTML=`<span class="manual-item-name">${escapeHtml(item.product)} (${item.qty||1}x)</span><input type="number" class="manual-input" placeholder="Price (Rs)" min="1" step="any" required/>`;
+        inputMap[Number(item.index)]=line.querySelector("input");form.appendChild(line);
+      });
+      const btnRow=document.createElement("div");btnRow.className="form-btn-group";
+      const backBtn=document.createElement("button");backBtn.type="button";backBtn.className="cancel-form-btn";backBtn.textContent="◀ Back";
+      backBtn.onclick=()=>{manualBox.style.display="none";grid.style.display="flex";scrollBottom();};
+      const cancelManualBtn=document.createElement("button");cancelManualBtn.type="button";cancelManualBtn.className="cancel-form-btn";cancelManualBtn.textContent="🚫 Cancel";
+      cancelManualBtn.onclick=()=>handleMissingResolution("cancel",{missingIndices:missingIdx,pendingContext:data.pending_context},qId);
+      const confBtn=document.createElement("button");confBtn.className="submit-prices-btn";confBtn.textContent="Confirm & Proceed";
+      confBtn.onclick=()=>{
+        const mp={};let valid=true;
+        for (const idx of missingIdx){const v=Number(inputMap[idx].value);if(!v||v<=0){inputMap[idx].style.borderColor="var(--danger-color)";valid=false;}else{inputMap[idx].style.borderColor="var(--border-subtle)";mp[idx]=v;}}
+        if(valid)handleMissingResolution("manual",{missingIndices:missingIdx,manualPrices:mp,pendingContext:data.pending_context},qId);
+      };
+      btnRow.appendChild(backBtn);btnRow.appendChild(cancelManualBtn);btnRow.appendChild(confBtn);
+      form.appendChild(btnRow);manualBox.appendChild(form);chatFeed.appendChild(row);scrollBottom();
+    }
+
+    // ─── UI HELPERS ───────────────────────────────────────────
+    function appendUserMessage(text,id){
+      const row=document.createElement("div");row.className="message-row user";if(id)row.id=id;
+      const time=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+      row.innerHTML=`<div class="content-block"><div>${escapeHtml(text)}</div><div class="msg-meta"><span>${time}</span><span class="status-tick"></span></div></div>`;
+      chatFeed.appendChild(row);scrollBottom();return row;
+    }
+    function updateBubbleStatus(el,status){
+      if (!el) return;const tick=el.querySelector(".status-tick");
+      if (status==="queued") tick.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>`;
+      else if(status==="sending") tick.innerHTML='<div class="mini-spinner"></div>';
+      else if(status==="delivered") tick.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-blue)"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.41 11.93l-1.41 1.41 5.66 5.66 12-12-1.42-1.41zM.41 13.34l5.66 5.66 1.41-1.41-5.66-5.66-1.41 1.41z"/></svg>`;
+      else if(status==="failed") tick.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger-color)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+    }
+    function appendShimmer(){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="shimmer-container"><div class="shimmer-line"></div><div class="shimmer-line short"></div></div>`;
+      chatFeed.appendChild(row);scrollBottom();return row;
+    }
+    async function streamModelResponse(fullText){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block"></div>`;
+      chatFeed.appendChild(row);
+      const block=row.querySelector(".content-block");
+      for (const chunk of fullText.split(/(\n+)/)){block.textContent+=chunk;scrollBottom();if(chunk.trim().length>0)await new Promise(r=>setTimeout(r,4));}
+    }
+    function setNetworkProgress(active){networkBar.classList.toggle("active",active);}
+    function scrollBottom(){chatFeed.scrollTop=chatFeed.scrollHeight;}
+  </script>
+</body>
+</html>
