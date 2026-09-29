@@ -344,6 +344,67 @@
       } catch(e){}
     }
 
+    // ─── APP LEDGER MIRROR ────────────────────────────────────
+    // Android app khata screens sirf apna format parhti hain:
+    //   {id,type:"gave"|"got",description,amount,date,timestamp,customerKey}
+    // "gave" = balance barhta hai, "got" = balance ghatta hai.
+    // Customers -> Transactions/LG_<id>, Suppliers -> SupplierTransactions/LG_<id>.
+    function nativeDateString(ts) {
+      const d=new Date(ts), D=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      let h=d.getHours(); const ap=h>=12?"PM":"AM"; h=h%12||12;
+      return `${D[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${M[d.getMonth()]} ${String(d.getFullYear()).slice(2)} \u2022 ${String(h).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${ap}`;
+    }
+    function itemsLabel(items) {
+      return (items||[]).map(it=>it.is_misc?String(it.product||""):`${formatNumber(it.qty||1)} × ${it.product}`).filter(Boolean).join(", ");
+    }
+    function buildAppMirror(t) {
+      if (!t||!t.id||t.ai_mirror) return null;
+      const ts=t.timestamp||Date.now();
+      let party="", key="", type="", amount=0, desc="";
+      const lbl=itemsLabel(t.items);
+      if (t.type==="sale" && t.customer) {
+        const pay=t.payment||"credit";
+        if (pay==="credit") amount=Number(t.total||0);
+        else if (pay==="split") amount=Number(t.total||0)-Number(t.paid_amount||0);
+        if (!(amount>0)) return null;
+        party="C"; type="gave"; desc=`Sale${lbl?": "+lbl:""}`;
+      } else if (t.type==="return" && t.customer && (t.payment||"credit")==="credit") {
+        amount=Number(t.total||0); party="C"; type="got"; desc=`Return${lbl?": "+lbl:""}`;
+      } else if (t.type==="payment") {
+        amount=Number(t.amount||0); party="C"; type="got"; desc="Cash In (AI)";
+      } else if (t.type==="cash_out") {
+        amount=Number(t.amount||0); party="C"; type="gave"; desc="Cash Out (AI)";
+      } else if (t.type==="ledger_entry") {
+        amount=Number(t.total||0); party="C"; type="gave"; desc=lbl||(t.items||[]).map(i=>i.product).join(", ")||"Khata entry";
+      } else if (t.type==="khata_note") {
+        amount=0; party="C"; type="gave"; desc=`Note: ${t.note||lbl}`;
+      } else if (t.type==="supplier_purchase") {
+        amount=Number(t.total||0); party="S"; type="gave"; desc=`Purchase${lbl?": "+lbl:""}`;
+      } else if (t.type==="supplier_payment") {
+        amount=Number(t.amount||0); party="S"; type="got"; desc="Payment (AI)";
+      } else return null;
+      key = party==="S" ? (t.supplier_key||sanitizeFirebaseKey(t.supplier||"")) : (t.customer_key||sanitizeFirebaseKey(t.customer||""));
+      if (!key || !isFinite(amount) || amount<0) return null;
+      return {
+        node: party==="S" ? "SupplierTransactions" : "Transactions",
+        parent: party==="S" ? "Suppliers" : "Customers",
+        key, ts,
+        row:{id:"LG_"+t.id,type,description:desc,amount:Math.round(amount),date:nativeDateString(ts),timestamp:ts,customerKey:key,ai_mirror:true,ref:t.id}
+      };
+    }
+    function addAppMirror(updates, txKey) {
+      const t=updates[txKey];
+      if (t && t.type==="void" && t.ref) {   // cancel -> mirror bhi hata do
+        updates[`Transactions/LG_${t.ref}`]=null;
+        updates[`SupplierTransactions/LG_${t.ref}`]=null;
+        return;
+      }
+      const m=buildAppMirror(t);
+      if (!m) return;
+      updates[`${m.node}/LG_${t.id}`]=m.row;
+      updates[`${m.parent}/${m.key}/LastTxnTs`]=m.ts;
+    }
+
     async function commitResult(res) {
       if (!res?.updates) return res;
       const txKey = Object.keys(res.updates).find(k=>/^Transactions\/[^/]+$/.test(k));
@@ -351,6 +412,7 @@
         const existing = await firebaseRequest(`${txKey}/id`,"GET");
         if (existing) { delete res.updates; return {ok:true,reply:"ℹ️ Yeh entry pehle hi record ho chuki hai."}; }
       }
+      if (txKey) { try { addAppMirror(res.updates, txKey); } catch(e){ console.warn("app mirror failed", e); } }
       await firebaseRequest("","PATCH",res.updates);
       if (txKey) {
         const t = res.updates[txKey];
@@ -1098,7 +1160,7 @@ Examples(→parts shorthand,action first):
 
     async function processListRecentTransactions() {
       const all=await firebaseRequest("Transactions","GET")||{};
-      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void").sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,15);
+      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,15);
       if (!rows.length) return {ok:true,reply:"📭 Koi transaction nahi mili."};
       const lbl=t=>{
         if(t.type==="sale")     return `Sale Rs ${formatNumber(t.total)}${t.customer?" - "+t.customer:""}`;
@@ -1122,7 +1184,7 @@ Examples(→parts shorthand,action first):
       const search=String(command.search||command.user_text||"").trim();
       if (!search) return {ok:false,reply:'❌ Kis entry ko cancel karna hai? (naam, amount, ya item)'};
       const all=await firebaseRequest("Transactions","GET")||{};
-      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void").sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
       if (!rows.length) return {ok:false,reply:"📭 Koi transaction nahi mili."};
       let target=null;
       const ref=search.match(/\bT(\d{1,2})\b/i);
@@ -2264,7 +2326,7 @@ Data key|balance(+=customer ne dena)|mobile. Entry: date code amt items(e maal,p
       const [customers,txAll]=await firebaseParallelGet(["Customers","Transactions"]);
       const req=request.toLowerCase();
       const cs=Object.entries(customers||{}).map(([k,v])=>({key:k,name:String(v?.Name||k),bal:Number(v?.Balance||0),mob:v?.Mobile||""}));
-      const txs=Object.values(txAll||{}).filter(t=>t&&!t.voided&&t.type!=="void").sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      const txs=Object.values(txAll||{}).filter(t=>t&&!t.voided&&t.type!=="void"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
       const hit=cs.filter(c=>{const n=c.name.toLowerCase(); return req.includes(n)||n.split(" ").some(w=>w.length>=3&&req.includes(w));}).slice(0,3);
       const line=c=>`${c.key}|${formatNumber(c.bal)}|${c.mob}`;
       const code={ledger_entry:"e",payment:"p",cash_out:"c",expense:"x"};
@@ -2418,7 +2480,7 @@ Data key|balance(+=customer ne dena)|mobile. Entry: date code amt items(e maal,p
     }
     async function ledgerRecent(){
       const all=await firebaseRequest("Transactions","GET")||{};
-      const list=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void").sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,15);
+      const list=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,15);
       if (!list.length) return {ok:true,reply:"Koi entry nahi mili.",card:{kind:"notice",icon:"📭",tone:"blue",text:"Abhi tak koi entry nahi hai."}};
       const R=t=>{
         const sub=[t.customer,t.date].filter(Boolean).join(" · ");
