@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Sunny AI Khata</title>
+  <link rel="preconnect" href="https://api.groq.com" crossorigin>
+  <link rel="dns-prefetch" href="https://api.groq.com">
+  <style>
+    :root {
+      --bg-main:#131314;--surface:#1e1f20;--surface-variant:#282a2c;
+      --text-primary:#e3e3e3;--text-secondary:#c4c7c5;--text-muted:#8e918f;
+      --accent-blue:#a8c7fa;--accent-spark:#7cacf8;--input-bg:#1e1f20;
+      --border-subtle:#444746;--danger-color:#f28b82;--warning-color:#fdd663;
+      --success-green:#34a853;--font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:var(--font-family);-webkit-tap-highlight-color:transparent}
+    html,body{background-color:var(--bg-main);color:var(--text-primary);width:100%;height:100%;height:100dvh;overflow:hidden;position:fixed}
+    body{display:flex;flex-direction:column}
+    header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:rgba(19,19,20,.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.06);z-index:10;position:relative}
+    .brand{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:500}
+    .gemini-spark{width:20px;height:20px;fill:url(#gemini-gradient)}
+    .status-group{display:flex;align-items:center;gap:8px}
+    .connection-dot{width:8px;height:8px;border-radius:50%;background:var(--success-green);box-shadow:0 0 6px var(--success-green);transition:background .3s,box-shadow .3s}
+    .tag-badge{font-size:.75rem;background:var(--surface-variant);color:var(--text-secondary);padding:3px 9px;border-radius:12px;border:1px solid var(--border-subtle);font-family:monospace}
+    .network-bar{position:absolute;bottom:0;left:0;width:100%;height:2px;background:transparent;overflow:hidden}
+    .network-bar-fill{width:0%;height:100%;background:linear-gradient(90deg,var(--accent-spark),var(--accent-blue));transition:width .3s ease}
+    .network-bar.active .network-bar-fill{width:80%;animation:pulseProgress 1.8s infinite ease-in-out}
+    @keyframes pulseProgress{0%{transform:translateX(-100%);width:40%}50%{transform:translateX(50%);width:60%}100%{transform:translateX(150%);width:40%}}
+    main{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:20px;max-width:800px;width:100%;margin:0 auto;scroll-behavior:smooth}
+    .message-row{display:flex;gap:12px;width:100%;contain:layout}
+    .message-row.user{justify-content:flex-end}
+    .avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface)}
+    .content-block{max-width:84%;font-size:.94rem;line-height:1.55;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
+    .message-row.user .content-block{background:var(--surface);padding:10px 16px;border-radius:18px;border-bottom-right-radius:4px;color:#fff;display:flex;flex-direction:column;align-items:flex-end}
+    .quote-block{font-size:.82rem;color:var(--text-secondary);background:rgba(124,172,248,.1);padding:6px 10px;border-left:3px solid var(--accent-spark);border-radius:4px;margin-bottom:10px;font-style:italic;word-break:break-word}
+    .msg-meta{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--text-muted);margin-top:5px}
+    .status-tick{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px}
+    .mini-spinner{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.2);border-top-color:var(--accent-blue);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .message-row.model .content-block{padding-top:2px}
+    .shimmer-container{display:flex;flex-direction:column;gap:8px;width:220px;padding-top:6px}
+    .shimmer-line{height:13px;border-radius:6px;background:linear-gradient(90deg,#1e1f20 25%,#2d2f31 50%,#1e1f20 75%);background-size:200% 100%;animation:geminiShimmer 1.4s infinite}
+    .shimmer-line.short{width:55%}
+    @keyframes geminiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .interactive-card{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+    .actions-grid{display:flex;flex-wrap:wrap;gap:8px}
+    .option-chip{background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary);padding:8px 14px;border-radius:12px;font-size:.86rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+    .option-chip:hover:not(:disabled){background:var(--surface-variant);border-color:var(--accent-spark)}
+    .option-chip.cancel-chip{color:var(--danger-color);border-color:rgba(242,139,130,.3)}
+    .option-chip:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+    .chip-meta{font-size:.72rem;color:var(--text-muted);background:rgba(0,0,0,.3);padding:2px 6px;border-radius:6px}
+    .manual-price-box{background:var(--surface);border:1px solid var(--border-subtle);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .manual-item-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+    .manual-item-name{font-size:.88rem;color:var(--text-secondary);flex:1}
+    .manual-input{width:120px;background:#131314;border:1px solid var(--border-subtle);border-radius:8px;padding:7px 10px;color:#fff;font-size:.9rem;outline:none;text-align:right}
+    .manual-input:focus{border-color:var(--accent-blue)}
+    .form-btn-group{display:flex;gap:8px;margin-top:6px}
+    .submit-prices-btn{background:linear-gradient(135deg,#2f7bff 0%,#6a5cff 100%);color:#fff;font-weight:700;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-size:.9rem;flex:1;letter-spacing:.2px;box-shadow:0 4px 16px rgba(80,105,255,.5),inset 0 1px 0 rgba(255,255,255,.28);transition:transform .12s,filter .12s,box-shadow .12s}
+    .submit-prices-btn:hover:not(:disabled){filter:brightness(1.12);box-shadow:0 6px 20px rgba(80,105,255,.65),inset 0 1px 0 rgba(255,255,255,.3)}
+    .submit-prices-btn:active:not(:disabled){transform:scale(.96)}
+    .submit-prices-btn:disabled{box-shadow:none;filter:grayscale(.5)}
+    .cancel-form-btn{background:rgba(242,139,130,.15);color:var(--danger-color);font-weight:600;border:1px solid rgba(242,139,130,.3);padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.86rem}
+    .submit-prices-btn:disabled,.cancel-form-btn:disabled{opacity:.5}
+    .input-wrapper{flex-shrink:0;padding:10px 16px 18px 16px;max-width:800px;width:100%;margin:0 auto}
+    .input-box{background:var(--input-bg);border-radius:30px;display:flex;align-items:center;padding:5px 12px 5px 18px;border:1px solid transparent;transition:border-color .2s,background .2s}
+    .input-box:focus-within{border-color:var(--border-subtle);background:#232427}
+    .input-box input{flex:1;background:transparent;border:none;outline:none;color:var(--text-primary);font-size:.98rem;line-height:1.5}
+    .input-box input::placeholder{color:var(--text-muted)}
+    .input-box input:disabled{opacity:.5}
+    .send-btn{background:transparent;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:color .2s}
+    .send-btn.active{color:var(--accent-blue)}
+    .send-btn:disabled{opacity:.3;cursor:not-allowed}
+
+    /* ═══ LEDGER CARDS ═══ */
+    .lg-stack{display:flex;flex-direction:column;gap:12px;flex:1;min-width:0;max-width:420px}
+    .lg-text{font-size:.94rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--text-primary);padding:2px 0}
+    .lg-card{--a:#7cacf8;--as:rgba(124,172,248,.14);position:relative;overflow:hidden;border-radius:22px;padding:16px 16px 14px;background:linear-gradient(165deg,#212326 0%,#17181a 100%);border:1px solid rgba(255,255,255,.07);box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);animation:lgIn .55s cubic-bezier(.2,.9,.3,1.15) both;animation-delay:var(--cd,0s)}
+    .lg-card::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--a),transparent 85%)}
+    .lg-card::after{content:"";position:absolute;width:220px;height:220px;right:-90px;top:-110px;border-radius:50%;background:radial-gradient(circle,var(--as),transparent 68%);pointer-events:none}
+    .lg-card.tone-green{--a:#4cd58a;--as:rgba(76,213,138,.16)}
+    .lg-card.tone-amber{--a:#fdd663;--as:rgba(253,214,99,.15)}
+    .lg-card.tone-red{--a:#f28b82;--as:rgba(242,139,130,.16)}
+    .lg-card.tone-violet{--a:#c58af9;--as:rgba(197,138,249,.16)}
+    .lg-card.tone-teal{--a:#5fd6d0;--as:rgba(95,214,208,.15)}
+    .lg-shine{position:absolute;top:0;bottom:0;width:60px;background:linear-gradient(100deg,transparent,rgba(255,255,255,.09),transparent);transform:translateX(-120%);animation:lgShine 1.3s .35s ease-out 1 both;pointer-events:none;z-index:2}
+    .lg-head{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+    .lg-hd{flex:1;min-width:0}
+    .lg-avatar{width:44px;height:44px;border-radius:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.15rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+    .lg-ico-big{width:44px;height:44px;border-radius:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.35rem;background:var(--as);border:1px solid rgba(255,255,255,.07)}
+    .lg-title{font-size:1.02rem;font-weight:650;letter-spacing:.1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-sub{font-size:.74rem;color:var(--text-muted);margin-top:2px}
+    .lg-check{width:26px;height:26px;flex-shrink:0;fill:none;stroke:var(--a);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .lg-check circle{stroke-dasharray:66;stroke-dashoffset:66;animation:lgCheck .6s .25s ease-out forwards}
+    .lg-check path{stroke-dasharray:22;stroke-dashoffset:22;animation:lgCheck .4s .7s ease-out forwards}
+    .lg-items{margin-top:14px;display:flex;flex-direction:column;gap:9px;position:relative;z-index:1}
+    .lg-item{display:flex;align-items:baseline;gap:8px;font-size:.92rem;color:var(--text-secondary);animation:lgRow .45s both;animation-delay:calc(var(--cd,0s) + .18s + var(--i,0)*.08s)}
+    .lg-item span{max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+    .lg-dots{flex:1;border-bottom:1.5px dotted rgba(255,255,255,.16);transform:translateY(-3px)}
+    .lg-item b{color:var(--text-primary);font-weight:600;font-variant-numeric:tabular-nums}
+    .lg-total{margin-top:13px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.14);display:flex;align-items:baseline;justify-content:space-between;position:relative;z-index:1}
+    .lg-total span:first-child{font-size:.78rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted)}
+    .lg-total .lg-num,.lg-big{font-size:1.75rem;font-weight:750;color:var(--a);font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+    .lg-big{margin-top:14px;position:relative;z-index:1;font-size:2.1rem}
+    .lg-big small{display:block;font-size:.74rem;font-weight:500;letter-spacing:.2px;color:var(--text-muted);margin-top:2px}
+    .lg-chip{display:inline-flex;align-items:center;gap:6px;margin-top:13px;padding:7px 13px;border-radius:999px;font-size:.78rem;position:relative;z-index:1;animation:lgRow .5s .55s both}
+    .lg-chip b{font-weight:700}
+    .lg-chip.owe{background:rgba(253,214,99,.12);color:#fdd663;border:1px solid rgba(253,214,99,.25)}
+    .lg-chip.credit{background:rgba(124,172,248,.12);color:#a8c7fa;border:1px solid rgba(124,172,248,.25)}
+    .lg-chip.clear{background:rgba(76,213,138,.12);color:#6fe3a2;border:1px solid rgba(76,213,138,.25)}
+    .lg-note{margin-top:10px;font-size:.8rem;color:var(--text-secondary);position:relative;z-index:1}
+    .lg-list{margin-top:14px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
+    .lg-row{display:flex;align-items:center;gap:11px;animation:lgRow .45s both;animation-delay:calc(var(--cd,0s) + .15s + var(--i,0)*.06s)}
+    .lg-row .lg-avatar{width:34px;height:34px;border-radius:11px;font-size:.9rem}
+    .lg-ico{width:34px;height:34px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);font-size:1rem}
+    .lg-rmain{flex:1;min-width:0}
+    .lg-rname{font-size:.88rem;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-rsub{font-size:.7rem;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-row>b{font-size:.88rem;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .lg-row>b.pos{color:#6fe3a2}.lg-row>b.neg{color:#f6a59d}.lg-row>b.amb{color:#fdd663}
+    .lg-tn{font-size:.62rem;color:var(--text-muted);background:rgba(255,255,255,.06);padding:2px 6px;border-radius:6px}
+    .lg-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:6px;overflow:hidden}
+    .lg-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a),rgba(255,255,255,.55));width:var(--w);animation:lgBar .9s .3s cubic-bezier(.2,.8,.2,1) both}
+    .lg-sec{margin-top:16px;font-size:.68rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted);position:relative;z-index:1}
+    .lg-answer{margin-top:12px;font-size:.93rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;position:relative;z-index:1;color:var(--text-primary)}
+    .lg-err-title{font-size:.98rem;font-weight:650;color:#f6a59d}
+    .lg-err-detail{margin-top:10px;font-family:ui-monospace,Menlo,monospace;font-size:.7rem;color:var(--text-muted);background:rgba(0,0,0,.28);border-radius:8px;padding:7px 9px;word-break:break-word;position:relative;z-index:1}
+    .lg-foot{margin-top:12px;font-size:.68rem;color:var(--text-muted);position:relative;z-index:1}
+    @keyframes lgIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+    @keyframes lgRow{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+    @keyframes lgCheck{to{stroke-dashoffset:0}}
+    @keyframes lgBar{from{width:0}to{width:var(--w)}}
+    @keyframes lgShine{from{transform:translateX(-120%)}to{transform:translateX(560%)}}
+    @media (prefers-reduced-motion:reduce){.lg-card,.lg-item,.lg-row,.lg-chip,.lg-shine,.lg-bar i,.lg-check circle,.lg-check path{animation:none!important;stroke-dashoffset:0!important}}
+  </style>
+</head>
+<body>
+  <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7cacf8"/><stop offset="50%" stop-color="#9b7bf7"/><stop offset="100%" stop-color="#d96570"/>
+    </linearGradient>
+  </svg>
+
+  <header>
+    <div class="brand">
+      <svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg>
+      Sunny AI Khata
+    </div>
+    <div class="status-group">
+      <div class="connection-dot" id="connDot" title="Live Link Active"></div>
+      <div class="tag-badge" id="latencyBadge">Ready</div>
+    </div>
+    <div class="network-bar" id="networkBar"><div class="network-bar-fill"></div></div>
+  </header>
+
+  <main id="chatFeed">
+    <div class="message-row model">
+      <div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>
+      <div class="content-block">Salam! Sunny AI Khata tayyar hai. Udhaar, payment, kharcha ya balance likhein. ⚡</div>
+    </div>
+  </main>
+
+  <div class="input-wrapper">
+    <form class="input-box" id="commandForm" onsubmit="handleFormSubmit(event)">
+      <input type="text" id="userInput" placeholder="Khata entry likhein (e.g. Zaheer ko 200 ki daal)..." autocomplete="off"/>
+      <button type="submit" id="submitBtn" class="send-btn" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // ─── CONFIG ───────────────────────────────────────────────
+    const FIREBASE_ROOT = "https://shop-pos-59971-default-rtdb.firebaseio.com";
+    function showLoginRequired() {
+      const d = document.createElement("div");
+      d.style.cssText = "position:fixed;inset:0;z-index:99999;background:#131314;color:#E3E3E3;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;font-family:sans-serif";
+      d.innerHTML = '<div style="font-size:20px;font-weight:600;margin-bottom:8px">Log in to continue</div><div style="font-size:14px;color:#8E918F;line-height:1.5">Open this page from the ShopAI app and log in with your phone number.</div>';
+      document.body.appendChild(d);
+    }
+    const SESSION = (function () {
+      try {
+        if (window.AndroidBridge && typeof AndroidBridge.getUser === "function") {
+          const u = JSON.parse(AndroidBridge.getUser());
+          if (u && /^[0-9]{10,13}$/.test(String(u.phone))) return { phone: String(u.phone), name: String(u.name || "") };
+        }
+      } catch (e) {}
+      return null;
+    })();
+    if (!SESSION) { showLoginRequired(); throw new Error("Not logged in"); }
+    const USER_ID = SESSION.phone;
+    const FIREBASE_URL = FIREBASE_ROOT + "/UserData/" + USER_ID;
+    const GROQ_API_KEY = "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";
+    const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
+    const GROQ_MODEL   = "openai/gpt-oss-20b";
+
+    const PRODUCT_CACHE_KEY  = "SUNNY_PRODUCTS_CACHE_V33_" + USER_ID;
+    const CUSTOMER_CACHE_KEY = "SUNNY_CUSTOMERS_CACHE_V33_" + USER_ID;
+    const QUEUE_KEY          = "sunny_pos_queue_" + USER_ID;
+    const LAST_TXN_KEY       = "sunny_last_txn_" + USER_ID;
+    const CACHE_TTL          = 900000;
+
+    const MODE = "ledger";
+    const LEDGER_PLACEHOLDER = "Khata entry likhein (e.g. Zaheer ko 200 ki daal)...";
+    const AVATAR_HTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"/></svg></div>`;
+
+    const chatFeed    = document.getElementById("chatFeed");
+    const userInput   = document.getElementById("userInput");
+    const submitBtn   = document.getElementById("submitBtn");
+    const latencyBadge = document.getElementById("latencyBadge");
+    const connDot     = document.getElementById("connDot");
+    const networkBar  = document.getElementById("networkBar");
+
+    function safePath(p) {
+      p = String(p == null ? "" : p).replace(/^\/+|\/+$/g, "");
+      if (/(^|\/)\.{1,2}(\/|$)/.test(p) || /[?#\\]/.test(p)) throw new Error("Invalid path");
+      return p;
+    }
+    async function firebaseRequest(path, method="GET", data=null) {
+      const url = `${FIREBASE_URL}/${safePath(path)}.json`;
+      const opts = { method, headers:{} };
+      if (data !== null) { opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(data); }
+      const r = await fetch(url, opts);
+      if (!r.ok) { if (method!=="GET") throw new Error(`Firebase ${method} HTTP ${r.status}`); return null; }
+      return r.json();
+    }
+    async function firebaseParallelGet(paths) {
+      const rs = await Promise.all(paths.map(p=>fetch(`${FIREBASE_URL}/${safePath(p)}.json`)));
+      return Promise.all(rs.map(r=>r.ok?r.json():null));
+    }
+    function addInc(updates, path, n) {
+      n = Number(n);
+      if (!isFinite(n) || n===0) return;
+      const cur = updates[path];
+      const base = (cur&&cur[".sv"]) ? (Number(cur[".sv"].increment)||0) : 0;
+      updates[path] = {".sv":{"increment": base+n}};
+    }
+
+    // ─── FORMATTING HELPERS ──────────────────────────────────
+    function escapeHtml(str) {
+      const d=document.createElement("div"); d.textContent=str; return d.innerHTML;
+    }
+    function formatText(str) {
+      if (!str) return "";
+      let html = escapeHtml(str);
+      // Bold (Markdown **) to bright white bold
+      html = html.replace(/\*\*(.*?)\*\*/g, '<b style="color:#fff;">$1</b>');
+      // Italic (Markdown *)
+      html = html.replace(/\*(.*?)\*/g, '<i>$1</i>');
+      return html;
+    }
+    function quoteHtml(t){ return t?`<div class="quote-block">Replying to: <i>"${escapeHtml(t)}"</i></div>`:"" }
+
+    // ─── CACHE ────────────────────────────────────────────────
+    function readCache(key) {
+      try {
+        const c = localStorage.getItem(key);
+        if (!c) return null;
+        const p = JSON.parse(c);
+        return (Date.now()-p.timestamp < CACHE_TTL) ? p.data : null;
+      } catch(e){ return null; }
+    }
+    function writeCache(key, data) {
+      try { localStorage.setItem(key, JSON.stringify({timestamp:Date.now(), data})); } catch(e){}
+    }
+    async function getCustomersCached() {
+      const cached = readCache(CUSTOMER_CACHE_KEY);
+      if (cached) return cached;
+      const customers = await firebaseRequest("Customers","GET") || {};
+      writeCache(CUSTOMER_CACHE_KEY, customers);
+      return customers;
+    }
+    async function preloadCaches() {
+      try { await getCustomersCached(); } catch(e){}
+    }
+    function patchLocalCaches(updates) {
+      try {
+        const pRaw = localStorage.getItem(PRODUCT_CACHE_KEY);
+        const cRaw = localStorage.getItem(CUSTOMER_CACHE_KEY);
+        const pCache = pRaw ? JSON.parse(pRaw) : null;
+        const cCache = cRaw ? JSON.parse(cRaw) : null;
+        if (!pCache && !cCache) return;
+        const pData = pCache?.data, cData = cCache?.data;
+        let pChanged=false, cChanged=false;
+
+        for (const path of Object.keys(updates)) {
+          const parts = path.split('/');
+          if (parts[0]==='Products' && pData) {
+            const k=parts[1];
+            if (!pData[k]) pData[k]={};
+            if (parts[2]==='Stock' && updates[path]?.['.sv']) {
+              pData[k].Stock = (Number(pData[k].Stock)||0) + Number(updates[path]['.sv'].increment);
+            } else if (parts[2] && typeof updates[path]!=='object') {
+              pData[k][parts[2]] = updates[path];
+            } else if (!parts[2]) {
+              pData[k] = updates[path];
+            }
+            pChanged=true;
+          } else if (parts[0]==='Customers' && cData) {
+            const k=parts[1];
+            if (!cData[k]) cData[k]={};
+            if (parts[2]==='Balance' && updates[path]?.['.sv']) {
+              cData[k].Balance = (Number(cData[k].Balance)||0) + Number(updates[path]['.sv'].increment);
+            } else if (parts[2] && typeof updates[path]!=='object') {
+              cData[k][parts[2]] = updates[path];
+            } else if (!parts[2]) {
+              cData[k] = updates[path];
+            }
+            cChanged=true;
+          }
+        }
+        if (pChanged) writeCache(PRODUCT_CACHE_KEY, pData);
+        if (cChanged) writeCache(CUSTOMER_CACHE_KEY, cData);
+      } catch(e){}
+    }
+
+    function nativeDateString(ts) {
+      const d=new Date(ts), D=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      let h=d.getHours(); const ap=h>=12?"PM":"AM"; h=h%12||12;
+      return `${D[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${M[d.getMonth()]} ${String(d.getFullYear()).slice(2)} \u2022 ${String(h).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${ap}`;
+    }
+    function itemsLabel(items) {
+      return (items||[]).map(it=>it.is_misc?String(it.product||""):`${formatNumber(it.qty||1)} × ${it.product}`).filter(Boolean).join(", ");
+    }
+    let __curText = "";
+    function rs(n){ return "Rs "+formatNumber(Math.round(Number(n||0)*100)/100); }
+    function itemsLabelX(items){ return (items||[]).map(it=>(it.is_misc||it.qty===undefined)?String(it.product||""):`${formatNumber(it.qty)}x ${it.product}`).filter(Boolean).join(", "); }
+    function actionSummary(t){
+      const who=t.customer||"", lbl=itemsLabelX(t.items);
+      switch(t.type){
+        case "sale": {
+          const pay=t.payment||"credit";
+          if (who && pay==="credit") return `${who} ke khate me ${rs(t.total)} add kar diye${lbl?" ("+lbl+")":""}`;
+          if (who && pay==="split") { const paid=Number(t.paid_amount||0); return `${who} ne ${rs(paid)} naqad diye, baqi ${rs(Number(t.total||0)-paid)} khate me add kar diye${lbl?" ("+lbl+")":""}`; }
+          return `Naqad sale ${rs(t.total)}${who?" ("+who+")":""}${lbl?" - "+lbl:""}`;
+        }
+        case "return": return who ? `${who} ke khate se ${rs(t.total)} kam kar diye${lbl?" (wapsi: "+lbl+")":""}` : `Wapsi ${rs(t.total)}${lbl?" - "+lbl:""}`;
+        case "payment": return `${who} ke khate se ${rs(t.amount)} kam kar diye (${who} ne ada kiye)`;
+        case "cash_out": return `${who} ke khate me ${rs(t.amount)} add kar diye`;
+        case "ledger_entry": return `${who} ke khate me ${rs(t.total)} add kar diye${lbl?" ("+lbl+")":""}`;
+        case "khata_note": return `${who} ke khate me note likh diya${t.note?": "+t.note:""} (balance nahi badla)`;
+        case "supplier_purchase": return `${t.supplier||""} se ${rs(t.total)} ka maal liya${lbl?" ("+lbl+")":""}`;
+        case "supplier_payment": return `${t.supplier||""} ko ${rs(t.amount)} ada kiye`;
+        case "purchase": return `Purchase ${rs(t.total)}${lbl?" ("+lbl+")":""}`;
+        case "expense": return `Kharcha ${rs(t.amount)}${t.category?" ("+t.category+")":""}`;
+      }
+      return "";
+    }
+    function buildDetails(t, userText){
+      const did=actionSummary(t);
+      return did ? "\u2726 "+did : "";
+    }
+    function buildAppMirror(t) {
+      if (!t||!t.id||t.ai_mirror) return null;
+      const ts=t.timestamp||Date.now();
+      let party="", key="", type="", amount=0, desc="";
+      const lbl=itemsLabel(t.items);
+      if (t.type==="sale" && t.customer) {
+        const pay=t.payment||"credit";
+        if (pay==="credit") amount=Number(t.total||0);
+        else if (pay==="split") amount=Number(t.total||0)-Number(t.paid_amount||0);
+        if (!(amount>0)) return null;
+        party="C"; type="gave"; desc=`Sale${lbl?": "+lbl:""}`;
+      } else if (t.type==="return" && t.customer && (t.payment||"credit")==="credit") {
+        amount=Number(t.total||0); party="C"; type="got"; desc=`Return${lbl?": "+lbl:""}`;
+      } else if (t.type==="payment") {
+        amount=Number(t.amount||0); party="C"; type="got"; desc="Cash In (AI)";
+      } else if (t.type==="cash_out") {
+        amount=Number(t.amount||0); party="C"; type="gave"; desc="Cash Out (AI)";
+      } else if (t.type==="ledger_entry") {
+        amount=Number(t.total||0); party="C"; type="gave"; desc=lbl||(t.items||[]).map(i=>i.product).join(", ")||"Khata entry";
+      } else if (t.type==="khata_note") {
+        amount=0; party="C"; type="gave"; desc=`Note: ${t.note||lbl}`;
+      } else if (t.type==="supplier_purchase") {
+        amount=Number(t.total||0); party="S"; type="gave"; desc=`Purchase${lbl?": "+lbl:""}`;
+      } else if (t.type==="supplier_payment") {
+        amount=Number(t.amount||0); party="S"; type="got"; desc="Payment (AI)";
+      } else return null;
+      if (t.details) desc=t.details;
+      key = party==="S" ? (t.supplier_key||sanitizeFirebaseKey(t.supplier||"")) : (t.customer_key||sanitizeFirebaseKey(t.customer||""));
+      if (!key || !isFinite(amount) || amount<0) return null;
+      return {
+        node: party==="S" ? "SupplierTransactions" : "Transactions",
+        parent: party==="S" ? "Suppliers" : "Customers",
+        key, ts,
+        row:{id:"LG_"+t.id,type,description:desc,amount:Math.round(amount),date:nativeDateString(ts),timestamp:ts,customerKey:key,ai_mirror:true,ref:t.id}
+      };
+    }
+    function addAppMirror(updates, txKey) {
+      const t=updates[txKey];
+      if (t && t.type==="void" && t.ref) {
+        updates[`Transactions/LG_${t.ref}`]=null;
+        updates[`SupplierTransactions/LG_${t.ref}`]=null;
+        return;
+      }
+      const m=buildAppMirror(t);
+      if (!m) return;
+      updates[`${m.node}/LG_${t.id}`]=m.row;
+      updates[`${m.parent}/${m.key}/LastTxnTs`]=m.ts;
+    }
+
+    async function commitResult(res) {
+      if (!res?.updates) return res;
+      const txKey = Object.keys(res.updates).find(k=>/^Transactions\/[^/]+$/.test(k));
+      if (txKey) {
+        const existing = await firebaseRequest(`${txKey}/id`,"GET");
+        if (existing) { delete res.updates; return {ok:true,reply:"ℹ️ Yeh entry pehle hi record ho chuki hai."}; }
+      }
+      if (txKey) { const _t=res.updates[txKey]; if (_t && !_t.details && _t.type!=="void") { const d=buildDetails(_t,__curText); if (d) { _t.details=d; } } }
+      if (txKey) { try { addAppMirror(res.updates, txKey); } catch(e){ console.warn("app mirror failed", e); } }
+      await firebaseRequest("","PATCH",res.updates);
+      if (txKey) {
+        const t = res.updates[txKey];
+        if (t && ["sale","return","payment","cash_out","expense","supplier_purchase","supplier_payment","purchase","ledger_entry","custom_op"].includes(t.type))
+          localStorage.setItem(LAST_TXN_KEY, t.id);
+      }
+      patchLocalCaches(res.updates);
+      delete res.updates;
+      res.saved=true;
+      return res;
+    }
+
+    function sanitizeFirebaseKey(key) { return String(key||"").replace(/[.#$[\]\/]/g,"_").trim(); }
+    function custKey(cmd) { return cmd.customer_key||sanitizeFirebaseKey(cmd.customer); }
+    function supKey(cmd)  { return cmd.supplier_key ||sanitizeFirebaseKey(cmd.supplier); }
+    function canonicalName(text) {
+      text=String(text||"");
+      try{text=decodeURIComponent(text);}catch(e){}
+      return text.toLowerCase().trim().replace(/\s+/g," ");
+    }
+    function normMatch(text) { return canonicalName(text).replace(/[^a-z0-9]+/gi," ").replace(/\s+/g," ").trim(); }
+
+    function levenshtein(a,b) {
+      if (!a.length) return b.length; if (!b.length) return a.length;
+      const m=[];
+      for (let i=0;i<=a.length;i++) m[i]=[i];
+      for (let j=0;j<=b.length;j++) m[0][j]=j;
+      for (let i=1;i<=a.length;i++)
+        for (let j=1;j<=b.length;j++) {
+          const c=a[i-1]===b[j-1]?0:1;
+          m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+c);
+        }
+      return m[a.length][b.length];
+    }
+    function simScore(a,b) {
+      a=normMatch(a).replace(/(.)\1+/g,"$1");
+      b=normMatch(b).replace(/(.)\1+/g,"$1");
+      if (!a||!b) return 0; if (a===b) return 100;
+      const mx=Math.max(a.length,b.length);
+      return mx?Math.round((1-levenshtein(a,b)/mx)*100):100;
+    }
+
+    function findProduct(searchName, products) {
+      const query=canonicalName(searchName), nQ=normMatch(searchName);
+      if (!query||!nQ) return {status:"not_found"};
+      const qWords=nQ.split(" ");
+      const exact=[], cands=[];
+
+      for (const k of Object.keys(products||{})) {
+        const p=products[k]||{};
+        const item={...p,_key:k};
+        const pNorm=normMatch(p.Name||k);
+        if (nQ===pNorm||query===canonicalName(p.Name||k)||k===searchName) { exact.push({product:item,score:100}); continue; }
+        const dbW=pNorm.split(" ");
+        let sum=0;
+        qWords.forEach(qw=>{ let best=0; dbW.forEach(dw=>{const s=simScore(qw,dw);if(s>best)best=s;}); sum+=best; });
+        const score=Math.round(Math.max(sum/qWords.length,simScore(nQ,pNorm)));
+        if (score>=60) cands.push({product:item,score});
+      }
+
+      const toMatches=arr=>arr.slice(0,5).map(x=>({key:String(x.product._key),name:String(x.product.Name||x.product._key),price:Number(x.product.Price||0),stock:Number(x.product.Stock||0)}));
+      if (exact.length===1) return {status:"found",product:exact[0].product};
+      if (exact.length>1)   return {status:"multiple",matches:toMatches(exact)};
+      if (!cands.length)    return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      const eligible=cands.filter(x=>(best.score-x.score)<=10);
+      if (eligible.length>1) return {status:"multiple",matches:toMatches(eligible)};
+      return {status:"found",product:best.product};
+    }
+
+    function findCustomer(searchName, customers) {
+      if (!searchName) return {status:"not_found"};
+      const query=canonicalName(searchName);
+      if (!query) return {status:"not_found"};
+      const keys=Object.keys(customers||{});
+      for (const k of keys) {
+        if (canonicalName(customers[k].Name||k)===query)
+          return {status:"found",customer:{_key:k,Name:customers[k].Name||k}};
+      }
+      const cands=[];
+      keys.forEach(k=>{
+        const cName=customers[k].Name||k, n=canonicalName(cName);
+        let score=0;
+        if (n===query) score=100;
+        else if (n.includes(query)||query.includes(n)) score=90-Math.abs(n.length-query.length)*2;
+        else score=Math.round((simScore(query,n)+simScore(query,canonicalName(k)))/2);
+        if (score>=60) cands.push({customer:{_key:k,Name:cName},score});
+      });
+      if (!cands.length) return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      if (best.score<65) return {status:"not_found"};
+      if (best.score>=90) return {status:"found",customer:best.customer};
+      const eligible=cands.filter(x=>x.score>=65&&(best.score-x.score)<=15).slice(0,4);
+      return {status:"multiple",matches:eligible.map(x=>({key:String(x.customer._key),name:String(x.customer.Name)}))};
+    }
+
+    function findSupplier(searchName, suppliers) {
+      if (!searchName) return {status:"not_found"};
+      const query=canonicalName(searchName);
+      if (!query) return {status:"not_found"};
+      const keys=Object.keys(suppliers||{});
+      for (const k of keys) {
+        if (canonicalName(suppliers[k].Name||k)===query)
+          return {status:"found",supplier:{_key:k,Name:suppliers[k].Name||k}};
+      }
+      const cands=[];
+      keys.forEach(k=>{
+        const sName=suppliers[k].Name||k, n=canonicalName(sName);
+        let score=n.includes(query)||query.includes(n)?90-Math.abs(n.length-query.length)*2:Math.round((simScore(query,n)+simScore(query,canonicalName(k)))/2);
+        if (score>=60) cands.push({supplier:{_key:k,Name:sName},score});
+      });
+      if (!cands.length) return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      if (best.score<65) return {status:"not_found"};
+      if (best.score>=90) return {status:"found",supplier:best.supplier};
+      const eligible=cands.filter(x=>x.score>=65&&(best.score-x.score)<=15).slice(0,4);
+      return {status:"multiple",matches:eligible.map(x=>({key:String(x.supplier._key),name:String(x.supplier.Name)}))};
+    }
+
+    function formatNumber(value) {
+      const n=Number(value);if(!isFinite(n))return "0";
+      if (Math.abs(n-Math.round(n))<0.000001) return String(Math.round(n));
+      return n.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+    }
+    function getTodayString() {
+      const d=new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function getStatsBucketPaths(date) {
+      const d=date||new Date();
+      const daily=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      const dC=new Date(d.getTime());dC.setHours(0,0,0,0);dC.setDate(dC.getDate()+3-(dC.getDay()+6)%7);
+      const w1=new Date(dC.getFullYear(),0,4);
+      const weekly=`${dC.getFullYear()}-W${("0"+(1+Math.round(((dC-w1)/86400000-3+(w1.getDay()+6)%7)/7))).slice(-2)}`;
+      const monthly=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+      return {
+        daily:`Stats/Daily/${daily}`,weekly:`Stats/Weekly/${weekly}`,
+        monthly:`Stats/Monthly/${monthly}`,yearly:`Stats/Yearly/${d.getFullYear()}`,
+        lifetime:"Stats/Lifetime/All"
+      };
+    }
+
+    function addStatsDeltas(updates, transaction, reverse=false) {
+      const type=transaction.type;
+      if (!["sale","return","payment","cash_out","expense"].includes(type)) return;
+      const ts=Number(transaction.timestamp||0);if(!ts)return;
+      const dir=reverse?-1:1;
+      const bases=Object.values(getStatsBucketPaths(new Date(ts)));
+      const total=Number(transaction.total||0);
+      const payMode=String(transaction.payment||"").toLowerCase();
+      const isCredit=payMode==="credit", isSplit=payMode==="split";
+      const splitPaid=isSplit?Number(transaction.paid_amount||0):0;
+
+      if (type==="expense") {
+        const amt=Number(transaction.amount||0);
+        bases.forEach(base=>addInc(updates,`${base}/TotalExpense`,dir*amt));
+        return;
+      }
+      if (type==="sale"||type==="return") {
+        const sign=(type==="sale"?1:-1)*dir;
+        let totalCost=0;
+        const lines=(transaction.items||[]).map(item=>{
+          const qty=Number(item.qty||0),cost=Number(item.cost||0);
+          const revenue=Number(item.total!==undefined?item.total:qty*Number(item.price||0));
+          const itemCost=qty*cost; totalCost+=itemCost;
+          return {key:sanitizeFirebaseKey(canonicalName(item.product))||"unknown",name:String(item.product||"").trim(),qty,revenue,itemCost};
+        });
+        bases.forEach(base=>{
+          addInc(updates,`${base}/TotalSales`,sign*total);
+          addInc(updates,`${base}/TotalCost`,sign*totalCost);
+          addInc(updates,`${base}/TotalProfit`,sign*(total-totalCost));
+          if (isSplit) {
+            addInc(updates,`${base}/TotalCash`,sign*splitPaid);
+            addInc(updates,`${base}/TotalCredit`,sign*(total-splitPaid));
+          } else {
+            addInc(updates,`${base}/${isCredit?"TotalCredit":"TotalCash"}`,sign*total);
+          }
+          if (type==="sale") addInc(updates,`${base}/SaleCount`,dir);
+          else { addInc(updates,`${base}/TotalReturns`,dir*total); addInc(updates,`${base}/ReturnCount`,dir); }
+          lines.forEach(l=>{
+            updates[`${base}/Products/${l.key}/Name`]=l.name;
+            addInc(updates,`${base}/Products/${l.key}/Qty`,sign*l.qty);
+            if (type==="sale") addInc(updates,`${base}/Products/${l.key}/TimesSold`,dir);
+            addInc(updates,`${base}/Products/${l.key}/Revenue`,sign*l.revenue);
+            addInc(updates,`${base}/Products/${l.key}/Cost`,sign*l.itemCost);
+            addInc(updates,`${base}/Products/${l.key}/Profit`,sign*(l.revenue-l.itemCost));
+          });
+        });
+      } else if (type==="payment") {
+        bases.forEach(base=>addInc(updates,`${base}/CashIn`,dir*Number(transaction.amount||0)));
+      } else if (type==="cash_out") {
+        bases.forEach(base=>addInc(updates,`${base}/CashOut`,dir*Number(transaction.amount||0)));
+      }
+    }
+
+    async function processCustomerPayment(command) {
+      const customer=String(command.customer).trim(), amount=Number(command.amount);
+      if (!customer||!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Customer ya amount theek se samajh nahi aaya."};
+      const ck=custKey(command);
+      const updates={};
+      addInc(updates,`Customers/${ck}/Balance`,-amount);
+      updates[`Customers/${ck}/Name`]=customer;
+      const txId=command.client_txn_id||("PAY_"+Date.now());
+      const tx={id:txId,type:"payment",amount,customer,customer_key:ck,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      addInc(updates,"CashManagement/CashIn",amount);
+      addInc(updates,"CashManagement/CashInHand",amount);
+      addStatsDeltas(updates,tx);
+      return {ok:true,reply:`✅ Cash In Recorded\n👤 ${customer}\n💵 Amount:Rs +${formatNumber(amount)}`,updates};
+    }
+
+    async function processCustomerCashOut(command) {
+      const customer=String(command.customer).trim(), amount=Number(command.amount);
+      if (!customer||!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Customer ya amount theek se samajh nahi aaya."};
+      const ck=custKey(command);
+      const updates={};
+      addInc(updates,`Customers/${ck}/Balance`,amount);
+      updates[`Customers/${ck}/Name`]=customer;
+      const txId=command.client_txn_id||("CASHOUT_"+Date.now());
+      const tx={id:txId,type:"cash_out",amount,customer,customer_key:ck,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      addInc(updates,"CashManagement/CashOut",amount);
+      addInc(updates,"CashManagement/CashInHand",-amount);
+      addStatsDeltas(updates,tx);
+      return {ok:true,reply:`✅ Cash Out Recorded\n👤 ${customer}\n💵 Amount:Rs -${formatNumber(amount)}`,updates};
+    }
+
+    async function processCashBalance() {
+      const c=await firebaseRequest("CashManagement","GET")||{};
+      const cash=Number(c.CashInHand||0);
+      return {ok:true,reply:`Gallay mein abhi Rs ${formatNumber(cash)} hain.\n\n🏦 Cash in hand:Rs ${formatNumber(cash)}`};
+    }
+
+    async function processExpenseAdd(command) {
+      const amount=Number(command.amount);
+      if (!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Kharche ki amount batayein."};
+      const category=String(command.category||"Misc").trim()||"Misc";
+      const note=String(command.note||"").trim();
+      const updates={};
+      const txId=command.client_txn_id||("EXP_"+Date.now());
+      const tx={id:txId,type:"expense",amount,category,note,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      addInc(updates,"CashManagement/CashOut",amount);
+      addInc(updates,"CashManagement/CashInHand",-amount);
+      addStatsDeltas(updates,tx);
+      return {ok:true,reply:`✅ Kharcha Record Hua\n🏷️ ${category}${note?` (${note})`:""}\n💸 Amount:Rs -${formatNumber(amount)}`,updates,transaction:tx};
+    }
+
+    async function processExpenseReport(command) {
+      const period=normalizePeriod(command.period||"daily");
+      if (!["daily","weekly","monthly","yearly","lifetime"].includes(period)) return {ok:true,reply:"📊 Yeh period abhi support nahi hai."};
+      const stats=await firebaseRequest(getStatsBucketPaths(new Date())[period],"GET");
+      return {ok:true,reply:`💸 Expense Report\nTotal Kharcha:Rs ${formatNumber(stats?.TotalExpense||0)}`};
+    }
+
+    async function processSupplierPayment(command) {
+      const supplier=String(command.supplier).trim(), amount=Number(command.amount);
+      if (!supplier||!isFinite(amount)||amount<=0) return {ok:false,reply:"❌ Supplier ya amount theek se samajh nahi aaya."};
+      const sk=supKey(command);
+      const oldBal=Number(await firebaseRequest(`Suppliers/${sk}/Balance`,"GET")||0);
+      const updates={};
+      addInc(updates,`Suppliers/${sk}/Balance`,-amount);
+      updates[`Suppliers/${sk}/Name`]=supplier;
+      const txId=command.client_txn_id||("SPAY_"+Date.now());
+      updates[`Transactions/${txId}`]={id:txId,type:"supplier_payment",supplier,supplier_key:sk,amount,timestamp:Date.now(),date:getTodayString()};
+      addInc(updates,"CashManagement/CashOut",amount);
+      addInc(updates,"CashManagement/CashInHand",-amount);
+      return {ok:true,reply:`✅ Supplier Payment\n🏭 ${supplier}\n💵 Diye:Rs -${formatNumber(amount)}\n⚖️ Baqi Dena:Rs ${formatNumber(oldBal-amount)}`,updates};
+    }
+
+    async function processVoidTransaction(command, products) {
+      const search=String(command.search||command.user_text||"").trim();
+      if (!search) return {ok:false,reply:'❌ Kis entry ko cancel karna hai? (naam, amount, ya item)'};
+      const all=await firebaseRequest("Transactions","GET")||{};
+      const rows=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      if (!rows.length) return {ok:false,reply:"📭 Koi transaction nahi mili."};
+      let target=null;
+      const ref=search.match(/\bT(\d{1,2})\b/i);
+      if (ref){const idx=Number(ref[1])-1;if(idx>=0&&idx<rows.length)target=rows[idx];}
+      if (!target) {
+        const nW=normMatch(search).split(" ").filter(Boolean);
+        let best=null,bestScore=-1;
+        rows.slice(0,40).forEach(t=>{
+          const hay=normMatch([t.customer,t.supplier,t.category,t.total,t.amount,(t.items||[]).map(i=>i.product).join(" ")].filter(Boolean).join(" "));
+          let score=0;nW.forEach(w=>{if(hay.includes(w))score+=w.length>=3?2:1;});
+          if(score>bestScore){bestScore=score;best=t;}
+        });
+        if (best&&bestScore>0) target=best;
+      }
+      if (!target) return {ok:false,reply:`❌ "${search}" se milti koi entry nahi mili. "recent entries dikhao" bol kar list dekh lein.`};
+      return voidSpecificTransaction(target, products);
+    }
+
+    async function voidSpecificTransaction(tx, products) {
+      if (tx.voided) return {ok:true,reply:"ℹ️ Yeh entry pehle hi cancel ho chuki hai."};
+      const updates={};
+      const ck=tx.customer_key||sanitizeFirebaseKey(tx.customer||"");
+      const sk=tx.supplier_key||sanitizeFirebaseKey(tx.supplier||"");
+      const total=Number(tx.total||0), amount=Number(tx.amount||0);
+      const payment=tx.payment||(tx.customer?"credit":"cash");
+      const stockFor=(item,sign)=>{
+        if (item.is_misc) return;
+        const key=products[item.product]?item.product:(findProduct(item.product,products).product||{})._key;
+        if(key) {
+          addInc(updates,`Products/${sanitizeFirebaseKey(key)}/Stock`,sign*Number(item.qty||0));
+          if (sign<0&&item.prevCost!==undefined) updates[`Products/${sanitizeFirebaseKey(key)}/Cost`]=Number(item.prevCost);
+        }
+      };
+      let label;
+      if (tx.type==="sale") {
+        (tx.items||[]).forEach(it=>stockFor(it,1));
+        if (payment==="split"&&ck) {
+          const paidNow=Number(tx.paid_amount||0);
+          addInc(updates,`Customers/${ck}/Balance`,-(total-paidNow));
+          addInc(updates,"CashManagement/CashInHand",-paidNow);
+        } else if(payment==="credit"&&ck) addInc(updates,`Customers/${ck}/Balance`,-total);
+        else addInc(updates,"CashManagement/CashInHand",-total);
+        label=`Sale Rs ${formatNumber(total)}`;
+      } else if (tx.type==="return") {
+        (tx.items||[]).forEach(it=>stockFor(it,-1));
+        if(payment==="credit"&&ck) addInc(updates,`Customers/${ck}/Balance`,total);
+        else addInc(updates,"CashManagement/CashInHand",total);
+        label=`Return Rs ${formatNumber(total)}`;
+      } else if (tx.type==="payment") {
+        addInc(updates,`Customers/${ck}/Balance`,amount);
+        addInc(updates,"CashManagement/CashIn",-amount);
+        addInc(updates,"CashManagement/CashInHand",-amount);
+        label=`Cash In Rs ${formatNumber(amount)} (${tx.customer})`;
+      } else if (tx.type==="cash_out") {
+        addInc(updates,`Customers/${ck}/Balance`,-amount);
+        addInc(updates,"CashManagement/CashOut",-amount);
+        addInc(updates,"CashManagement/CashInHand",amount);
+        label=`Cash Out Rs ${formatNumber(amount)} (${tx.customer})`;
+      } else if (tx.type==="expense") {
+        addInc(updates,"CashManagement/CashOut",-amount);
+        addInc(updates,"CashManagement/CashInHand",amount);
+        label=`Expense Rs ${formatNumber(amount)} (${tx.category})`;
+      } else if (tx.type==="supplier_purchase") {
+        (tx.items||[]).forEach(it=>stockFor(it,-1));
+        addInc(updates,`Suppliers/${sk}/Balance`,-total);
+        label=`Supplier Purchase Rs ${formatNumber(total)} (${tx.supplier})`;
+      } else if (tx.type==="supplier_payment") {
+        addInc(updates,`Suppliers/${sk}/Balance`,amount);
+        addInc(updates,"CashManagement/CashOut",-amount);
+        addInc(updates,"CashManagement/CashInHand",amount);
+        label=`Supplier Payment Rs ${formatNumber(amount)} (${tx.supplier})`;
+      } else if (tx.type==="purchase") {
+        (tx.items||[]).forEach(it=>stockFor(it,-1));
+        addInc(updates,"CashManagement/CashInHand",total);
+        label=`Purchase Rs ${formatNumber(total)}`;
+      } else if (tx.type==="custom_op") {
+        (tx.ops||[]).forEach(o=>{
+          if (o.op==="increment") addInc(updates,o.path,-Number(o.value));
+          else updates[o.path]=(o.prev===undefined?null:o.prev);
+        });
+        label=`Custom change (${tx.summary||""})`;
+      } else if (tx.type==="ledger_entry") {
+        addInc(updates,`Customers/${ck}/Balance`,-total);
+        label=`Ledger Entry Rs ${formatNumber(total)} (${tx.customer})`;
+      } else {
+        return {ok:false,reply:"❌ Is qism ki entry cancel nahi ho sakti."};
+      }
+      addStatsDeltas(updates,tx,true);
+      updates[`Transactions/${tx.id}/voided`]=true;
+      updates[`Transactions/${tx.id}/voidedAt`]=Date.now();
+      updates[`Transactions/UNDO_${tx.id}`]={id:`UNDO_${tx.id}`,type:"void",ref:tx.id,timestamp:Date.now(),date:getTodayString()};
+      const items=(tx.items||[]).map(it=>`${formatNumber(it.qty)} × ${it.product}`).join(", ");
+      return {ok:true,reply:`↩️ Cancel ho gaya: ${label}${items?`\n📦 ${items}`:""}\nStock, cash aur khata wapis theek kar diya.`,updates};
+    }
+
+    async function processUndoLast(command, products) {
+      const id=localStorage.getItem(LAST_TXN_KEY);
+      if (!id) return {ok:false,reply:"❌ Undo ke liye koi recent entry nahi mili."};
+      const tx=await firebaseRequest(`Transactions/${id}`,"GET");
+      if (!tx) return {ok:false,reply:"❌ Woh entry database mein nahi mili."};
+      if (tx.voided){localStorage.removeItem(LAST_TXN_KEY);return {ok:true,reply:"ℹ️ Yeh entry pehle hi cancel ho chuki hai."};}
+      return voidSpecificTransaction(tx, products);
+    }
+
+    async function processCustomerBalance(command) {
+      if (!command.customer) return {ok:false,reply:"❌ Customer ka naam batayein."};
+      const customer=String(command.customer).trim();
+      const balance=Number(await firebaseRequest(`Customers/${custKey(command)}/Balance`,"GET")||0);
+      const naturalLine=balance>0.005?`${customer} ka Rs ${formatNumber(balance)} udhaar baqi hai.`:balance<-0.005?`${customer} ko Rs ${formatNumber(-balance)} wapis karne hain.`:`${customer} ka koi udhaar baqi nahi hai.`;
+      return {ok:true,reply:`${naturalLine}\n\n⚖️ Balance for ${customer}:\nRs ${formatNumber(balance)}\n\n(+) = udhaar dena hai. (-) = wapis karna hai.`};
+    }
+
+    function normalizePeriod(period) {
+      period=String(period||"daily").toLowerCase();
+      if (["today","daily","day"].includes(period)) return "daily";
+      if (["yesterday","kal"].includes(period)) return "yesterday";
+      if (["week","weekly"].includes(period)) return "weekly";
+      if (["month","monthly"].includes(period)) return "monthly";
+      if (["year","yearly"].includes(period)) return "yearly";
+      if (["all","lifetime"].includes(period)) return "lifetime";
+      return period.includes("previous_")?period:"daily";
+    }
+
+    let commandQueue = JSON.parse(localStorage.getItem(QUEUE_KEY))||[];
+    let isProcessingQueue=false, isAwaitingInput=false;
+    function saveQueue(){ localStorage.setItem(QUEUE_KEY,JSON.stringify(commandQueue)); }
+
+    window.addEventListener("DOMContentLoaded",()=>{
+      preloadCaches();
+      if (!navigator.onLine) {
+        latencyBadge.textContent="Offline";connDot.style.background="var(--warning-color)";connDot.style.boxShadow="0 0 6px var(--warning-color)";
+      }
+      commandQueue.forEach(item=>{
+        const row=appendUserMessage(item.displayLabel,item.id);
+        if (item.status==="interactive"&&item.interactiveData){
+          updateBubbleStatus(row,"delivered");isAwaitingInput=true;toggleInput(true);
+          renderInteractiveWidgets(item.interactiveData,item.id,item.originalMessage);
+        } else updateBubbleStatus(row,item.status==="failed"?"failed":"queued");
+      });
+      if (commandQueue.length>0&&navigator.onLine) processQueue();
+    });
+
+    window.addEventListener("online",()=>{
+      latencyBadge.textContent="Turbo Ready";connDot.style.background="var(--success-green)";connDot.style.boxShadow="0 0 6px var(--success-green)";
+      if (commandQueue.length>0) processQueue();
+    });
+    window.addEventListener("offline",()=>{
+      latencyBadge.textContent="Offline";connDot.style.background="var(--warning-color)";connDot.style.boxShadow="0 0 6px var(--warning-color)";
+    });
+    setInterval(()=>{if(commandQueue.length>0&&navigator.onLine&&!isProcessingQueue)processQueue();},2000);
+
+    function enqueueCommand(payload,displayLabel){
+      const id="txn_"+Date.now();
+      commandQueue.push({id,payload,displayLabel,originalMessage:displayLabel,status:"queued",timestamp:Date.now(),mode:MODE});
+      saveQueue();
+      updateBubbleStatus(appendUserMessage(displayLabel,id),"queued");
+      processQueue();
+    }
+
+    async function processQueue(){
+      if (isProcessingQueue||!navigator.onLine||commandQueue.length===0) return;
+      const item=commandQueue[0];
+      if (item.status==="interactive"){isAwaitingInput=true;return;}
+      if (item.status==="failed"){
+        item.retries=(item.retries||0)+1;
+        if (item.retries>2){commandQueue.shift();saveQueue();await streamModelResponse("❌ Yeh command process nahi ho saki. Baraye meherbani dobara likhein.");return;}
+      }
+      const act=String(item.payload?.action||"");
+      if (act.startsWith("resolve_")&&!act.startsWith("resolve_ledger_")) { 
+        commandQueue.shift();saveQueue();return;
+      }
+      isProcessingQueue=true;
+      const bubble=document.getElementById(item.id);
+      if (bubble) updateBubbleStatus(bubble,"sending");
+      latencyBadge.textContent="Processing...";
+      const shimmer=appendShimmer();setNetworkProgress(true);
+
+      try {
+        const payload={...item.payload,client_txn_id:item.id};
+        const t0=performance.now();
+        LEDGER_TOK.last=0;
+        let data;
+
+        if (payload.action?.startsWith("resolve_ledger_")||payload.action==="create_ledger_customer") {
+          const lCarrier = (payload.pending_context && Array.isArray(payload.pending_context.__multi_remaining)) ? payload.pending_context
+                         : (Array.isArray(payload.__multi_remaining) ? payload : null);
+          if (lCarrier) {
+            const resumedRemaining = lCarrier.__multi_remaining;
+            const priorReplies = lCarrier.__multi_replies || [];
+            const origText = lCarrier.__multi_orig || item.originalMessage;
+            const pausedIndex = Number(lCarrier.__multi_index||0);
+            delete lCarrier.__multi_remaining; delete lCarrier.__multi_replies; delete lCarrier.__multi_orig; delete lCarrier.__multi_index;
+            const stepRes = await executeLedgerCommand(payload); 
+            if (LEDGER_INTERACTIVE.has(stepRes.type)) {
+              const carry2 = {__multi_remaining: resumedRemaining, __multi_replies: priorReplies, __multi_orig: origText, __multi_index: pausedIndex};
+              if (stepRes.pending_context) Object.assign(stepRes.pending_context, carry2); else Object.assign(stepRes, carry2);
+              data = stepRes;
+            } else {
+              if (stepRes.reply||stepRes.card) priorReplies.push({reply:stepRes.reply,card:stepRes.card});
+              const rest = await runLedgerMultiCommand(resumedRemaining, item.id, origText, priorReplies, pausedIndex+1);
+              if (rest.paused) { data = rest.data; }
+              else { data = {ok:true, saved:true, ...ledgerCombine(rest.replies)}; }
+            }
+          } else {
+            data = await executeLedgerCommand(payload);
+            if (data.ok&&(data.transaction||data.saved)) {
+              const ds=getTodayString();
+              firebaseRequest(`ChatHistory/${ds}/${item.id}`,"PUT",{user:item.originalMessage,ai:data.reply,timestamp:Date.now()}).catch(()=>{});
+            }
+          }
+        } else {
+          const msg=String(payload.message||"").trim();
+          const parts=await safeUnderstandLedgerCommand(msg);
+          const run=await runLedgerMultiCommand(parts, item.id, item.originalMessage, []);
+          if (run.paused) { data = run.data; }
+          else { data = {ok:true, saved:true, ...ledgerCombine(run.replies)}; if (!data.reply&&!data.cards) data.reply="Done."; }
+        }
+
+        latencyBadge.textContent=`${Math.round(performance.now()-t0)}ms · ${LEDGER_TOK.last}t`;
+        shimmer.remove();setNetworkProgress(false);
+
+        if (LEDGER_INTERACTIVE.has(data.type)) {
+          item.status="interactive";item.interactiveData=data;saveQueue();
+          isAwaitingInput=true;toggleInput(true);
+          if (bubble) updateBubbleStatus(bubble,"delivered");
+          renderInteractiveWidgets(data,item.id,item.originalMessage);
+        } else {
+          commandQueue.shift();saveQueue();isAwaitingInput=false;toggleInput(false);
+          if (bubble) updateBubbleStatus(bubble,"delivered");
+          if (data.cards?.length) await renderLedgerResponse(data.cards);
+          else if (data.card) await renderLedgerResponse([{reply:data.reply,card:data.card}]);
+          else await streamModelResponse(data.reply||"Done.");
+        }
+      } catch(err) {
+        shimmer.remove();setNetworkProgress(false);latencyBadge.textContent="Error";
+        item.status="failed";saveQueue();
+        if (bubble) updateBubbleStatus(bubble,"failed");
+        console.error(err);
+      } finally {
+        isProcessingQueue=false;
+        setTimeout(()=>{if(commandQueue.length>0&&navigator.onLine)processQueue();},300);
+      }
+    }
+
+    function syncSendBtn(){const on=!userInput.disabled&&userInput.value.trim().length>0;submitBtn.disabled=!on;submitBtn.classList.toggle("active",on);}
+    userInput.addEventListener("input",syncSendBtn);
+    function toggleInput(disabled){userInput.disabled=disabled;userInput.placeholder=disabled?"Please respond to prompts...":LEDGER_PLACEHOLDER;syncSendBtn();}
+
+    function disableAllPreviousActions(){document.querySelectorAll(".interactive-card button,.interactive-card input").forEach(el=>el.disabled=true);}
+    function handleFormSubmit(e){
+      e.preventDefault();const msg=userInput.value.trim();if(!msg)return;
+      disableAllPreviousActions();userInput.value="";submitBtn.disabled=true;submitBtn.classList.remove("active");
+      enqueueCommand({message:msg},msg);
+    }
+
+    // ─── INTERACTIVE WIDGETS ──────────────────────────────────
+    function renderInteractiveWidgets(data,qId,orig){
+      if(data.type==="need_ledger_customer_name") renderLedgerAskName(data,qId,orig);
+      else if(data.type==="need_ledger_customer_pick") renderLedgerCustomerPick(data,qId,orig);
+      else if(data.type==="need_ledger_new_customer_confirm") renderLedgerNewCustomerConfirm(data,qId,orig);
+      else if(data.type==="need_ledger_new_customer_form") renderLedgerNewCustomerForm(data,qId,orig);
+      else if(data.type==="need_ledger_missing_price") renderLedgerMissingPrice(data,qId,orig);
+      else if(data.type==="need_ledger_op_confirm") renderLedgerOpConfirm(data,qId,orig);
+      else if(data.type==="need_ledger_smart_input") renderLedgerSmartInput(data,qId,orig);
+      else { 
+        commandQueue=commandQueue.filter(q=>q.id!==qId);saveQueue();isAwaitingInput=false;toggleInput(false);
+        streamModelResponse(data.reply||"Done.");
+      }
+    }
+
+    function cancelInteractiveItem(qId, baseReply, remainingList) {
+      disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+      commandQueue.shift();saveQueue();
+      appendUserMessage("Cancel",qId);
+      let reply=baseReply;
+      if (Array.isArray(remainingList)&&remainingList.length>0) reply+=`\n⚠️ Ismein baaqi ${remainingList.length} agla instruction bhi skip ho gaya hai — agar zaroorat ho to alag se dobara bhej dein.`;
+      streamModelResponse(reply);
+    }
+
+    const LEDGER_SYSTEM_PROMPT = `You are the brain of a shop khata (ledger) app. The user can write in ANY language (Urdu, Roman Urdu, English, Pashto, Sindhi, Punjabi, or any other global language). Understand their intent perfectly regardless of the language.
+Answer ONLY with JSON: {"parts":[command, ...]} in the order they were spoken. Use the exact spelling of a name if it already exists in the lists given.
+Commands (field "action" + fields):
+CUSTOMERS: ledger_entry{customer,items:[{product,amount,qty?}]} (maal udhaar diya; amount = total Rs of that line) | customer_payment{customer,amount} (customer ne paise diye) | customer_cash_out{customer,amount} (customer ko cash diya / khate me daala) | customer_balance{customer} | all_balances | create_customer{customer,mobile?}
+SUPPLIERS: supplier_purchase{supplier,items:[{product,amount,qty?}]} (supplier se maal udhaar liya; amount = total Rs of that line) | supplier_payment{supplier,amount} (supplier ko paise diye) | supplier_balance{supplier} | all_supplier_balances | create_supplier{supplier,mobile?}
+EXPENSES & CASH: expense_add{category,amount,note?} | expense_report{period: daily|weekly|monthly|yearly|lifetime} | cash_balance
+ENTRIES: list_recent_transactions | void_transaction{search} | undo_last
+OTHER: smart{request} for anything not listed above | chat{reply} for plain talk.
+
+IMPORTANT RULES:
+1. If the item price is not given, omit "amount". If the name is not given, omit the name field.
+2. If the user just greets (Hello, Salam, Hi) or chats casually, ONLY use the "chat" action. DO NOT output any other commands. Do NOT hallucinate entries.
+3. If the user just types a standalone name without any clear command context (like "Zaheer Ahmad" or "Ok"), route it to "chat" or "smart". NEVER generate "create_customer" or "ledger_entry" automatically for standalone names.
+4. MATCH THE USER'S LANGUAGE: Your "reply", "ask_message", or any chat output MUST be in the exact same language, script, and tone as the user's input. If they speak Pashto, reply in Pashto. If Sindhi, reply in Sindhi. If Punjabi, reply in Punjabi. If Roman Urdu, reply in Roman Urdu.`;
+
+    const LEDGER_VALID_ACTIONS = new Set(["ledger_entry","expense_add","customer_payment","customer_cash_out","customer_balance","all_balances","create_customer","supplier_purchase","supplier_payment","supplier_balance","all_supplier_balances","create_supplier","expense_report","cash_balance","list_recent_transactions","void_transaction","undo_last","smart","chat"]);
+    
+    const LEDGER_INTERACTIVE_TYPES = ["need_ledger_customer_name","need_ledger_customer_pick","need_ledger_new_customer_confirm","need_ledger_new_customer_form","need_ledger_missing_price","need_ledger_op_confirm","need_ledger_smart_input"];
+    const LEDGER_INTERACTIVE = new Set(LEDGER_INTERACTIVE_TYPES);
+    const LEDGER_NON_SAVING_ACTIONS = new Set(["customer_balance","all_balances","supplier_balance","all_supplier_balances","expense_report","cash_balance","list_recent_transactions","smart","chat"]);
+
+    function normalizeLedgerCommand(cmd, msg) {
+      const fallback = msg ? {action:"smart",request:msg} : {action:"chat",reply:"Maaf kijiye, samajh nahi aaya. Thora saaf likh dein?"};
+      if (!cmd||typeof cmd!=="object"||Array.isArray(cmd)) return fallback;
+      cmd.action = String(cmd.action||"").toLowerCase().trim();
+      if (!LEDGER_VALID_ACTIONS.has(cmd.action)) return cmd.reply?{action:"chat",reply:String(cmd.reply)}:fallback;
+      ["customer","supplier","mobile","period","category","note","search","request"].forEach(f=>{ if (cmd[f]!==undefined) cmd[f]=String(cmd[f]==null?"":cmd[f]).trim(); });
+      if (!cmd.customer) delete cmd.customer;
+      if (!cmd.supplier) delete cmd.supplier;
+      if (!cmd.mobile) delete cmd.mobile;
+      const num=v=>{const n=Number(String(v).replace(/,/g,""));return isFinite(n)?n:undefined;};
+      if (cmd.amount!==undefined){const n=num(cmd.amount);if(n===undefined)delete cmd.amount;else cmd.amount=n;}
+      if (Array.isArray(cmd.items)) {
+        cmd.items = cmd.items.slice(0,20).map(it=>{
+          if (!it||typeof it!=="object") return null;
+          const o={product:String(it.product||"").trim()};
+          if (it.amount!==undefined){const n=num(it.amount);if(n!==undefined&&n>0)o.amount=n;}
+          if (it.qty!==undefined){const q=num(it.qty);if(q!==undefined&&q>0)o.qty=q;}
+          return o.product?o:null;
+        }).filter(Boolean);
+      } else if (cmd.items!==undefined) delete cmd.items;
+      return cmd;
+    }
+
+    function normalizeLedgerParts(raw, msg) {
+      if (raw?.__llm_error) { const e=raw.__llm_error; return [{action:"chat",reply:`${e.title}. ${e.hint}`,__card:{kind:"error",...e}}]; }
+      if (!raw||typeof raw!=="object") return [normalizeLedgerCommand(raw,msg)];
+      let list;
+      if (Array.isArray(raw.parts)) list=raw.parts;
+      else if (Array.isArray(raw)) list=raw;
+      else list=[raw];
+      if (!list.length) return [{action:"chat",reply:"Yeh samajh nahi aaya — thora detail se likhein, jaise: Zaheer ko 200 ki daal dia."}];
+      return list.slice(0,10).map(c=>normalizeLedgerCommand(c,msg));
+    }
+
+    const LEDGER_TOK={last:0,session:0,calls:0};
+    function ledgerLogTokens(label,u){
+      const p=u?.prompt_tokens||0, c=u?.completion_tokens||0, t=u?.total_tokens||(p+c), r=u?.completion_tokens_details?.reasoning_tokens;
+      LEDGER_TOK.last+=t; LEDGER_TOK.session+=t; LEDGER_TOK.calls++;
+      console.log(`%c[Ledger AI] ${label} → in ${p} · out ${c}${r!==undefined?` (reasoning ${r})`:""} · total ${t} tokens | session ${LEDGER_TOK.session} (${LEDGER_TOK.calls} AI calls)`,"color:#7cacf8;font-weight:bold");
+    }
+
+    async function groqCall(payload,label="call") {
+      const attempt=async(p)=>{
+        let r;
+        try { r=await fetch(GROQ_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${GROQ_API_KEY}`},body:JSON.stringify(p)}); }
+        catch(e){ return {ok:false,kind:"network",detail:String(e?.message||e)}; }
+        if (r.ok) { const d=await r.json(); ledgerLogTokens(label,d.usage); return {ok:true,content:d.choices?.[0]?.message?.content||"",finish:d.choices?.[0]?.finish_reason}; }
+        let msg="",failed=""; try{ const j=await r.json(); msg=j?.error?.message||""; failed=j?.error?.failed_generation||""; }catch(e){}
+        console.warn(`[Ledger AI] ${label} failed: HTTP ${r.status} ${msg}`,failed?`\nmodel output: ${failed}`:"");
+        return {ok:false,kind:"http",status:r.status,detail:msg,failed};
+      };
+      let res=await attempt(payload);
+      if (!res.ok&&res.status===400&&!res.failed) { const {reasoning_effort,reasoning_format,...lite}=payload; res=await attempt(lite); }
+      if (!res.ok&&(res.kind==="network"||res.status===429||res.status>=500)) { await new Promise(r=>setTimeout(r,900)); res=await attempt(payload); }
+      return res;
+    }
+
+    function ledgerJsonFrom(text){
+      const c=String(text||"").replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```$/i,"").trim();
+      const i=c.indexOf("{"), j=c.lastIndexOf("}");
+      if (i!==-1&&j>i) { try { return JSON.parse(c.substring(i,j+1)); } catch(e){} }
+      return null;
+    }
+    function llmErrorInfo(res) {
+      const d=String(res.detail||"").slice(0,220);
+      if (res.kind==="network") return {title:"Server tak pohanch nahi saka",hint:"Internet check karein — ya browser/network Groq (api.groq.com) ko block to nahi kar raha.",detail:d||"network error"};
+      if (res.kind==="parse")   return {title:"AI ka jawab samajh nahi aaya",hint:"Baat thore alag lafzon mein dobara likh kar dekhein.",detail:d};
+      const st=res.status;
+      if (st===401||st===403) return {title:"API key qabool nahi hui",hint:"GROQ_API_KEY galat ya expire hai — code mein sahi key daal dein.",detail:`HTTP ${st} ${d}`};
+      if (st===404) return {title:"AI model nahi mila",hint:"GROQ_MODEL ka naam check karein.",detail:`HTTP ${st} ${d}`};
+      if (st===413) return {title:"Data bohot bada ho gaya",hint:"Sawal ko chhota/specific karein (jaise kisi ek customer ka).",detail:`HTTP ${st} ${d}`};
+      if (st===429) return {title:"Groq ki limit lag gayi (rate limit)",hint:"Kuch der ruk kar dobara try karein — free plan ki limit reset hone mein thora waqt lagta hai.",detail:`HTTP ${st} ${d}`};
+      if (st>=500)  return {title:"Groq server par masla hai",hint:"Yeh unki taraf ki dikkat hai — thori der baad dobara try karein.",detail:`HTTP ${st} ${d}`};
+      return {title:"AI ne request reject kar di",hint:"Yeh technical masla hai — neeche detail dekhein.",detail:`HTTP ${st} ${d}`};
+    }
+
+    async function ledgerNamesContext() {
+      try {
+        const [c,sp]=await Promise.all([getCustomersCached(),firebaseRequest("Suppliers","GET")]);
+        const names=o=>Object.keys(o||{}).slice(0,400).map(k=>String(o[k]?.Name||k)).join(", ");
+        return `Customers: ${names(c)||"-"}\nSuppliers: ${names(sp)||"-"}\n`;
+      } catch(e){ return ""; }
+    }
+
+    async function requestGroqLedgerParsing(message) {
+      const ctx=await ledgerNamesContext();
+      const res=await groqCall({
+        model: GROQ_MODEL,
+        messages:[{role:"system",content:LEDGER_SYSTEM_PROMPT},{role:"user",content:`${ctx}Message: ${message}`}],
+        temperature:0.1, max_completion_tokens:1500, reasoning_effort:"medium",
+        reasoning_format:"hidden", response_format:{type:"json_object"}, top_p:1
+      },"parse");
+      const text=res.ok?res.content:res.failed;
+      if (text) {
+        const obj=ledgerJsonFrom(text);
+        if (obj) return obj;
+        const plain=String(text).replace(/<think>[\s\S]*?<\/think>/gi,"").trim();
+        if (plain) return {action:"chat",reply:plain};
+      }
+      if (!res.ok) return {__llm_error:llmErrorInfo(res)};
+      return {__llm_error:llmErrorInfo({kind:"parse",detail:res.finish==="length"?"jawab beech mein kat gaya (token limit)":"khali jawab"})};
+    }
+
+    async function safeUnderstandLedgerCommand(message) {
+      return normalizeLedgerParts(await requestGroqLedgerParsing(message), message);
+    }
+
+    async function ledgerResolveCustomer(command) {
+      if (command.customer_resolved) return {status:"found"};
+      if (!command.customer) return {status:"missing"};
+      const customers = await getCustomersCached();
+      const m = findCustomer(command.customer, customers);
+      if (m.status==="found") { command.customer=m.customer.Name||m.customer._key; command.customer_key=m.customer._key; command.customer_resolved=true; return {status:"found"}; }
+      if (m.status==="multiple") return {status:"interactive",result:{ok:true,type:"need_ledger_customer_pick",reply:`"${command.customer}" se milte-julte naam ke khatay hain — sahi wala chun lein, ya naya bana dein:`,options:m.matches,pending_context:command}};
+      return {status:"interactive",result:{ok:true,type:"need_ledger_new_customer_confirm",reply:`"${command.customer}" ke naam se koi khata nahi mila — naya khata bana doon?`,pending_context:command}};
+    }
+    async function ledgerNeedsCustomerFirst(command) {
+      const r = await ledgerResolveCustomer(command);
+      if (r.status==="interactive") return r.result;
+      if (r.status==="missing") return {ok:true,type:"need_ledger_customer_name",reply:"Accha, yeh kis ke khate mein likhna hai? Naam bata dein:",pending_context:command};
+      return null;
+    }
+    function checkLedgerMissingAmounts(command) {
+      const items=command.items||[];
+      const missing=[];
+      items.forEach((it,i)=>{ if (!(Number(it.amount)>0)) missing.push({product:it.product,i}); });
+      if (missing.length) return {ok:true,type:"need_ledger_missing_price",reply:"In cheezon ki qeemat bata dein (Rs mein):",missing_items:missing,pending_context:command};
+      return null;
+    }
+
+    async function processLedgerEntryCommit(command) {
+      const customer=String(command.customer||"").trim();
+      const items=command.items||[];
+      if (!customer) return {ok:false,reply:"Customer ka naam batayein."};
+      if (!items.length) return {ok:false,reply:"Koi item samajh nahi aaya."};
+      const total=items.reduce((s,it)=>s+Number(it.amount||0),0);
+      if (!(total>0)) return {ok:false,reply:"Total amount 0 ban raha hai — dobara likh dein."};
+      const ck=command.customer_key||sanitizeFirebaseKey(customer);
+      const updates={};
+      updates[`Customers/${ck}/Name`]=customer;
+      addInc(updates,`Customers/${ck}/Balance`,total);
+      const txId=command.client_txn_id||("LEDGER_"+Date.now());
+      const tx={id:txId,type:"ledger_entry",customer,customer_key:ck,items,total,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      const reply = items.length===1
+        ? `Theek hai, ${customer} ke khate mein ${items[0].qty>0?formatNumber(items[0].qty)+"x ":""}${items[0].product} — Rs ${formatNumber(items[0].amount)} likh diya.`
+        : `Theek hai, ${customer} ke khate mein likh diya:\n${items.map(it=>`• ${it.qty>0?formatNumber(it.qty)+"x ":""}${it.product} — Rs ${formatNumber(it.amount)}`).join("\n")}\nTotal Rs ${formatNumber(total)}.`;
+      return {ok:true,reply,updates,transaction:tx,card:{kind:"entry",customer,items,total,newAccount:!!command.__created}};
+    }
+
+    async function appendLedgerBalanceFootnote(res, command) {
+      if (res?.ok&&res?.saved&&command?.customer) {
+        try {
+          const ck=command.customer_key||sanitizeFirebaseKey(command.customer);
+          const bal=Number(await firebaseRequest(`Customers/${ck}/Balance`,"GET")||0);
+          const line = bal>0.005 ? `Ab ${command.customer} ka kul udhaar Rs ${formatNumber(bal)} hai.`
+                     : bal<-0.005 ? `${command.customer} ko ab Rs ${formatNumber(-bal)} wapis karne hain.`
+                     : `${command.customer} ka hisaab ab barabar hai.`;
+          res.reply=(res.reply||"")+`\n${line}`;
+          if (res.card) res.card.balance=bal;
+        } catch(e){}
+      }
+      return res;
+    }
+
+    function validateLedgerOps(ops) {
+      if (!Array.isArray(ops)||!ops.length||ops.length>20) throw new Error("Ek baar mein 1 se 20 changes hi allowed hain.");
+      const seg=/^[^.#$\[\]\/]+$/;
+      return ops.map(o=>{
+        const op=String(o?.op||"").toLowerCase();
+        const parts=String(o?.path||"").split("/");
+        if (!["set","increment","delete"].includes(op)) throw new Error("Aisa change type supported nahi (sirf set / add-kam / delete).");
+        if (!parts.every(p=>seg.test(p))) throw new Error("Change ka path sahi nahi ban saka.");
+        const root=parts[0];
+        if (root==="Customers"||root==="Suppliers") {
+          if (op==="delete") { if (parts.length<2||parts.length>3) throw new Error("Delete sirf ek customer ya uski ek field ka ho sakta hai."); }
+          else if (parts.length!==3) throw new Error("Change customer ki kisi ek field par hona chahiye (Name/Mobile/Balance...).");
+          if (op==="increment"&&parts[2]!=="Balance") throw new Error("Number add/kam sirf balance mein ho sakta hai.");
+        } else if (root==="Transactions") {
+          if (op!=="set"||parts.length!==3) throw new Error("Purani entry ko sirf edit kar sakta hoon — hatane ke liye \"T2 cancel karo\" likhein.");
+        } else throw new Error("Sirf khata (customers/suppliers) aur entries mein change ho sakta hai — products, stock ya cash register mein nahi.");
+        const out={op,path:parts.join("/")};
+        if (op==="increment") { const n=Number(o.value); if (!isFinite(n)||n===0) throw new Error("Add/kam karne ki amount sahi nahi."); out.value=n; }
+        if (op==="set") {
+          const v=o.value;
+          if (typeof v==="number"&&isFinite(v)) out.value=v;
+          else if (typeof v==="boolean") out.value=v;
+          else if (typeof v==="string"&&v.length<=200) out.value=v;
+          else throw new Error("Nayi value sahi nahi (sirf chhota text ya number chalega).");
+        }
+        if (o.prev!==undefined&&o.prev!==null&&typeof o.prev!=="object") out.prev=o.prev;
+        return out;
+      });
+    }
+
+    const LEDGER_PLANNER_PROMPT = `Khata helper. JSON ONLY: {"m":"a|w|x|i", "t":"message", "o":[["s|i|d","path","val"]], "f":"fieldName", "p":"path"}
+m types:
+a = jawab (t). Naya value mat mango.
+w = edit (t = 1 line summary, o = ops: s set, i inc, d del).
+x = nahi ho sakta (t = asal wajah).
+i = input_needed: ONLY use this if the user asks to update a field BUT DOES NOT provide the new value. CHAT (a) MEIN SAWAL MAT POOCHO.
+
+RULES:
+1. If user ALREADY provides the new value in the prompt (e.g. "change name to Ali", "update number to 0300"), ALWAYS use 'w' (edit). DO NOT use 'i'.
+2. Naam badalna (Rename) = ONLY set Name (key wahi rahegi). NEVER use 'd' (delete) to rename.
+3. If multiple similar Khatas match and you are unsure, use 'a' to ask the user which one they mean.
+4. CRITICAL: Provide all your text/messages ('t') in the EXACT SAME LANGUAGE and script that the user used in their request.`;
+
+    async function ledgerSmartContext(request) {
+      const [customers,txAll,suppliers]=await firebaseParallelGet(["Customers","Transactions","Suppliers"]);
+      const req=request.toLowerCase();
+      const reqN=normMatch(request);
+      
+      const cs=Object.entries(customers||{}).map(([k,v])=>({key:k,name:String(v?.Name||k),bal:Number(v?.Balance||0),mob:v?.Mobile||""}));
+      const txs=Object.values(txAll||{}).filter(t=>t&&!t.voided&&t.type!=="void"&&t.type!=="custom_op"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+      const ss=Object.entries(suppliers||{}).map(([k,v])=>({key:k,name:String(v?.Name||k),bal:Number(v?.Balance||0),mob:v?.Mobile||"",sup:true}));
+      
+      const all = cs.concat(ss);
+      const words = reqN.split(" ").filter(w=>w.length>=3);
+      
+      // Advance Fuzzy matching for smart planner context
+      all.forEach(c => {
+         const n = normMatch(c.name);
+         let score = 0;
+         if (req.includes(c.name.toLowerCase())) score += 100;
+         if (n === reqN) score += 100;
+         words.forEach(w => { if(n.includes(w)) score += 30; });
+         score = Math.max(score, simScore(reqN, n));
+         c.score = score;
+      });
+      all.sort((a,b) => b.score - a.score);
+      const hit = all.filter(c => c.score > 40).slice(0, 4);
+
+      const line=c=>`${c.sup?"S ":""}${c.key}|${formatNumber(c.bal)}|${c.mob}`;
+      const code={ledger_entry:"e",payment:"p",cash_out:"c",expense:"x",supplier_purchase:"m",supplier_payment:"y"};
+      
+      if (hit.length) {
+        const keys=new Set(hit.map(c=>c.key));
+        const es=txs.filter(t=>keys.has(t.customer_key||t.supplier_key||sanitizeFirebaseKey(t.customer||t.supplier||""))).slice(0,8)
+          .map(t=>`${String(t.date||"").slice(5)} ${code[t.type]||t.type} ${formatNumber(t.total||t.amount||0)} ${(t.items||[]).slice(0,4).map(i=>i.product+formatNumber(i.amount)).join(",")}`.trim());
+        return hit.map(line).join("\n")+(es.length?"\n"+es.join("\n"):"");
+      }
+      
+      const sum=(cut)=>{const r={e:0,p:0,c:0,x:0};txs.forEach(t=>{if((t.timestamp||0)>=cut&&code[t.type]) r[code[t.type]]+=Number(t.total||t.amount||0);});return `e${formatNumber(r.e)} p${formatNumber(r.p)} c${formatNumber(r.c)} x${formatNumber(r.x)}`;};
+      const d0=new Date();d0.setHours(0,0,0,0);
+      const top=cs.filter(c=>Math.abs(c.bal)>0.005).sort((a,b)=>Math.abs(b.bal)-Math.abs(a.bal)).slice(0,12).map(line).join("\n");
+      return `${top}\naaj ${sum(d0.getTime())}; 7din ${sum(Date.now()-7*864e5)}`;
+    }
+
+    async function planSmartLedgerRequest(request) {
+      const ctx=await ledgerSmartContext(request);
+      const res=await groqCall({
+        model:GROQ_MODEL,
+        messages:[{role:"system",content:LEDGER_PLANNER_PROMPT},{role:"user",content:`${ctx}\nQ:${request}`}],
+        temperature:0.1,max_completion_tokens:900,reasoning_effort:"low",reasoning_format:"hidden",response_format:{type:"json_object"},top_p:1
+      },"smart");
+      const raw=res.ok?res.content:res.failed;
+      let plan=raw?ledgerJsonFrom(raw):null;
+      if (!plan&&raw&&String(raw).trim()) return {mode:"answer",reply:String(raw).replace(/<think>[\s\S]*?<\/think>/gi,"").trim()};
+      if (!plan) return {mode:"error",error:llmErrorInfo(res.ok?{kind:"parse",detail:res.finish==="length"?"jawab beech mein kat gaya":"khali jawab"}:res)};
+      const text=String(plan.t||"");
+      
+      if (plan.m==="i") {
+        return {mode:"input", reply: text || `${plan.f} ki nayi value likhein:`, field: plan.f, path: plan.p};
+      }
+
+      if (plan.m==="w") {
+        const OPS={s:"set",i:"increment",d:"delete"};
+        let ops;
+        try { ops=validateLedgerOps((plan.o||[]).map(o=>({op:OPS[o[0]]||o[0],path:o[1],value:o[2]}))); } catch(e) { return {mode:"unsupported",reply:e.message}; }
+        const prevs=await firebaseParallelGet(ops.map(o=>o.path));
+        ops.forEach((o,i)=>{ const p=prevs[i]; if (p!==null&&p!==undefined&&typeof p!=="object") o.prev=p; else delete o.prev; });
+        return {mode:"write",summary:text||"Yeh change hoga:",ops};
+      }
+      if (plan.m==="a"&&text) return {mode:"answer",reply:text};
+      return {mode:"unsupported",reply:text||"Yeh request data se poori nahi ho saki — thora aur detail ke sath likh dein."};
+    }
+
+    const AGENT_MAX_STEPS=8, AGENT_MAX_OPS=20, AGENT_READ_CHARS=6000;
+    const AGENT_MONEY_RE=/balance|cash|stat|transaction|amount|total|payable|receivable|udhaar/i;
+    const AGENT_MONEY_MSG="Paisay/balance/entries/stats yahan change nahi ho sakte. Udhaar, payment ya expense ke liye user seedha woh command likhe (jaise 'Ali ko 200 ki daal', 'Ali ne 500 diye').";
+    const AGENT_PROMPT=`Tum ek dukaan ke khata app ke helper ho. Shopkeeper kisi bhi language mein likh sakta hai. Uska Firebase data tools se khud explore karo.
+RULES:
+1. Naam badalna (Rename) ho to sirf uski Name field update karo. Naya khata bana kar purana delete mat karo.
+2. Agar user request mein clearly nayi value de (jaise 'Zaheer ka naam Zaheer Basheer kr do'), to seedha 'write' tool use karo.
+3. Agar nayi value NAHI di gayi (jaise 'Zaheer ka number badal do'), SIRF tab 'ask_user_input' tool use karo.
+4. Agar data explore karte waqt multiple milte-julte naam milein aur clear na ho kon sa hai, to normal chat ya ask_user_input se poocho, galat khata edit mat karo.
+5. MATCH LANGUAGE: Apna final jawab ya tool ka ask_message hamesha usi zaban aur style mein do jis mein user ne sawal pooccha hai.`;
+    
+    const AGENT_TOOLS=[
+      {type:"function",function:{name:"list_keys",description:"Ek path ke neeche keys ki list (shallow). path=\"\" matlab shopkeeper ka poora data (top level).",parameters:{type:"object",properties:{path:{type:"string"}},required:["path"]}}},
+      {type:"function",function:{name:"read",description:"Path ka data padho (limit = zyada se zyada kitni children, default 10).",parameters:{type:"object",properties:{path:{type:"string"},limit:{type:"integer"}},required:["path"]}}},
+      {type:"function",function:{name:"write",description:"Ek path par chhoti value (text/number/bool) set karo. Sirf stage hota hai, user confirm karega.",parameters:{type:"object",properties:{path:{type:"string"},value:{}},required:["path","value"]}}},
+      {type:"function",function:{name:"increment",description:"Ek number field mein n add (ya minus) karo. Sirf stage hota hai.",parameters:{type:"object",properties:{path:{type:"string"},n:{type:"number"}},required:["path","n"]}}},
+      {type:"function",function:{name:"delete",description:"Ek path hatao. Sirf stage hota hai.",parameters:{type:"object",properties:{path:{type:"string"}},required:["path"]}}},
+      {type:"function",function:{name:"ask_user_input",description:"Agar user kisi field ko update karne ka kahe par naya value na bataye (e.g. 'Ali ka mobile badal do'), to ye tool call karein taake UI mein ek input field khul jaye. Chat mein direct sawal mat poochein.",parameters:{type:"object",properties:{field_name:{type:"string",description:"Jaise 'Name' ya 'Mobile'"},target_path:{type:"string",description:"Jaise 'Customers/Ali/Mobile'"},ask_message:{type:"string",description:"Sawal jo user ko dikhana hai"}},required:["field_name","target_path","ask_message"]}}}
+    ];
+    async function agentFetch(path,qs="") {
+      const r=await fetch(`${FIREBASE_URL}/${safePath(path)}.json${qs}`);
+      if (!r.ok) throw new Error(`Firebase HTTP ${r.status}`);
+      return r.json();
+    }
+    function agentTrim(v){ const s=JSON.stringify(v===undefined?null:v); return s.length>AGENT_READ_CHARS?{truncated:true,note:"Data bara hai, chhota path ya kam limit lein",preview:s.slice(0,AGENT_READ_CHARS)}:v; }
+    function agentCheckPath(path,forWrite) {
+      const clean=safePath(path);
+      if (forWrite) {
+        if (!clean) throw new Error("Poore data par change allowed nahi.");
+        if (!clean.split("/").every(p=>/^[^.#$\[\]\/]+$/.test(p))) throw new Error("Path sahi nahi (. # $ [ ] allowed nahi).");
+        if (AGENT_MONEY_RE.test(clean)) throw new Error(AGENT_MONEY_MSG);
+      }
+      return clean;
+    }
+    async function agentStage(staged,op,path,value) {
+      if (staged.length>=AGENT_MAX_OPS) throw new Error(`Ek baar mein sirf ${AGENT_MAX_OPS} changes allowed hain.`);
+      const clean=agentCheckPath(path,true);
+      if (staged.some(o=>o.path===clean)) throw new Error("Is path par pehle se change stage hai.");
+      const out={op,path:clean};
+      if (op==="increment") { const n=Number(value); if (!isFinite(n)||n===0) throw new Error("n sahi number ho, 0 nahi."); out.value=n; }
+      if (op==="set") {
+        if (typeof value==="number"&&isFinite(value)||typeof value==="boolean"||typeof value==="string"&&value.length<=200) out.value=value;
+        else throw new Error("Value sirf chhota text (200 tak), number ya true/false ho sakti hai.");
+      }
+      const prev=await agentFetch(clean);
+      if (prev!==null&&prev!==undefined) {
+        if (op!=="delete"&&typeof prev==="object") throw new Error("Yeh path ek poora folder hai — us ke andar ki field chunein.");
+        if (op==="delete"&&typeof prev==="object") {
+          if (/"balance"\s*:\s*-?0*[1-9]/i.test(JSON.stringify(prev))) throw new Error("Is mein balance baqi hai — hatane se hisaab kharab hoga.");
+          if (JSON.stringify(prev).length>20000) throw new Error("Yeh folder bohat bara hai, hataya nahi ja sakta.");
+        }
+        if (op==="increment"&&typeof prev!=="number") throw new Error("Yeh field number nahi hai.");
+        out.prev=prev;
+      }
+      staged.push(out);
+      return {staged:true,count:staged.length,prev:prev===undefined?null:(typeof prev==="object"?"(folder)":prev)};
+    }
+    async function runAgentTool(name,a,staged) {
+      if (name==="list_keys") {
+        const v=await agentFetch(agentCheckPath(a.path,false),"?shallow=true");
+        if (v===null) return {exists:false};
+        if (typeof v!=="object") return {value:v};
+        const keys=Object.keys(v); return {count:keys.length,keys:keys.slice(0,200)};
+      }
+      if (name==="read") {
+        const p=agentCheckPath(a.path,false), lim=Math.min(Math.max(parseInt(a.limit)||10,1),50);
+        let v; try { v=await agentFetch(p,`?orderBy=%22$key%22&limitToFirst=${lim}`); } catch(e) { v=await agentFetch(p); }
+        return agentTrim(v);
+      }
+      if (name==="write") return agentStage(staged,"set",a.path,a.value);
+      if (name==="increment") return agentStage(staged,"increment",a.path,a.n);
+      if (name==="delete") return agentStage(staged,"delete",a.path);
+      throw new Error("Aisa tool nahi hai: "+name);
+    }
+    function validateAgentOps(ops) {
+      if (!Array.isArray(ops)||!ops.length||ops.length>AGENT_MAX_OPS) throw new Error(`Ek baar mein 1 se ${AGENT_MAX_OPS} changes hi allowed hain.`);
+      return ops.map(o=>{
+        const op=String(o?.op||"").toLowerCase();
+        if (!["set","increment","delete"].includes(op)) throw new Error("Aisa change type supported nahi.");
+        const path=agentCheckPath(o.path,true), out={op,path};
+        if (op==="increment") { const n=Number(o.value); if (!isFinite(n)||n===0) throw new Error("Add/kam karne ki amount sahi nahi."); out.value=n; }
+        if (op==="set") { const v=o.value; if (typeof v==="number"&&isFinite(v)||typeof v==="boolean"||typeof v==="string"&&v.length<=200) out.value=v; else throw new Error("Nayi value sahi nahi."); }
+        if (o.prev!==undefined&&o.prev!==null&&JSON.stringify(o.prev).length<=20000) out.prev=o.prev;
+        return out;
+      });
+    }
+    async function groqChatRaw(payload,label) {
+      const attempt=async()=>{
+        let r; try { r=await fetch(GROQ_URL,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${GROQ_API_KEY}`},body:JSON.stringify(payload)}); }
+        catch(e) { return {ok:false,kind:"network",detail:String(e?.message||e)}; }
+        if (r.ok) { const d=await r.json(); ledgerLogTokens(label,d.usage); return {ok:true,message:d.choices?.[0]?.message||{},finish:d.choices?.[0]?.finish_reason}; }
+        let msg="",failed=""; try { const j=await r.json(); msg=j?.error?.message||""; failed=j?.error?.failed_generation||""; } catch(e) {}
+        console.warn(`[Ledger AI] ${label} failed: HTTP ${r.status} ${msg}`);
+        return {ok:false,kind:"http",status:r.status,detail:msg,failed};
+      };
+      let res=await attempt();
+      if (!res.ok&&(res.kind==="network"||res.status===429||res.status>=500)) { await new Promise(r=>setTimeout(r,900)); res=await attempt(); }
+      return res;
+    }
+    async function runSmartAgent(request) {
+      const staged=[], messages=[{role:"system",content:AGENT_PROMPT},{role:"user",content:request}];
+      for (let step=0;step<AGENT_MAX_STEPS;step++) {
+        const res=await groqChatRaw({model:GROQ_MODEL,messages,tools:AGENT_TOOLS,tool_choice:"auto",temperature:0.2,max_completion_tokens:1500,reasoning_effort:"low"},`agent ${step+1}`);
+        if (!res.ok) return {mode:"error",error:llmErrorInfo(res),fallback:!staged.length&&step===0&&res.kind==="http"&&(res.status===400||res.status===404)};
+        const msg=res.message, calls=msg.tool_calls||[];
+        if (!calls.length) {
+          const text=String(msg.content||"").replace(/<think>[\s\S]*?<\/think>/gi,"").trim();
+          if (staged.length) return {mode:"write",summary:text||"Yeh changes hongay:",ops:staged,agent:true};
+          if (text) return {mode:"answer",reply:text};
+          return {mode:"unsupported",reply:"Yeh request data se poori nahi ho saki — thora aur detail ke sath likh dein."};
+        }
+        messages.push({role:"assistant",content:msg.content||"",tool_calls:calls});
+        for (const c of calls) {
+          if (c.function?.name === "ask_user_input") {
+             const args = JSON.parse(c.function.arguments || "{}");
+             return { mode: "input", reply: args.ask_message, field: args.field_name, path: args.target_path };
+          }
+          let out;
+          try { out=await runAgentTool(c.function?.name,JSON.parse(c.function?.arguments||"{}"),staged); }
+          catch(e) { out={error:String(e?.message||e)}; }
+          console.log(`[Agent] ${c.function?.name}(${c.function?.arguments})`,out);
+          messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify(out).slice(0,AGENT_READ_CHARS+500)});
+        }
+      }
+      if (staged.length) return {mode:"write",summary:"Yeh changes hongay:",ops:staged,agent:true};
+      return {mode:"unsupported",reply:"Bohat steps lag gaye, request chhoti karke dobara likhein."};
+    }
+
+    const lgE=t=>escapeHtml(String(t==null?"":t)), lgF=n=>formatNumber(n);
+    const lgTime=()=>new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+    function lgAvatar(name){
+      let h=0; for (const ch of String(name)) h=(h*31+ch.charCodeAt(0))%360;
+      const ini=(String(name).trim()[0]||"?").toUpperCase();
+      return `<div class="lg-avatar" style="background:linear-gradient(135deg,hsl(${h} 72% 60%),hsl(${(h+45)%360} 66% 46%))">${lgE(ini)}</div>`;
+    }
+    const lgCheck=()=>`<svg class="lg-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>`;
+    const lgMoney=(n,cls,pre="Rs ")=>`<span class="${cls||""}" data-count="${Number(n)}" data-pre="${pre}">${pre}${lgF(n)}</span>`;
+    function lgBalChip(name,bal){
+      if (bal===undefined||bal===null||!isFinite(Number(bal))) return "";
+      bal=Number(bal);
+      if (bal>0.005)  return `<div class="lg-chip owe">⏳ Ab ${lgE(name)} ka udhaar <b>Rs ${lgF(bal)}</b></div>`;
+      if (bal<-0.005) return `<div class="lg-chip credit">💙 ${lgE(name)} ko wapis dene hain <b>Rs ${lgF(-bal)}</b></div>`;
+      return `<div class="lg-chip clear">✅ Hisaab barabar</div>`;
+    }
+    function lgSupChip(name,bal){
+      if (bal===undefined||bal===null||!isFinite(Number(bal))) return "";
+      bal=Number(bal);
+      if (bal>0.005)  return `<div class="lg-chip owe">⏳ Ab ${lgE(name)} ko <b>Rs ${lgF(bal)}</b> dene hain</div>`;
+      if (bal<-0.005) return `<div class="lg-chip credit">💙 ${lgE(name)} se <b>Rs ${lgF(-bal)}</b> wapis lene hain</div>`;
+      return `<div class="lg-chip clear">✅ Hisaab barabar</div>`;
+    }
+    const lgExpIcon=c=>{c=String(c||"").toLowerCase();
+      if (/fruit|phal/.test(c)) return "🍎"; if (/bill|bijli|gas|net|wifi/.test(c)) return "🧾"; if (/shop/.test(c)) return "🛍️";
+      if (/ration|grocer|saman/.test(c)) return "🛒"; if (/khana|food|lunch|dinner/.test(c)) return "🍽️"; if (/kiray|kiraya|rent/.test(c)) return "🏠"; return "💸";};
+    function lgWrap(tone,inner,cd){ return `<div class="lg-card tone-${tone}" style="--cd:${cd}s"><div class="lg-shine"></div>${inner}</div>`; }
+
+    function lgCardHtml(c,cd){
+      switch (c.kind) {
+        case "entry": {
+          const items=(c.items||[]).map((it,i)=>`<div class="lg-item" style="--i:${i}"><span>${it.qty>0?lgE(formatNumber(it.qty))+"x ":""}${lgE(it.product)}</span><i class="lg-dots"></i><b>Rs ${lgF(it.amount)}</b></div>`).join("");
+          return lgWrap("blue",`<div class="lg-head">${lgAvatar(c.customer)}<div class="lg-hd"><div class="lg-title">${lgE(c.customer)}</div><div class="lg-sub">${c.newAccount?"🆕 Naya khata · ":""}Khate mein likh diya · ${lgTime()}</div></div>${lgCheck()}</div>
+            <div class="lg-items">${items}</div>
+            <div class="lg-total"><span>Total</span>${lgMoney(c.total,"lg-num")}</div>${lgBalChip(c.customer,c.balance)}`,cd);
+        }
+        case "payment":
+          return lgWrap("green",`<div class="lg-head">${lgAvatar(c.customer)}<div class="lg-hd"><div class="lg-title">${lgE(c.customer)}</div><div class="lg-sub">Payment mil gayi · ${lgTime()}</div></div>${lgCheck()}</div>
+            <div class="lg-big">${lgMoney(c.amount,"","+ Rs ")}<small>khate se kam ho gaya</small></div>${lgBalChip(c.customer,c.balance)}`,cd);
+        case "cashout":
+          return lgWrap("amber",`<div class="lg-head">${lgAvatar(c.customer)}<div class="lg-hd"><div class="lg-title">${lgE(c.customer)}</div><div class="lg-sub">Khate mein charge · ${lgTime()}</div></div>${lgCheck()}</div>
+            <div class="lg-big">${lgMoney(c.amount,"","Rs ")}<small>khate mein add hua</small></div>${lgBalChip(c.customer,c.balance)}`,cd);
+        case "expense":
+          return lgWrap("violet",`<div class="lg-head"><div class="lg-ico-big">${lgExpIcon(c.category)}</div><div class="lg-hd"><div class="lg-title">${lgE(c.category||"Kharcha")}</div><div class="lg-sub">Dukaan ka apna kharcha · ${lgTime()}</div></div>${lgCheck()}</div>
+            <div class="lg-big">${lgMoney(c.amount,"","− Rs ")}<small>Expenses mein add hua</small></div>${c.note?`<div class="lg-note">📝 ${lgE(c.note)}</div>`:""}`,cd);
+        case "balance": {
+          const b=Number(c.balance||0), tone=b>0.005?"amber":b<-0.005?"blue":"green";
+          const line=b>0.005?"udhaar dena hai":b<-0.005?"unko wapis dene hain":"hisaab barabar hai";
+          return lgWrap(tone,`<div class="lg-head">${lgAvatar(c.customer)}<div class="lg-hd"><div class="lg-title">${lgE(c.customer)}</div><div class="lg-sub">${c.mobile?"📱 "+lgE(c.mobile):"Khata"}</div></div></div>
+            <div class="lg-big">${Math.abs(b)<0.005?"✅ Rs 0":lgMoney(Math.abs(b),"","Rs ")}<small>${lgE(line)}</small></div>`,cd);
+        }
+        case "newcustomer":
+          return lgWrap("teal",`<div class="lg-head">${lgAvatar(c.name)}<div class="lg-hd"><div class="lg-title">${lgE(c.name)}</div><div class="lg-sub">${c.mobile?"📱 "+lgE(c.mobile):"Mobile number nahi diya"}</div></div>${lgCheck()}</div>
+            <div class="lg-chip clear">🆕 Naya khata khul gaya</div>`,cd);
+        case "all": {
+          const max=Math.max(1,...(c.owe||[]).map(r=>r.bal));
+          const rows=(c.owe||[]).map((r,i)=>`<div class="lg-row" style="--i:${i}">${lgAvatar(r.name)}<div class="lg-rmain"><div class="lg-rname">${lgE(r.name)}</div><div class="lg-bar"><i style="--w:${Math.max(4,r.bal/max*100).toFixed(0)}%"></i></div></div><b class="amb">Rs ${lgF(r.bal)}</b></div>`).join("");
+          const more=c.oweMore?`<div class="lg-rsub">+ ${c.oweMore} aur customers</div>`:"";
+          const adv=(c.adv||[]).length?`<div class="lg-sec">Unko wapis dene hain</div><div class="lg-list">${c.adv.map((r,i)=>`<div class="lg-row" style="--i:${i}">${lgAvatar(r.name)}<div class="lg-rmain"><div class="lg-rname">${lgE(r.name)}</div></div><b class="pos">Rs ${lgF(-r.bal)}</b></div>`).join("")}</div>`:"";
+          return lgWrap("amber",`<div class="lg-head"><div class="lg-ico-big">🧾</div><div class="lg-hd"><div class="lg-title">Khata List</div><div class="lg-sub">${c.count} khatay active</div></div></div>
+            <div class="lg-big">${lgMoney(c.totalOwe||0,"","Rs ")}<small>total udhaar lene hain</small></div>
+            ${rows?`<div class="lg-sec">Udhaar lene hain</div><div class="lg-list">${rows}${more}</div>`:""}${adv}`,cd);
+        }
+        case "recent": {
+          const rows=(c.rows||[]).map((r,i)=>`<div class="lg-row" style="--i:${i}"><span class="lg-ico">${r.icon}</span><div class="lg-rmain"><div class="lg-rname">${lgE(r.title)}</div><div class="lg-rsub">${lgE(r.sub)}</div></div><b class="${r.tone}">${lgE(r.amt)}</b><span class="lg-tn">T${r.n}</span></div>`).join("");
+          return lgWrap("blue",`<div class="lg-head"><div class="lg-ico-big">📜</div><div class="lg-hd"><div class="lg-title">Recent Entries</div><div class="lg-sub">${(c.rows||[]).length} entries</div></div></div><div class="lg-list">${rows}</div><div class="lg-foot">Cancel ke liye likhein: "T2 cancel karo"</div>`,cd);
+        }
+        case "sup_entry": {
+          const items=(c.items||[]).map((it,i)=>`<div class="lg-item" style="--i:${i}"><span>${it.qty>0?lgE(formatNumber(it.qty))+"x ":""}${lgE(it.product)}</span><i class="lg-dots"></i><b>Rs ${lgF(it.amount)}</b></div>`).join("");
+          return lgWrap("amber",`<div class="lg-head">${lgAvatar(c.supplier)}<div class="lg-hd"><div class="lg-title">${lgE(c.supplier)}</div><div class="lg-sub">${c.newAccount?"🆕 Naya supplier · ":"🏭 "}Maal ka udhaar likh diya · ${lgTime()}</div></div>${lgCheck()}</div>
+            <div class="lg-items">${items}</div>
+            <div class="lg-total"><span>Total</span>${lgMoney(c.total,"lg-num")}</div>${lgSupChip(c.supplier,c.balance)}`,cd);
+        }
+        case "sup_payment":
+          return lgWrap("green",`<div class="lg-head">${lgAvatar(c.supplier)}<div class="lg-hd"><div class="lg-title">${lgE(c.supplier)}</div><div class="lg-sub">Supplier ko payment ho gayi · ${lgTime()}</div></div>${lgCheck()}</div>
+            <div class="lg-big">${lgMoney(c.amount,"","− Rs ")}<small>supplier ke khate se kam hua</small></div>${lgSupChip(c.supplier,c.balance)}`,cd);
+        case "sup_balance": {
+          const b=Number(c.balance||0), tone=b>0.005?"amber":b<-0.005?"blue":"green";
+          const line=b>0.005?"supplier ko dene hain":b<-0.005?"supplier se wapis lene hain":"hisaab barabar hai";
+          return lgWrap(tone,`<div class="lg-head">${lgAvatar(c.supplier)}<div class="lg-hd"><div class="lg-title">${lgE(c.supplier)}</div><div class="lg-sub">${c.mobile?"📱 "+lgE(c.mobile):"🏭 Supplier khata"}</div></div></div>
+            <div class="lg-big">${Math.abs(b)<0.005?"✅ Rs 0":lgMoney(Math.abs(b),"","Rs ")}<small>${lgE(line)}</small></div>`,cd);
+        }
+        case "sup_all": {
+          const max=Math.max(1,...(c.rows||[]).map(r=>Math.abs(r.bal)));
+          const rows=(c.rows||[]).map((r,i)=>`<div class="lg-row" style="--i:${i}">${lgAvatar(r.name)}<div class="lg-rmain"><div class="lg-rname">${lgE(r.name)}</div><div class="lg-bar"><i style="--w:${Math.max(4,Math.abs(r.bal)/max*100).toFixed(0)}%"></i></div></div><b class="${r.bal>0?"amb":"pos"}">Rs ${lgF(Math.abs(r.bal))}${r.bal<0?" (advance)":""}</b></div>`).join("");
+          return lgWrap("amber",`<div class="lg-head"><div class="lg-ico-big">🏭</div><div class="lg-hd"><div class="lg-title">Suppliers ka Udhaar</div><div class="lg-sub">${c.count} suppliers active</div></div></div>
+            <div class="lg-big">${lgMoney(c.total||0,"","Rs ")}<small>total dene hain</small></div><div class="lg-list">${rows}</div>`,cd);
+        }
+        case "newsupplier":
+          return lgWrap("teal",`<div class="lg-head">${lgAvatar(c.name)}<div class="lg-hd"><div class="lg-title">${lgE(c.name)}</div><div class="lg-sub">${c.mobile?"📱 "+lgE(c.mobile):"Mobile number nahi diya"}</div></div>${lgCheck()}</div>
+            <div class="lg-chip clear">🏭 Naya supplier khata khul gaya</div>`,cd);
+        case "answer":
+          return lgWrap("violet",`<div class="lg-head"><div class="lg-ico-big">✨</div><div class="lg-hd"><div class="lg-title">Sunny ka jawab</div><div class="lg-sub">Aapke data se hisab lagaya</div></div></div><div class="lg-answer">${formatText(c.text)}</div>`,cd);
+        case "error":
+          return lgWrap("red",`<div class="lg-head"><div class="lg-ico-big">⚠️</div><div class="lg-hd"><div class="lg-err-title">${lgE(c.title||"Masla aa gaya")}</div></div></div>${c.hint?`<div class="lg-answer">${formatText(c.hint)}</div>`:""}${c.detail?`<div class="lg-err-detail">${lgE(c.detail)}</div>`:""}`,cd);
+        default:
+          return lgWrap(c.tone||"blue",`<div class="lg-head"><div class="lg-ico-big">${lgE(c.icon||"💬")}</div><div class="lg-hd">${c.title?`<div class="lg-title">${lgE(c.title)}</div>`:""}<div class="${c.title?"lg-sub":"lg-title"}" style="${c.title?"":"white-space:normal;font-weight:500"}">${formatText(c.text||"")}</div></div></div>`,cd);
+      }
+    }
+
+    function lgAnimateCounts(root){
+      if (window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      root.querySelectorAll("[data-count]").forEach(el=>{
+        const target=Number(el.dataset.count), pre=el.dataset.pre||"Rs ";
+        if (!isFinite(target)) return;
+        const t0=performance.now()+250, dur=800;
+        const step=now=>{ if (now<t0){requestAnimationFrame(step);return;}
+          const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+          el.textContent=pre+lgF(p<1?Math.round(target*e):target);
+          if (p<1) requestAnimationFrame(step); };
+        el.textContent=pre+"0"; requestAnimationFrame(step);
+      });
+    }
+
+    async function renderLedgerResponse(entries){
+      const row=document.createElement("div");row.className="message-row model";
+      const html=entries.map((e,i)=>e.card?lgCardHtml(e.card,(i*0.14).toFixed(2)):(e.reply?`<div class="lg-text">${formatText(e.reply)}</div>`:"")).join("");
+      row.innerHTML=`${AVATAR_HTML}<div class="lg-stack">${html}</div>`;
+      chatFeed.appendChild(row);
+      lgAnimateCounts(row);
+      [0,300,700,1100].forEach(t=>setTimeout(scrollBottom,t));
+    }
+
+    function ledgerCombine(replies){
+      const list=replies.filter(Boolean).map(r=>typeof r==="string"?{reply:r}:r);
+      const reply=list.map(r=>r.reply).filter(Boolean).join("\n\n");
+      return list.some(r=>r.card)?{reply,cards:list}:{reply};
+    }
+
+    async function ledgerAllBalances(){
+      const customers=await firebaseRequest("Customers","GET")||{};
+      const rows=Object.keys(customers).map(k=>({name:(customers[k]?.Name)||k,bal:Number(customers[k]?.Balance||0)})).filter(r=>Math.abs(r.bal)>0.005);
+      if (!rows.length) return {ok:true,reply:"Kisi ka udhaar baqi nahi — sab hisaab saaf hai.",card:{kind:"notice",icon:"🎉",tone:"green",title:"Sab saaf!",text:"Kisi ka bhi udhaar baqi nahi hai."}};
+      const owe=rows.filter(r=>r.bal>0).sort((a,b)=>b.bal-a.bal), adv=rows.filter(r=>r.bal<0).sort((a,b)=>a.bal-b.bal);
+      const totalOwe=owe.reduce((t,r)=>t+r.bal,0);
+      let reply=`Khata List — total udhaar Rs ${formatNumber(totalOwe)}\n`+owe.map((r,i)=>`${i+1}. ${r.name} — Rs ${formatNumber(r.bal)}`).join("\n");
+      if (adv.length) reply+="\nWapis dene hain:\n"+adv.map((r,i)=>`${i+1}. ${r.name} — Rs ${formatNumber(-r.bal)}`).join("\n");
+      return {ok:true,reply,card:{kind:"all",owe:owe.slice(0,12),oweMore:Math.max(0,owe.length-12),adv:adv.slice(0,6),totalOwe,count:rows.length}};
+    }
+    async function ledgerRecent(){
+      const all=await firebaseRequest("Transactions","GET")||{};
+      const list=Object.keys(all).map(k=>all[k]).filter(t=>t&&!t.voided&&t.type!=="void"&&!t.ai_mirror).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,15);
+      if (!list.length) return {ok:true,reply:"Koi entry nahi mili.",card:{kind:"notice",icon:"📭",tone:"blue",text:"Abhi tak koi entry nahi hai."}};
+      const R=t=>{
+        const sub=[t.customer||t.supplier,t.date].filter(Boolean).join(" · ");
+        switch(t.type){
+          case "ledger_entry": return {icon:"📒",title:(t.items||[]).map(i=>i.product).slice(0,3).join(", ")||"Khata entry",sub,amt:"Rs "+formatNumber(t.total),tone:"amb"};
+          case "payment": return {icon:"💚",title:"Payment mili",sub,amt:"+ Rs "+formatNumber(t.amount),tone:"pos"};
+          case "cash_out": return {icon:"💛",title:"Khate mein charge",sub,amt:"Rs "+formatNumber(t.amount),tone:"amb"};
+          case "expense": return {icon:lgExpIcon(t.category),title:t.category||"Kharcha",sub:t.date||"",amt:"− Rs "+formatNumber(t.amount),tone:"neg"};
+          case "supplier_purchase": return {icon:"🏭",title:"Supplier maal",sub,amt:"Rs "+formatNumber(t.total),tone:"amb"};
+          case "supplier_payment": return {icon:"💸",title:"Supplier ko payment",sub,amt:"− Rs "+formatNumber(t.amount),tone:"neg"};
+          case "custom_op": return {icon:"✨",title:"Custom change",sub:(t.summary||"").slice(0,40),amt:"",tone:"amb"};
+          case "sale": return {icon:"🧾",title:"Sale",sub,amt:"Rs "+formatNumber(t.total),tone:"pos"};
+          default: return {icon:"•",title:t.type||"Entry",sub,amt:t.total||t.amount?"Rs "+formatNumber(t.total||t.amount):"",tone:"amb"};
+        }
+      };
+      const rows=list.map((t,i)=>({...R(t),n:i+1}));
+      return {ok:true,reply:"Recent entries:\n"+rows.map(r=>`T${r.n}. ${r.title} ${r.amt}`).join("\n"),card:{kind:"recent",rows}};
+    }
+
+    const lgNote=(icon,tone,text,title)=>({ok:true,reply:text,card:{kind:"notice",icon,tone,title,text}});
+    async function ledgerResolveSupplier(command) {
+      if (command.supplier_resolved) return {status:"found"};
+      if (!command.supplier) return {status:"missing"};
+      const sup=await firebaseRequest("Suppliers","GET")||{};
+      const m=findSupplier(command.supplier,sup);
+      if (m.status==="found") { command.supplier=m.supplier.Name||m.supplier._key; command.supplier_key=m.supplier._key; command.supplier_resolved=true; return {status:"found"}; }
+      if (m.status==="multiple") return {status:"multiple",names:(m.matches||[]).map(x=>x.name||x.Name).filter(Boolean)};
+      return {status:"new"};
+    }
+    async function ledgerSupplierGate(command, allowNew) {
+      const r=await ledgerResolveSupplier(command);
+      if (r.status==="missing") return lgNote("🏭","amber","Kis supplier ka likhna hai? Naam ke saath dobara likh dein.");
+      if (r.status==="multiple") return lgNote("🏭","amber",`Kai milte-julte supplier hain (${r.names.join(", ")}) — poora naam likh dein.`);
+      if (r.status==="new") {
+        if (!allowNew) return lgNote("🔍","blue",`"${command.supplier}" naam ka koi supplier nahi mila.`);
+        command.__created=true;
+      }
+      return null;
+    }
+    async function ledgerSupBalance(command) {
+      return Number(await firebaseRequest(`Suppliers/${supKey(command)}/Balance`,"GET")||0);
+    }
+    async function processLedgerSupplierPurchase(command) {
+      const supplier=String(command.supplier||"").trim();
+      const items=command.items||[];
+      const total=items.length?items.reduce((t,it)=>t+Number(it.amount||0),0):Number(command.amount||0);
+      if (!supplier) return {ok:false,reply:"Supplier ka naam batayein."};
+      if (!(total>0)) return {ok:false,reply:"Total amount 0 ban raha hai — dobara likh dein."};
+      const sk=supKey(command);
+      const updates={};
+      updates[`Suppliers/${sk}/Name`]=supplier;
+      addInc(updates,`Suppliers/${sk}/Balance`,total);
+      const txId=command.client_txn_id||("SP_"+Date.now());
+      const txItems=items.map(it=>({product:it.product,qty:Number(it.qty||0),cost:it.qty>0?Number(it.amount)/Number(it.qty):Number(it.amount),amount:Number(it.amount),is_misc:true}));
+      const tx={id:txId,type:"supplier_purchase",supplier,supplier_key:sk,items:txItems,total,timestamp:Date.now(),date:getTodayString()};
+      updates[`Transactions/${txId}`]=tx;
+      return {ok:true,reply:`Theek hai, ${supplier} ke khate mein Rs ${formatNumber(total)} ka maal likh diya.`,updates,transaction:tx};
+    }
+    async function ledgerCreateParty(command, isSupplier) {
+      const name=String((isSupplier?command.supplier:command.customer)||"").trim();
+      if (!name) return lgNote("📝","amber","Naya khata kis naam se banana hai?");
+      const root=isSupplier?"Suppliers":"Customers";
+      const all=(isSupplier?await firebaseRequest("Suppliers","GET"):await getCustomersCached())||{};
+      const m=isSupplier?findSupplier(name,all):findCustomer(name,all);
+      const hitName=m.status==="found"?(m.supplier||m.customer).Name:"";
+      if (hitName&&canonicalName(hitName)===canonicalName(name)) return lgNote("ℹ️","blue",`${hitName} ka khata pehle se mojood hai.`);
+      if (!isSupplier) return executeLedgerCommand({action:"create_ledger_customer",name,mobile:command.mobile});
+      const sk=sanitizeFirebaseKey(name);
+      const updates={[`${root}/${sk}/Name`]:name};
+      if (command.mobile) updates[`${root}/${sk}/Mobile`]=String(command.mobile).trim();
+      await firebaseRequest("","PATCH",updates);
+      return {ok:true,saved:true,reply:`${name} ka naya supplier khata bana diya.`,card:{kind:"newsupplier",name,mobile:command.mobile||""}};
+    }
+
+    async function executeLedgerCommand(command) {
+      const r=await executeLedgerCommandCore(command);
+      if (r&&r.ok===false&&!r.card&&r.reply) r.card={kind:"error",title:r.reply};
+      return r;
+    }
+    async function executeLedgerCommandCore(command) {
+      if (command?.user_text) __curText=command.user_text; else if (command?.pending_context?.__multi_orig) __curText=command.pending_context.__multi_orig;
+      if (!command?.action) return {ok:false,reply:"Command samajh nahi aayi."};
+      const action=String(command.action).toLowerCase();
+
+      if (action==="chat") return {ok:true,reply:command.reply||"Acha g, aur kuch madad kar sakta hoon?",card:command.__card};
+
+      if (action==="resolve_ledger_customer_name") {
+        const ctx=command.pending_context;
+        if (!ctx) return {ok:false,reply:"Session expire ho gayi, dobara likh dein."};
+        const name=String(command.name||"").trim();
+        if (!name) return {ok:true,type:"need_ledger_customer_name",reply:"Sirf naam likh dein:",pending_context:ctx};
+        ctx.customer=name; delete ctx.customer_key; delete ctx.customer_resolved;
+        return executeLedgerCommand(ctx);
+      }
+
+      if (action==="resolve_ledger_customer_pick") {
+        const ctx=command.pending_context;
+        if (!ctx) return {ok:false,reply:"Session expire ho gayi, dobara likh dein."};
+        if (command.create_new) return {ok:true,type:"need_ledger_new_customer_form",reply:"Naya khata banate hain:",pending_context:ctx,prefill_name:ctx.customer};
+        ctx.customer=command.selected_customer; ctx.customer_key=command.selected_customer_key||""; ctx.customer_resolved=true;
+        return executeLedgerCommand(ctx);
+      }
+
+      if (action==="resolve_ledger_new_customer_confirm") {
+        const ctx=command.pending_context;
+        if (!ctx) return {ok:false,reply:"Session expire ho gayi, dobara likh dein."};
+        if (!command.confirm) return {ok:true,reply:"Theek hai, chorte hain."};
+        return {ok:true,type:"need_ledger_new_customer_form",reply:"Naya khata banate hain:",pending_context:ctx,prefill_name:ctx.customer};
+      }
+
+      if (action==="create_ledger_customer") {
+        const name=String(command.name||"").trim();
+        const ctx=command.pending_context;
+        if (!name) return {ok:true,type:"need_ledger_new_customer_form",reply:"Customer ka naam likhna zaroori hai.",pending_context:ctx,prefill_name:""};
+        const ck=sanitizeFirebaseKey(name);
+        const updates={[`Customers/${ck}/Name`]:name};
+        if (command.mobile) updates[`Customers/${ck}/Mobile`]=String(command.mobile).trim();
+        await firebaseRequest("","PATCH",updates);
+        patchLocalCaches(updates);
+        if (!ctx) return {ok:true,saved:true,reply:`${name} ka naya khata bana diya.`,card:{kind:"newcustomer",name,mobile:command.mobile||""}};
+        ctx.customer=name; ctx.customer_key=ck; ctx.customer_resolved=true; ctx.__created=true;
+        return executeLedgerCommand(ctx);
+      }
+
+      if (action==="resolve_ledger_missing_price") {
+        const ctx=command.pending_context;
+        if (!ctx?.items) return {ok:false,reply:"Session expire ho gayi, dobara likh dein."};
+        if (command.skip) {
+          const skipIdx=(command.missing_indices||[]).map(Number);
+          ctx.items=ctx.items.filter((_,i)=>!skipIdx.includes(i));
+          if (!ctx.items.length) return {ok:false,reply:"Sab items missing thay — koi baaqi nahi bacha."};
+        } else {
+          const prices=command.prices||{};
+          ctx.items.forEach((it,i)=>{ if (prices[i]!==undefined) it.amount=Number(prices[i]); });
+        }
+        return executeLedgerCommand(ctx);
+      }
+
+      if (action==="smart") {
+        const req=String(command.request||command.user_text||"").trim();
+        let plan=await runSmartAgent(req);
+        if (plan.mode==="error"&&plan.fallback) plan=await planSmartLedgerRequest(req);
+        if (plan.mode==="write") return {ok:true,type:"need_ledger_op_confirm",reply:plan.summary,ops:plan.ops,pending_context:plan.agent?{...command,__agent:true}:command};
+        if (plan.mode==="answer") return {ok:true,reply:plan.reply,card:{kind:"answer",text:plan.reply}};
+        
+        if (plan.mode==="input") return {ok:true,type:"need_ledger_smart_input",reply:plan.reply,field:plan.field,path:plan.path,pending_context:command};
+        
+        if (plan.mode==="error") return {ok:false,reply:`${plan.error.title}. ${plan.error.hint}`,card:{kind:"error",...plan.error}};
+        return {ok:true,reply:plan.reply,card:{kind:"notice",icon:"🤔",tone:"amber",title:"Yeh nahi ho saka",text:plan.reply}};
+      }
+
+      if (action==="resolve_ledger_smart_input") {
+        if (!command.value) return {ok: false, reply: "Value nahi mili."};
+        const updates = {};
+        updates[command.path] = command.value;
+        const txId = command.client_txn_id || ("CUSTOM_" + Date.now());
+        const tx = {id: txId, type: "custom_op", summary: `Updated ${command.field}`, ops: [{op: "set", path: command.path, value: command.value}], timestamp: Date.now(), date: getTodayString()};
+        updates[`Transactions/${txId}`] = tx;
+        const res = await commitResult({
+            ok: true, 
+            reply: "Ho gaya — change save kar diya.", 
+            updates, 
+            transaction: tx, 
+            card: {kind: "notice", icon: "✨", tone: "green", title: `${command.field} Update Ho Gaya`, text: `Nayi value: **${command.value}**`}
+        });
+        localStorage.removeItem(CUSTOMER_CACHE_KEY); 
+        return res;
+      }
+
+      if (action==="resolve_ledger_op_confirm") {
+        if (!command.confirm) return {ok:true,reply:"Theek hai, koi change nahi kiya.",card:{kind:"notice",icon:"👍",tone:"blue",text:"Theek hai, koi change nahi kiya."}};
+        let ops;
+        try { ops=command.pending_context?.__agent?validateAgentOps(command.ops):validateLedgerOps(command.ops); } catch(e) { return {ok:false,reply:e.message}; }
+        const updates={};
+        ops.forEach(o=>{
+          if (o.op==="set") updates[o.path]=o.value;
+          else if (o.op==="delete") updates[o.path]=null;
+          else addInc(updates,o.path,o.value);
+        });
+        const txId=command.client_txn_id||("CUSTOM_"+Date.now());
+        const tx={id:txId,type:"custom_op",summary:String(command.pending_context?.request||"custom change").slice(0,200),ops,timestamp:Date.now(),date:getTodayString()};
+        updates[`Transactions/${txId}`]=tx;
+        const res=await commitResult({ok:true,reply:"Ho gaya — change save kar diya.",updates,transaction:tx,card:{kind:"notice",icon:"✨",tone:"green",title:"Change ho gaya",text:`${ops.length} change save ho gaye — undo ke liye "T1 cancel karo" likhein.`}});
+        localStorage.removeItem(CUSTOMER_CACHE_KEY); 
+        return res;
+      }
+
+      if (action==="create_customer") return ledgerCreateParty(command,false);
+      if (action==="create_supplier") return ledgerCreateParty(command,true);
+
+      if (action==="supplier_purchase") {
+        const gate=await ledgerSupplierGate(command,true); if (gate) return gate;
+        if ((command.items||[]).some(i=>!(Number(i.amount)>0))||(!(command.items||[]).length&&!(Number(command.amount)>0))) return lgNote("💬","amber","In cheezon ki qeemat (Rs) bhi likh dein, phir main supplier ke khate mein daal deta hoon.");
+        const res=await commitResult(await processLedgerSupplierPurchase(command));
+        if (res.ok&&res.saved) res.card={kind:"sup_entry",supplier:command.supplier,items:command.items||[],total:res.transaction?.total,newAccount:!!command.__created,balance:await ledgerSupBalance(command).catch(()=>undefined)};
+        return res;
+      }
+      if (action==="supplier_payment") {
+        const gate=await ledgerSupplierGate(command,true); if (gate) return gate;
+        const res=await commitResult(await processSupplierPayment(command));
+        if (res.ok&&res.saved) { res.reply=`Theek hai, ${command.supplier} ko Rs ${formatNumber(command.amount)} de diye.`; res.card={kind:"sup_payment",supplier:command.supplier,amount:Number(command.amount),balance:await ledgerSupBalance(command).catch(()=>undefined)}; }
+        return res;
+      }
+      if (action==="supplier_balance") {
+        const gate=await ledgerSupplierGate(command,false); if (gate) return gate;
+        const sp=await firebaseRequest(`Suppliers/${supKey(command)}`,"GET")||{};
+        const bal=Number(sp.Balance||0);
+        return {ok:true,reply:bal>0.005?`${command.supplier} ko Rs ${formatNumber(bal)} dene hain.`:bal<-0.005?`${command.supplier} se Rs ${formatNumber(-bal)} wapis lene hain.`:`${command.supplier} ka hisaab barabar hai.`,card:{kind:"sup_balance",supplier:command.supplier,balance:bal,mobile:sp.Mobile||""}};
+      }
+      if (action==="all_supplier_balances") {
+        const sup=await firebaseRequest("Suppliers","GET")||{};
+        const rows=Object.keys(sup).map(k=>({name:sup[k]?.Name||k,bal:Number(sup[k]?.Balance||0)})).filter(r=>Math.abs(r.bal)>0.005).sort((a,b)=>b.bal-a.bal);
+        if (!rows.length) return lgNote("🎉","green","Kisi supplier ka udhaar baqi nahi hai.","Sab saaf!");
+        const total=rows.filter(r=>r.bal>0).reduce((t,r)=>t+r.bal,0);
+        return {ok:true,reply:`Suppliers ka udhaar — total Rs ${formatNumber(total)}\n`+rows.map((r,i)=>`${i+1}. ${r.name} — Rs ${formatNumber(r.bal)}`).join("\n"),card:{kind:"sup_all",rows:rows.slice(0,15),total,count:rows.length}};
+      }
+      if (action==="expense_report") {
+        const res=await processExpenseReport(command);
+        return {ok:true,reply:res.reply,card:{kind:"notice",icon:"💸",tone:"violet",title:"Expense Report",text:String(res.reply||"").replace(/^[^\wاآ-ی]+/,"").replace(/^Expense Report\s*/,"")}};
+      }
+      if (action==="cash_balance") {
+        const res=await processCashBalance();
+        const cash=Number((await firebaseRequest("CashManagement/CashInHand","GET"))||0);
+        return {ok:true,reply:res.reply,card:{kind:"notice",icon:"🏦",tone:"green",title:"Gallay mein cash",text:`Rs ${formatNumber(cash)}`}};
+      }
+
+      if (action==="customer_payment") {
+        const block=await ledgerNeedsCustomerFirst(command); if (block) return block;
+        const res=await commitResult(await processCustomerPayment(command));
+        if (res.ok&&res.saved) { res.reply=`Theek hai, ${command.customer} ne Rs ${formatNumber(command.amount)} ada kar diye.`; res.card={kind:"payment",customer:command.customer,amount:command.amount}; }
+        return appendLedgerBalanceFootnote(res,command);
+      }
+      if (action==="customer_cash_out") {
+        const block=await ledgerNeedsCustomerFirst(command); if (block) return block;
+        const res=await commitResult(await processCustomerCashOut(command));
+        if (res.ok&&res.saved) { res.reply=`Theek hai, ${command.customer} ke khate mein Rs ${formatNumber(command.amount)} likh diya.`; res.card={kind:"cashout",customer:command.customer,amount:command.amount}; }
+        return appendLedgerBalanceFootnote(res,command);
+      }
+      if (action==="customer_balance") {
+        const block=await ledgerNeedsCustomerFirst(command); if (block) return block;
+        const res=await processCustomerBalance(command);
+        if (res.ok&&res.reply) {
+          res.reply=res.reply.split("\n\n")[0];
+          const c=await firebaseRequest(`Customers/${command.customer_key||sanitizeFirebaseKey(command.customer)}`,"GET")||{};
+          res.card={kind:"balance",customer:command.customer,balance:Number(c.Balance||0),mobile:c.Mobile||""};
+        }
+        return res;
+      }
+      if (action==="all_balances") return ledgerAllBalances();
+      if (action==="list_recent_transactions") return ledgerRecent();
+      if (action==="void_transaction"||action==="undo_last") {
+        const r=await commitResult(await (action==="void_transaction"?processVoidTransaction(command,{}):processUndoLast(command,{})));
+        if (r.saved) localStorage.removeItem(LAST_TXN_KEY);
+        if (r.reply) r.card={kind:"notice",icon:r.saved?"↩️":"ℹ️",tone:r.saved?"amber":"blue",title:r.saved?"Entry cancel ho gayi":undefined,text:String(r.reply).replace(/^[^\wاآ-ی]+/,"")};
+        return r;
+      }
+      if (action==="expense_add") {
+        const res=await commitResult(await processExpenseAdd(command));
+        if (res.ok&&res.saved) { res.reply=`Theek hai, ${command.category||"kharcha"} likh diya — Rs ${formatNumber(command.amount)}.`; res.card={kind:"expense",category:command.category||"Kharcha",amount:command.amount,note:command.note||""}; }
+        return res;
+      }
+
+      if (action==="ledger_entry") {
+        const block=await ledgerNeedsCustomerFirst(command); if (block) return block;
+        const missing=checkLedgerMissingAmounts(command); if (missing) return missing;
+        return appendLedgerBalanceFootnote(await commitResult(await processLedgerEntryCommit(command)),command);
+      }
+
+      return {ok:false,reply:`Yeh action samajh nahi aaya: ${command.action}`};
+    }
+
+    async function runLedgerMultiCommand(remaining, txnId, origText, priorReplies, startIndex) {
+      const replies = priorReplies || [];
+      let idx = startIndex || 0;
+      while (remaining.length) {
+        const cmd = remaining[0];
+        cmd.client_txn_id = `${txnId}_p${idx}`;
+        cmd.user_text = origText;
+        const data = await executeLedgerCommand(cmd);
+
+        if (LEDGER_INTERACTIVE.has(data.type)) {
+          const carry = {__multi_remaining: remaining.slice(1), __multi_replies: replies, __multi_orig: origText, __multi_index: idx};
+          if (data.pending_context) data.pending_context = {...data.pending_context, ...carry};
+          else Object.assign(data, carry);
+          return {ok:true, paused:true, data, replies};
+        }
+
+        if (data.ok&&(data.transaction||data.saved||LEDGER_NON_SAVING_ACTIONS.has(cmd.action))) {
+          const ds=getTodayString();
+          firebaseRequest(`ChatHistory/${ds}/${txnId}_p${idx}`,"PUT",{user:origText,ai:data.reply,timestamp:Date.now()}).catch(()=>{});
+        }
+        if (data.reply||data.card) replies.push({reply:data.reply,card:data.card});
+        remaining = remaining.slice(1);
+        idx++;
+      }
+      return {ok:true, paused:false, replies};
+    }
+
+    function dispatchLedgerResolve(qId, action, extraPayload, label) {
+      disableAllPreviousActions();isAwaitingInput=false;toggleInput(false);
+      const qi=commandQueue.find(q=>q.id===qId);
+      if (qi){qi.id=qi.id+"_lg_"+Date.now();qi.payload={action,...extraPayload};qi.displayLabel=label;qi.status="queued";delete qi.interactiveData;saveQueue();updateBubbleStatus(appendUserMessage(qi.displayLabel,qi.id),"queued");processQueue();}
+    }
+
+    function renderLedgerAskName(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${formatText(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="lnBox"></div></div></div>`;
+      const box=row.querySelector("#lnBox");
+      box.innerHTML=`
+        <div class="manual-item-row"><span class="manual-item-name">Customer Naam</span><input type="text" id="lnName" class="manual-input" style="text-align:left" placeholder="Naam likhein"/></div>
+        <div class="form-btn-group">
+          <button type="button" class="cancel-form-btn" id="lnCancel">Cancel</button>
+          <button type="button" class="submit-prices-btn" id="lnSubmit">Confirm</button>
+        </div>`;
+      box.querySelector("#lnCancel").onclick=()=>cancelInteractiveItem(qId,"🚫 Cancel kar diya.");
+      box.querySelector("#lnSubmit").onclick=()=>{
+        const name=box.querySelector("#lnName").value.trim();
+        if (!name){alert("Naam likhna zaroori hai!");return;}
+        dispatchLedgerResolve(qId,"resolve_ledger_customer_name",{name,pending_context:data.pending_context},name);
+      };
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderLedgerCustomerPick(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${formatText(data.reply)}</div><div class="interactive-card actions-grid"></div></div>`;
+      const grid=row.querySelector(".actions-grid");
+      (data.options||[]).forEach(opt=>{
+        const chip=document.createElement("button");chip.className="option-chip";
+        chip.innerHTML=`<span>👤 ${escapeHtml(opt.name)}</span>`;
+        chip.onclick=()=>dispatchLedgerResolve(qId,"resolve_ledger_customer_pick",{selected_customer:opt.name,selected_customer_key:opt.key,pending_context:data.pending_context},`Selected:${opt.name}`);
+        grid.appendChild(chip);
+      });
+      const newChip=document.createElement("button");newChip.className="option-chip";newChip.style.borderColor="var(--success-green)";
+      newChip.innerHTML=`<span>➕ Naya Khata: "${escapeHtml(data.pending_context.customer)}"</span>`;
+      newChip.onclick=()=>dispatchLedgerResolve(qId,"resolve_ledger_customer_pick",{create_new:true,pending_context:data.pending_context},"Naya Khata");
+      grid.appendChild(newChip);
+      const cancelChip=document.createElement("button");cancelChip.className="option-chip cancel-chip";cancelChip.textContent="❌ Cancel";
+      cancelChip.onclick=()=>cancelInteractiveItem(qId,"🚫 Cancel kar diya.");
+      grid.appendChild(cancelChip);
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderLedgerNewCustomerConfirm(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${formatText(data.reply)}</div><div class="interactive-card actions-grid" id="lncGrid"></div></div>`;
+      const grid=row.querySelector("#lncGrid");
+      const yesBtn=document.createElement("button");yesBtn.className="option-chip";yesBtn.style.borderColor="var(--success-green)";yesBtn.textContent="✅ Haan, khata banao";
+      yesBtn.onclick=()=>dispatchLedgerResolve(qId,"resolve_ledger_new_customer_confirm",{confirm:true,pending_context:data.pending_context},"Haan, khata banao");
+      const noBtn=document.createElement("button");noBtn.className="option-chip cancel-chip";noBtn.textContent="❌ Cancel";
+      noBtn.onclick=()=>cancelInteractiveItem(qId,"🚫 Cancel kar diya.");
+      grid.appendChild(yesBtn);grid.appendChild(noBtn);
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderLedgerNewCustomerForm(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${formatText(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="lcfBox"></div></div></div>`;
+      const box=row.querySelector("#lcfBox");
+      box.innerHTML=`
+        <div class="manual-item-row"><span class="manual-item-name">Customer Naam</span><input type="text" id="lcfName" class="manual-input" style="text-align:left" placeholder="Naam" value="${escapeHtml(data.prefill_name||"")}"/></div>
+        <div class="manual-item-row"><span class="manual-item-name">Mobile (optional)</span><input type="tel" id="lcfMobile" class="manual-input" style="text-align:left" placeholder="03xx-xxxxxxx"/></div>
+        <div class="form-btn-group">
+          <button type="button" class="cancel-form-btn" id="lcfCancel">Cancel</button>
+          <button type="button" class="submit-prices-btn" id="lcfOk">Ok</button>
+        </div>`;
+      box.querySelector("#lcfCancel").onclick=()=>cancelInteractiveItem(qId,"🚫 Khata creation cancel kar diya.");
+      box.querySelector("#lcfOk").onclick=()=>{
+        const name=box.querySelector("#lcfName").value.trim();
+        if (!name){alert("Customer ka naam likhna zaroori hai!");return;}
+        const mobile=box.querySelector("#lcfMobile").value.trim();
+        dispatchLedgerResolve(qId,"create_ledger_customer",{name,mobile,pending_context:data.pending_context},`Naya Khata:${name}`);
+      };
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderLedgerMissingPrice(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div>${formatText(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="lmpBox"></div></div></div>`;
+      const box=row.querySelector("#lmpBox");
+      const inputMap={};
+      (data.missing_items||[]).forEach(item=>{
+        const line=document.createElement("div");line.className="manual-item-row";
+        line.innerHTML=`<span class="manual-item-name">${escapeHtml(item.product)}</span><input type="number" class="manual-input" placeholder="Price (Rs)" min="1" step="any"/>`;
+        inputMap[item.i]=line.querySelector("input");box.appendChild(line);
+      });
+      const btnRow=document.createElement("div");btnRow.className="form-btn-group";
+      const skipBtn=document.createElement("button");skipBtn.type="button";skipBtn.className="cancel-form-btn";skipBtn.textContent="Skip";
+      skipBtn.onclick=()=>dispatchLedgerResolve(qId,"resolve_ledger_missing_price",{skip:true,missing_indices:(data.missing_items||[]).map(m=>m.i),pending_context:data.pending_context},"Skip missing items");
+      const cancelBtn=document.createElement("button");cancelBtn.type="button";cancelBtn.className="cancel-form-btn";cancelBtn.textContent="🚫 Cancel";
+      cancelBtn.onclick=()=>cancelInteractiveItem(qId,"🚫 Cancel kar diya.");
+      const confBtn=document.createElement("button");confBtn.className="submit-prices-btn";confBtn.textContent="Confirm";
+      confBtn.onclick=()=>{
+        const prices={};let valid=true;
+        for (const i of Object.keys(inputMap)) {
+          const v=Number(inputMap[i].value);
+          if (!v||v<=0){inputMap[i].style.borderColor="var(--danger-color)";valid=false;}
+          else {inputMap[i].style.borderColor="var(--border-subtle)";prices[i]=v;}
+        }
+        if (valid) dispatchLedgerResolve(qId,"resolve_ledger_missing_price",{prices,pending_context:data.pending_context},"Prices confirmed");
+      };
+      btnRow.appendChild(skipBtn);btnRow.appendChild(cancelBtn);btnRow.appendChild(confBtn);
+      box.appendChild(btnRow);
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderLedgerOpConfirm(data,qId,orig){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div style="margin-bottom:8px;">${formatText(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="lopBox"></div></div></div>`;
+      const box=row.querySelector("#lopBox");
+      const nice=p=>p.split("/").slice(1).join(" › ");
+      (data.ops||[]).forEach(o=>{
+        const line=document.createElement("div");line.className="manual-item-row";
+        const what=o.op==="delete"?`❌ hatega`:o.op==="increment"?`${o.value>0?"+":""}${formatNumber(o.value)}`:`<span style="color:var(--text-muted); text-decoration:line-through; margin-right:6px;">${o.prev!==undefined?escapeHtml(String(o.prev)):""}</span> <span style="color:#fff;">${escapeHtml(String(o.value))}</span>`;
+        line.innerHTML=`<span class="manual-item-name" style="color:var(--accent-blue); font-weight:600;">${escapeHtml(nice(o.path))}</span><span style="font-weight:500;">${what}</span>`;
+        box.appendChild(line);
+      });
+      const btnRow=document.createElement("div");btnRow.className="form-btn-group";
+      const cancelBtn=document.createElement("button");cancelBtn.type="button";cancelBtn.className="cancel-form-btn";cancelBtn.textContent="Cancel";
+      cancelBtn.onclick=()=>cancelInteractiveItem(qId,"Theek hai, koi change nahi kiya.");
+      const okBtn=document.createElement("button");okBtn.type="button";okBtn.className="submit-prices-btn";okBtn.textContent="Ok, kar do";
+      okBtn.onclick=()=>dispatchLedgerResolve(qId,"resolve_ledger_op_confirm",{confirm:true,ops:data.ops,pending_context:data.pending_context},"Ok, kar do");
+      btnRow.appendChild(cancelBtn);btnRow.appendChild(okBtn);box.appendChild(btnRow);
+      chatFeed.appendChild(row);scrollBottom();
+    }
+
+    function renderLedgerSmartInput(data, qId, orig) {
+      const row = document.createElement("div"); row.className = "message-row model";
+      row.innerHTML = `${AVATAR_HTML}<div class="content-block">${quoteHtml(orig)}<div style="margin-bottom:8px;">${formatText(data.reply)}</div><div class="interactive-card"><div class="manual-price-box" id="lsiBox" style="background:linear-gradient(145deg, #1e1f20, #17181a); border: 1px solid rgba(124,172,248,0.2);"></div></div></div>`;
+      const box = row.querySelector("#lsiBox");
+      
+      box.innerHTML = `
+        <div class="manual-item-row" style="margin-bottom:14px; align-items:center;">
+          <span class="manual-item-name" style="font-weight:600; color:var(--accent-blue); font-size: 0.95rem;">${escapeHtml(data.field || "Nayi Value")}</span>
+          <input type="text" id="lsiInput" class="manual-input" style="flex:1; max-width:65%; background:#131314; border-radius:10px; padding:10px 12px; font-size:0.95rem; text-align:left;" placeholder="Yahan likhein..."/>
+        </div>
+        <div class="form-btn-group">
+          <button type="button" class="cancel-form-btn" id="lsiCancel" style="flex:0.5;">Cancel</button>
+          <button type="button" class="submit-prices-btn" id="lsiOk" style="flex:1;">Ok, Save</button>
+        </div>`;
+        
+      box.querySelector("#lsiCancel").onclick = () => cancelInteractiveItem(qId, "🚫 Cancel kar diya.");
+      box.querySelector("#lsiOk").onclick = () => {
+        const val = box.querySelector("#lsiInput").value.trim();
+        if (!val) { alert("Nayi value likhna zaroori hai!"); return; }
+        dispatchLedgerResolve(qId, "resolve_ledger_smart_input", {
+            value: val, 
+            field: data.field, 
+            path: data.path, 
+            pending_context: data.pending_context
+        }, `Change: ${val}`);
+      };
+      
+      chatFeed.appendChild(row); 
+      scrollBottom();
+      setTimeout(() => { try { box.querySelector("#lsiInput").focus(); } catch (e) {} }, 300);
+    }
+
+    function appendUserMessage(text,id){
+      const row=document.createElement("div");row.className="message-row user";if(id)row.id=id;
+      const time=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+      row.innerHTML=`<div class="content-block"><div>${escapeHtml(text)}</div><div class="msg-meta"><span>${time}</span><span class="status-tick"></span></div></div>`;
+      chatFeed.appendChild(row);scrollBottom();return row;
+    }
+    function updateBubbleStatus(el,status){
+      if (!el) return;const tick=el.querySelector(".status-tick");
+      if (status==="queued") tick.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="var(--text-muted)"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>`;
+      else if(status==="sending") tick.innerHTML='<div class="mini-spinner"></div>';
+      else if(status==="delivered") tick.innerHTML=`<svg width="15" height="15" viewBox="0 0 24 24" fill="var(--accent-blue)"><path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.41 11.93l-1.41 1.41 5.66 5.66 12-12-1.42-1.41zM.41 13.34l5.66 5.66 1.41-1.41-5.66-5.66-1.41 1.41z"/></svg>`;
+      else if(status==="failed") tick.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="var(--danger-color)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+    }
+    function appendShimmer(){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="shimmer-container"><div class="shimmer-line"></div><div class="shimmer-line short"></div></div>`;
+      chatFeed.appendChild(row);scrollBottom();return row;
+    }
+    async function streamModelResponse(fullText){
+      const row=document.createElement("div");row.className="message-row model";
+      row.innerHTML=`${AVATAR_HTML}<div class="content-block"></div>`;
+      chatFeed.appendChild(row);
+      const block=row.querySelector(".content-block");
+      for (const chunk of fullText.split(/(\n+)/)){block.textContent+=chunk;scrollBottom();if(chunk.trim().length>0)await new Promise(r=>setTimeout(r,4));}
+    }
+    function setNetworkProgress(active){networkBar.classList.toggle("active",active);}
+    function scrollBottom(){chatFeed.scrollTop=chatFeed.scrollHeight;}
+  </script>
+</body>
+</html>
