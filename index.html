@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+  <title>Sunny AI Khata</title>
+  <link rel="preconnect" href="https://api.groq.com" crossorigin>
+  <link rel="dns-prefetch" href="https://api.groq.com">
+  <link rel="preconnect" href="https://shop-pos-59971-default-rtdb.firebaseio.com" crossorigin>
+  <link rel="dns-prefetch" href="https://shop-pos-59971-default-rtdb.firebaseio.com">
+  <style>
+    :root {
+      --bg-main:#131314;--surface:#1e1f20;--surface-variant:#282a2c;
+      --text-primary:#e3e3e3;--text-secondary:#c4c7c5;--text-muted:#8e918f;
+      --accent-blue:#a8c7fa;--accent-spark:#7cacf8;--input-bg:#1e1f20;
+      --border-subtle:#444746;--danger-color:#f28b82;--warning-color:#fdd663;
+      --success-green:#34a853;--font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:var(--font-family);-webkit-tap-highlight-color:transparent}
+    html,body{background-color:var(--bg-main);color:var(--text-primary);width:100%;height:100%;height:100dvh;overflow:hidden;position:fixed}
+    body{display:flex;flex-direction:column}
+    header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:rgba(19,19,20,.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.06);z-index:10;position:relative}
+    .brand{display:flex;align-items:center;gap:10px;font-size:1.1rem;font-weight:500}
+    .gemini-spark{width:20px;height:20px;fill:url(#gemini-gradient)}
+    .status-group{display:flex;align-items:center;gap:8px}
+    .connection-dot{width:8px;height:8px;border-radius:50%;background:var(--success-green);box-shadow:0 0 6px var(--success-green);transition:background .3s,box-shadow .3s}
+    .tag-badge{font-size:.75rem;background:var(--surface-variant);color:var(--text-secondary);padding:3px 9px;border-radius:12px;border:1px solid var(--border-subtle);font-family:monospace}
+    .network-bar{position:absolute;bottom:0;left:0;width:100%;height:2px;background:transparent;overflow:hidden}
+    .network-bar-fill{width:0%;height:100%;background:linear-gradient(90deg,var(--accent-spark),var(--accent-blue));transition:width .3s ease}
+    .network-bar.active .network-bar-fill{width:80%;animation:pulseProgress 1.8s infinite ease-in-out}
+    @keyframes pulseProgress{0%{transform:translateX(-100%);width:40%}50%{transform:translateX(50%);width:60%}100%{transform:translateX(150%);width:40%}}
+    main{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px;display:flex;flex-direction:column;gap:20px;max-width:800px;width:100%;margin:0 auto;scroll-behavior:smooth}
+    .message-row{display:flex;gap:12px;width:100%;contain:layout}
+    .message-row.user{justify-content:flex-end}
+    .avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--surface)}
+    .content-block{max-width:84%;font-size:.94rem;line-height:1.55;color:var(--text-primary);white-space:pre-wrap;word-break:break-word}
+    .message-row.user .content-block{background:var(--surface);padding:10px 16px;border-radius:18px;border-bottom-right-radius:4px;color:#fff;display:flex;flex-direction:column;align-items:flex-end}
+    .quote-block{font-size:.82rem;color:var(--text-secondary);background:rgba(124,172,248,.1);padding:6px 10px;border-left:3px solid var(--accent-spark);border-radius:4px;margin-bottom:10px;font-style:italic;word-break:break-word}
+    .msg-meta{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--text-muted);margin-top:5px}
+    .status-tick{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px}
+    .mini-spinner{width:10px;height:10px;border:1.5px solid rgba(255,255,255,.2);border-top-color:var(--accent-blue);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .message-row.model .content-block{padding-top:2px}
+    .shimmer-container{display:flex;flex-direction:column;gap:8px;width:220px;padding-top:6px}
+    .shimmer-line{height:13px;border-radius:6px;background:linear-gradient(90deg,#1e1f20 25%,#2d2f31 50%,#1e1f20 75%);background-size:200% 100%;animation:geminiShimmer 1.4s infinite}
+    .shimmer-line.short{width:55%}
+    @keyframes geminiShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .interactive-card{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+    .actions-grid{display:flex;flex-wrap:wrap;gap:8px}
+    .option-chip{background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary);padding:8px 14px;border-radius:12px;font-size:.86rem;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+    .option-chip:hover:not(:disabled){background:var(--surface-variant);border-color:var(--accent-spark)}
+    .option-chip.cancel-chip{color:var(--danger-color);border-color:rgba(242,139,130,.3)}
+    .option-chip:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+    .chip-meta{font-size:.72rem;color:var(--text-muted);background:rgba(0,0,0,.3);padding:2px 6px;border-radius:6px}
+    .manual-price-box{background:var(--surface);border:1px solid var(--border-subtle);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .manual-item-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+    .manual-item-name{font-size:.88rem;color:var(--text-secondary);flex:1}
+    .manual-input{width:120px;background:#131314;border:1px solid var(--border-subtle);border-radius:8px;padding:7px 10px;color:#fff;font-size:.9rem;outline:none;text-align:right}
+    .manual-input:focus{border-color:var(--accent-blue)}
+    .form-btn-group{display:flex;gap:8px;margin-top:6px}
+    .submit-prices-btn{background:linear-gradient(135deg,#2f7bff 0%,#6a5cff 100%);color:#fff;font-weight:700;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-size:.9rem;flex:1;letter-spacing:.2px;box-shadow:0 4px 16px rgba(80,105,255,.5),inset 0 1px 0 rgba(255,255,255,.28);transition:transform .12s,filter .12s,box-shadow .12s}
+    .submit-prices-btn:hover:not(:disabled){filter:brightness(1.12);box-shadow:0 6px 20px rgba(80,105,255,.65),inset 0 1px 0 rgba(255,255,255,.3)}
+    .submit-prices-btn:active:not(:disabled){transform:scale(.96)}
+    .submit-prices-btn:disabled{box-shadow:none;filter:grayscale(.5)}
+    .cancel-form-btn{background:rgba(242,139,130,.15);color:var(--danger-color);font-weight:600;border:1px solid rgba(242,139,130,.3);padding:9px 12px;border-radius:8px;cursor:pointer;font-size:.86rem}
+    .submit-prices-btn:disabled,.cancel-form-btn:disabled{opacity:.5}
+    .input-wrapper{flex-shrink:0;padding:10px 16px 18px 16px;max-width:800px;width:100%;margin:0 auto}
+    .input-box{background:var(--input-bg);border-radius:30px;display:flex;align-items:center;padding:5px 12px 5px 18px;border:1px solid transparent;transition:border-color .2s,background .2s}
+    .input-box:focus-within{border-color:var(--border-subtle);background:#232427}
+    .input-box input{flex:1;background:transparent;border:none;outline:none;color:var(--text-primary);font-size:.98rem;line-height:1.5}
+    .input-box input::placeholder{color:var(--text-muted)}
+    .input-box input:disabled{opacity:.5}
+    .send-btn{background:transparent;border:none;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:color .2s}
+    .send-btn.active{color:var(--accent-blue)}
+    .send-btn:disabled{opacity:.3;cursor:not-allowed}
+
+    /* ═══ SLEEK WIDGETS ═══ */
+    .sx-card{white-space:normal;margin-top:12px;display:flex;flex-direction:column;gap:14px;padding:16px;border-radius:22px;background:linear-gradient(165deg,#212326,#17181a);border:1px solid rgba(255,255,255,.07);box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);position:relative;overflow:hidden;animation:lgIn .45s cubic-bezier(.2,.9,.3,1.15) both}
+    .sx-card::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#7cacf8,#9b7bf7 60%,transparent)}
+    .sx-card.tone-green::before{background:linear-gradient(90deg,#4cd58a,#7cacf8 60%,transparent)}
+    .sx-card.tone-amber::before{background:linear-gradient(90deg,#fdd663,#f2a25a 60%,transparent)}
+    .sx-card.tone-violet::before{background:linear-gradient(90deg,#c58af9,#7cacf8 60%,transparent)}
+    .sx-card.tone-teal::before{background:linear-gradient(90deg,#5fd6d0,#7cacf8 60%,transparent)}
+    .sx-svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+    .sx-head{display:flex;align-items:center;gap:12px}
+    .sx-ico{width:42px;height:42px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(124,172,248,.14);color:#a8c7fa;border:1px solid rgba(124,172,248,.22)}
+    .sx-ico.green{background:rgba(76,213,138,.14);color:#6fe3a2;border-color:rgba(76,213,138,.25)}
+    .sx-ico.amber{background:rgba(253,214,99,.13);color:#fdd663;border-color:rgba(253,214,99,.25)}
+    .sx-ico.violet{background:rgba(197,138,249,.14);color:#c58af9;border-color:rgba(197,138,249,.25)}
+    .sx-ico.teal{background:rgba(95,214,208,.14);color:#5fd6d0;border-color:rgba(95,214,208,.25)}
+    .sx-title{font-size:1rem;font-weight:650;letter-spacing:.1px}
+    .sx-sub{font-size:.75rem;color:var(--text-muted);margin-top:2px;word-break:break-word}
+    .sx-amount{font-size:1.9rem;font-weight:750;letter-spacing:-.5px;color:#fff;font-variant-numeric:tabular-nums;margin-top:6px}
+    .sx-amount small{display:block;font-size:.72rem;font-weight:500;color:var(--text-muted);letter-spacing:.2px;margin-top:2px}
+    .sx-field{display:flex;flex-direction:column;gap:6px}
+    .sx-label{font-size:.68rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center}
+    .sx-label i{font-style:normal;text-transform:none;letter-spacing:0;opacity:.7}
+    .sx-input{display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:14px;background:#111213;border:1px solid rgba(255,255,255,.08);color:var(--text-muted);transition:border-color .2s,box-shadow .2s,color .2s}
+    .sx-input:focus-within{border-color:rgba(124,172,248,.7);box-shadow:0 0 0 3px rgba(124,172,248,.14);color:#a8c7fa}
+    .sx-input.err{border-color:var(--danger-color);animation:sxShake .3s}
+    .sx-input input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:#fff;font-size:.98rem;padding:13px 0}
+    .sx-input input::placeholder{color:#6b6e6c}
+    .sx-input input:disabled{opacity:.5}
+    .sx-select{flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:.98rem;padding:13px 6px;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8e918f 50%),linear-gradient(135deg,#8e918f 50%,transparent 50%);background-position:calc(100% - 18px) 22px,calc(100% - 13px) 22px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+    .sx-select option{background:#1e1f20;color:#fff}
+    .sx-seg{display:flex;padding:4px;gap:4px;border-radius:14px;background:#111213;border:1px solid rgba(255,255,255,.08)}
+    .sx-seg button{flex:1;border:none;border-radius:10px;padding:9px 10px;font-size:.86rem;font-weight:650;color:var(--text-muted);background:transparent;cursor:pointer;transition:background .2s,color .2s}
+    .sx-seg button.on{color:#fff;background:linear-gradient(135deg,#2f7bff,#6a5cff);box-shadow:0 4px 12px rgba(80,105,255,.35)}
+    .sx-err{font-size:.74rem;color:var(--danger-color)}
+    .sx-err:empty{display:none}
+    .sx-current{font-size:.76rem;color:var(--text-muted)}
+    .sx-current b{color:var(--text-secondary);font-weight:600}
+    .sx-actions{display:flex;gap:10px}
+    .sx-btn{border:none;border-radius:14px;padding:12px 14px;font-size:.9rem;font-weight:650;cursor:pointer;transition:transform .12s,filter .12s}
+    .sx-btn:active:not(:disabled){transform:scale(.97)}
+    .sx-btn.ghost{flex:.8;background:rgba(255,255,255,.05);color:var(--text-secondary);border:1px solid rgba(255,255,255,.09)}
+    .sx-btn.primary{flex:1.4;color:#fff;background:linear-gradient(135deg,#2f7bff,#6a5cff);box-shadow:0 6px 18px rgba(80,105,255,.4),inset 0 1px 0 rgba(255,255,255,.25)}
+    .sx-btn.ok-green{background:linear-gradient(135deg,#1eaa5a,#2f7bff)}
+    .sx-btn.ok-amber{background:linear-gradient(135deg,#d99b1f,#e07a2c)}
+    .sx-btn:disabled{opacity:.45;cursor:not-allowed}
+    .sx-list{display:flex;flex-direction:column;gap:8px}
+    .sx-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:var(--text-primary);cursor:pointer;transition:background .2s,border-color .2s,transform .12s}
+    .sx-row:hover:not(:disabled){background:rgba(124,172,248,.09);border-color:rgba(124,172,248,.35)}
+    .sx-row:active:not(:disabled){transform:scale(.985)}
+    .sx-row:disabled{opacity:.45;pointer-events:none}
+    .sx-row .lg-avatar{width:38px;height:38px;border-radius:12px;font-size:.95rem}
+    .sx-rmain{flex:1;min-width:0}
+    .sx-rname{font-size:.92rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sx-rsub{font-size:.72rem;color:var(--text-muted);margin-top:2px}
+    .sx-rsub.owe{color:#fdd663}
+    .sx-rsub.adv{color:#a8c7fa}
+    .sx-chev{width:16px;height:16px;color:var(--text-muted)}
+    .sx-row.new{border-style:dashed;border-color:rgba(76,213,138,.4);background:rgba(76,213,138,.06)}
+    .sx-ico2{width:38px;height:38px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(76,213,138,.15);color:#6fe3a2}
+    .sx-diff{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}
+    .sx-dlabel{font-size:.68rem;letter-spacing:1.1px;text-transform:uppercase;color:var(--text-muted)}
+    .sx-dline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .sx-old{padding:5px 10px;border-radius:10px;background:rgba(242,139,130,.1);color:#f6a59d;text-decoration:line-through;text-decoration-color:rgba(242,139,130,.6);font-size:.88rem;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+    .sx-new{padding:5px 10px;border-radius:10px;background:rgba(76,213,138,.13);color:#7be8ad;font-weight:650;font-size:.92rem;word-break:break-word}
+    .sx-new.del{background:rgba(242,139,130,.14);color:#f6a59d}
+    .sx-arrow{width:16px;height:16px;color:var(--text-muted)}
+    .sx-msg{font-size:.88rem;color:var(--text-secondary);line-height:1.5}
+    @keyframes sxShake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+    /* ═══ LEDGER CARDS ═══ */
+    .lg-stack{display:flex;flex-direction:column;gap:12px;flex:1;min-width:0;max-width:420px}
+    .lg-text{font-size:.94rem;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--text-primary);padding:2px 0}
+    .lg-card{--a:#7cacf8;--as:rgba(124,172,248,.14);position:relative;overflow:hidden;border-radius:22px;padding:16px 16px 14px;background:linear-gradient(165deg,#212326 0%,#17181a 100%);border:1px solid rgba(255,255,255,.07);box-shadow:0 10px 30px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);animation:lgIn .55s cubic-bezier(.2,.9,.3,1.15) both;animation-delay:var(--cd,0s)}
+    .lg-card::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--a),transparent 85%)}
+    .lg-card::after{content:"";position:absolute;width:220px;height:220px;right:-90px;top:-110px;border-radius:50%;background:radial-gradient(circle,var(--as),transparent 68%);pointer-events:none}
+    .lg-card.tone-green{--a:#4cd58a;--as:rgba(76,213,138,.16)}
+    .lg-card.tone-amber{--a:#fdd663;--as:rgba(253,214,99,.15)}
+    .lg-card.tone-red{--a:#f28b82;--as:rgba(242,139,130,.16)}
+    .lg-card.tone-violet{--a:#c58af9;--as:rgba(197,138,249,.16)}
+    .lg-card.tone-teal{--a:#5fd6d0;--as:rgba(95,214,208,.15)}
+    .lg-shine{position:absolute;top:0;bottom:0;width:60px;background:linear-gradient(100deg,transparent,rgba(255,255,255,.09),transparent);transform:translateX(-120%);animation:lgShine 1.3s .35s ease-out 1 both;pointer-events:none;z-index:2}
+    .lg-head{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+    .lg-hd{flex:1;min-width:0}
+    .lg-avatar{width:44px;height:44px;border-radius:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.15rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+    .lg-ico-big{width:44px;height:44px;border-radius:15px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.35rem;background:var(--as);border:1px solid rgba(255,255,255,.07)}
+    .lg-title{font-size:1.02rem;font-weight:650;letter-spacing:.1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-sub{font-size:.74rem;color:var(--text-muted);margin-top:2px}
+    .lg-check{width:26px;height:26px;flex-shrink:0;fill:none;stroke:var(--a);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .lg-check circle{stroke-dasharray:66;stroke-dashoffset:66;animation:lgCheck .6s .25s ease-out forwards}
+    .lg-check path{stroke-dasharray:22;stroke-dashoffset:22;animation:lgCheck .4s .7s ease-out forwards}
+    .lg-items{margin-top:14px;display:flex;flex-direction:column;gap:9px;position:relative;z-index:1}
+    .lg-item{display:flex;align-items:baseline;gap:8px;font-size:.92rem;color:var(--text-secondary);animation:lgRow .45s both;animation-delay:calc(var(--cd,0s) + .18s + var(--i,0)*.08s)}
+    .lg-item span{max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+    .lg-dots{flex:1;border-bottom:1.5px dotted rgba(255,255,255,.16);transform:translateY(-3px)}
+    .lg-item b{color:var(--text-primary);font-weight:600;font-variant-numeric:tabular-nums}
+    .lg-total{margin-top:13px;padding-top:12px;border-top:1px dashed rgba(255,255,255,.14);display:flex;align-items:baseline;justify-content:space-between;position:relative;z-index:1}
+    .lg-total span:first-child{font-size:.78rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted)}
+    .lg-total .lg-num,.lg-big{font-size:1.75rem;font-weight:750;color:var(--a);font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+    .lg-big{margin-top:14px;position:relative;z-index:1;font-size:2.1rem}
+    .lg-big small{display:block;font-size:.74rem;font-weight:500;letter-spacing:.2px;color:var(--text-muted);margin-top:2px}
+    .lg-chip{display:inline-flex;align-items:center;gap:6px;margin-top:13px;padding:7px 13px;border-radius:999px;font-size:.78rem;position:relative;z-index:1;animation:lgRow .5s .55s both}
+    .lg-chip b{font-weight:700}
+    .lg-chip.owe{background:rgba(253,214,99,.12);color:#fdd663;border:1px solid rgba(253,214,99,.25)}
+    .lg-chip.credit{background:rgba(124,172,248,.12);color:#a8c7fa;border:1px solid rgba(124,172,248,.25)}
+    .lg-chip.clear{background:rgba(76,213,138,.12);color:#6fe3a2;border:1px solid rgba(76,213,138,.25)}
+    .lg-note{margin-top:10px;font-size:.8rem;color:var(--text-secondary);position:relative;z-index:1}
+    .lg-list{margin-top:14px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1}
+    .lg-row{display:flex;align-items:center;gap:11px;animation:lgRow .45s both;animation-delay:calc(var(--cd,0s) + .15s + var(--i,0)*.06s)}
+    .lg-row .lg-avatar{width:34px;height:34px;border-radius:11px;font-size:.9rem}
+    .lg-ico{width:34px;height:34px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);font-size:1rem}
+    .lg-rmain{flex:1;min-width:0}
+    .lg-rname{font-size:.88rem;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-rsub{font-size:.7rem;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lg-row>b{font-size:.88rem;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .lg-row>b.pos{color:#6fe3a2}.lg-row>b.neg{color:#f6a59d}.lg-row>b.amb{color:#fdd663}
+    .lg-tn{font-size:.62rem;color:var(--text-muted);background:rgba(255,255,255,.06);padding:2px 6px;border-radius:6px}
+    .lg-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:6px;overflow:hidden}
+    .lg-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--a),rgba(255,255,255,.55));width:var(--w);animation:lgBar .9s .3s cubic-bezier(.2,.8,.2,1) both}
+    .lg-sec{margin-top:16px;font-size:.68rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted);position:relative;z-index:1}
+    .lg-answer{margin-top:12px;font-size:.93rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;position:relative;z-index:1;color:var(--text-primary)}
+    .lg-err-title{font-size:.98rem;font-weight:650;color:#f6a59d}
+    .lg-err-detail{margin-top:10px;font-family:ui-monospace,Menlo,monospace;font-size:.7rem;color:var(--text-muted);background:rgba(0,0,0,.28);border-radius:8px;padding:7px 9px;word-break:break-word;position:relative;z-index:1}
+    .lg-foot{margin-top:12px;font-size:.68rem;color:var(--text-muted);position:relative;z-index:1}
+    @keyframes lgIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+    @keyframes lgRow{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+    @keyframes lgCheck{to{stroke-dashoffset:0}}
+    @keyframes lgBar{from{width:0}to{width:var(--w)}}
+    @keyframes lgShine{from{transform:translateX(-120%)}to{transform:translateX(560%)}}
+    @media (prefers-reduced-motion:reduce){.lg-card,.lg-item,.lg-row,.lg-chip,.lg-shine,.lg-bar i,.lg-check circle,.lg-check path,.sx-card{animation:none!important;stroke-dashoffset:0!important}}
+  </style>
+</head>
+<body>
+  <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+    <linearGradient id="gemini-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7cacf8"/><stop offset="50%" stop-color="#9b7bf7"/><stop offset="100%" stop-color="#d96570"/>
+    </linearGradient>
+  </svg>
+
+  <header>
+    <div class="brand">
+      <svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 16.4771 12 22 12C16.4771 12 12 16.4771 12 22C12 16.4771 7.52285 12 2 12C7.52285 12 12 7.52285 12 2Z"/></svg>
+      Sunny AI Khata
+    </div>
+    <div class="status-group">
+      <div class="connection-dot" id="connDot" title="Live Link Active"></div>
+      <div class="tag-badge" id="latencyBadge">Ready</div>
+    </div>
+    <div class="network-bar" id="networkBar"><div class="network-bar-fill"></div></div>
+  </header>
+
+  <main id="chatFeed">
+    <div class="message-row model">
+      <div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 16.4771 12 22 12C16.4771 12 12 16.4771 12 22C12 16.4771 7.52285 12 2 12C7.52285 12 12 7.52285 12 2Z"/></svg></div>
+      <div class="content-block">Salam! Sunny AI Khata tayyar hai. Udhaar, payment, kharcha ya balance likhein. ⚡</div>
+    </div>
+  </main>
+
+  <div class="input-wrapper">
+    <form class="input-box" id="commandForm" onsubmit="handleFormSubmit(event)">
+      <input type="text" id="userInput" placeholder="Khata entry likhein (e.g. Zaheer ko 200 ki daal)..." autocomplete="off"/>
+      <button type="submit" id="submitBtn" class="send-btn" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // ─── CONFIG ───────────────────────────────────────────────
+    const FIREBASE_ROOT = "https://shop-pos-59971-default-rtdb.firebaseio.com";
+    function showLoginRequired() {
+      const d = document.createElement("div");
+      d.style.cssText = "position:fixed;inset:0;z-index:99999;background:#131314;color:#E3E3E3;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;font-family:sans-serif";
+      d.innerHTML = '<div style="font-size:20px;font-weight:600;margin-bottom:8px">Log in to continue</div><div style="font-size:14px;color:#8E918F;line-height:1.5">Open this page from the ShopAI app and log in with your phone number.</div>';
+      document.body.appendChild(d);
+    }
+    const SESSION = (function () {
+      try {
+        if (window.AndroidBridge && typeof AndroidBridge.getUser === "function") {
+          const u = JSON.parse(AndroidBridge.getUser());
+          if (u && /^[0-9]{10,13}$/.test(String(u.phone))) return { phone: String(u.phone), name: String(u.name || "") };
+        }
+      } catch (e) {}
+      return null;
+    })();
+    if (!SESSION) { showLoginRequired(); throw new Error("Not logged in"); }
+    const USER_ID = SESSION.phone;
+    const FIREBASE_URL = FIREBASE_ROOT + "/UserData/" + USER_ID;
+    const GROQ_API_KEY = "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";
+    const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
+    const GROQ_MODEL   = "openai/gpt-oss-20b";
+
+    const PRODUCT_CACHE_KEY  = "SUNNY_PRODUCTS_CACHE_V34_" + USER_ID;
+    const CUSTOMER_CACHE_KEY = "SUNNY_CUSTOMERS_CACHE_V34_" + USER_ID;
+    const EXPENSE_CATS_KEY   = "SUNNY_EXPENSE_CATS_V34_" + USER_ID;
+    const QUEUE_KEY          = "sunny_pos_queue_" + USER_ID;
+    const LAST_TXN_KEY       = "sunny_last_txn_" + USER_ID;
+    const CACHE_TTL          = 900000;
+    const DEFAULT_EXPENSE_CAT = "My Expenses";
+
+    const MODE = "ledger";
+    const LEDGER_PLACEHOLDER = "Khata entry likhein (e.g. Zaheer ko 200 ki daal)...";
+    const AVATAR_HTML = `<div class="avatar"><svg class="gemini-spark" viewBox="0 0 24 24"><path d="M12 2C12 7.52285 16.4771 12 22 12C16.4771 12 12 16.4771 12 22C12 16.4771 7.52285 12 2 12C7.52285 12 12 7.52285 12 2Z"/></svg></div>`;
+
+    const chatFeed    = document.getElementById("chatFeed");
+    const userInput   = document.getElementById("userInput");
+    const submitBtn   = document.getElementById("submitBtn");
+    const latencyBadge = document.getElementById("latencyBadge");
+    const connDot     = document.getElementById("connDot");
+    const networkBar  = document.getElementById("networkBar");
+
+    // ─── EXPENSE CATEGORY STORE ──────────────────────────────
+    // Sab expenses default "My Expenses" category me. User card se change kar sakta hai.
+    function getExpenseCats() {
+      try {
+        const raw = localStorage.getItem(EXPENSE_CATS_KEY);
+        if (raw) { const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) return arr; }
+      } catch(e){}
+      return [DEFAULT_EXPENSE_CAT];
+    }
+    function addExpenseCat(name) {
+      name = String(name||"").trim().replace(/\s+/g," ").slice(0,40);
+      if (!name) return null;
+      const cats = getExpenseCats();
+      if (!cats.includes(name)) {
+        cats.push(name);
+        try { localStorage.setItem(EXPENSE_CATS_KEY, JSON.stringify(cats)); } catch(e){}
+      }
+      return name;
+    }
+
+    function safePath(p) {
+      p = String(p == null ? "" : p).replace(/^\/+|\/+$/g, "");
+      if (/(^|\/)\.{1,2}(\/|$)/.test(p) || /[?#\\]/.test(p)) throw new Error("Invalid path");
+      return p;
+    }
+    const SPEED={ai:0,aiN:0,db:0,dbN:0,live:0};
+    function speedReset(){ SPEED.ai=0;SPEED.aiN=0;SPEED.db=0;SPEED.dbN=0;SPEED.live=0; }
+
+    const LIVE={data:{},ready:{},es:{},evt:{},dirtyUntil:0}, LIVE_PATHS=["Customers","Suppliers","Transactions"], LIVE_DIRTY_MS=3000, LIVE_STALE_MS=75000;
+    let WARM_MEMO={};
+    function liveClone(v){ try{ return structuredClone(v); }catch(e){ return v===undefined?v:JSON.parse(JSON.stringify(v)); } }
+    function liveRead(name){
+      if (!LIVE_PATHS.includes(name)) return undefined;
+      if (Date.now()<LIVE.dirtyUntil) return undefined;
+      const es=LIVE.es[name];
+      if (!LIVE.ready[name]||!es||es.readyState!==1||Date.now()-(LIVE.evt[name]||0)>LIVE_STALE_MS) return undefined;
+      return LIVE.data[name];
+    }
+    function liveSet(root,path,val){
+      const parts=String(path||"").split("/").filter(Boolean);
+      if (!parts.length) return;
+      let cur=root;
+      for (let i=0;i<parts.length-1;i++){ const k=parts[i]; if (cur[k]===null||typeof cur[k]!=="object") cur[k]={}; cur=cur[k]; }
+      const last=parts[parts.length-1];
+      if (val===null||val===undefined) delete cur[last]; else cur[last]=val;
+    }
+    function liveConnect(name){
+      try {
+        if (LIVE.es[name]) { try{ LIVE.es[name].close(); }catch(e){} }
+        LIVE.ready[name]=false;
+        const es=new EventSource(`${FIREBASE_URL}/${name}.json`);
+        LIVE.es[name]=es;
+        const bump=()=>{ LIVE.evt[name]=Date.now(); };
+        const apply=(e,isPatch)=>{
+          bump();
+          try {
+            const m=JSON.parse(e.data); if (!m) return;
+            if (!isPatch&&(m.path==="/"||m.path==="")) { LIVE.data[name]=(m.data&&typeof m.data==="object")?m.data:{}; LIVE.ready[name]=true; return; }
+            let root=LIVE.data[name]; if (!root||typeof root!=="object") root=LIVE.data[name]={};
+            if (isPatch) { const base=m.path||"/"; for (const [k,v] of Object.entries(m.data||{})) liveSet(root,base+"/"+k,v); }
+            else liveSet(root,m.path,m.data);
+          } catch(err) { LIVE.ready[name]=false; }
+        };
+        es.addEventListener("put",e=>apply(e,false));
+        es.addEventListener("patch",e=>apply(e,true));
+        es.addEventListener("keep-alive",bump);
+        es.addEventListener("cancel",()=>{ LIVE.ready[name]=false; });
+        es.addEventListener("auth_revoked",()=>{ LIVE.ready[name]=false; });
+        es.onerror=()=>{ LIVE.ready[name]=false; if (es.readyState===2) setTimeout(()=>{ if (LIVE.es[name]===es) liveConnect(name); },5000); };
+      } catch(e) { LIVE.ready[name]=false; }
+    }
+    function liveStart(){ if (typeof EventSource==="undefined") return; LIVE_PATHS.forEach(liveConnect); }
+    document.addEventListener("visibilitychange",()=>{ if (!document.hidden&&typeof EventSource!=="undefined") LIVE_PATHS.forEach(n=>{ const es=LIVE.es[n]; if (!es||es.readyState!==1||Date.now()-(LIVE.evt[n]||0)>20000) liveConnect(n); }); });
+
+    async function firebaseNetGet(clean) {
+      const t=performance.now();
+      try {
+        const r=await fetch(`${FIREBASE_URL}/${clean}.json`);
+        if (!r.ok) return null;
+        return await r.json();
+      } finally { SPEED.db+=performance.now()-t; SPEED.dbN++; }
+    }
+    async function firebaseRequest(path, method="GET", data=null) {
+      const clean = safePath(path);
+      if (method==="GET") {
+        const d=liveRead(clean);
+        if (d!==undefined) { SPEED.live++; return Object.keys(d).length?liveClone(d):null; }
+        if (clean==="Customers"||clean==="Suppliers") {
+          const m=WARM_MEMO[clean];
+          if (m&&Date.now()-m.t<8000&&Date.now()>=LIVE.dirtyUntil) return m.p.then(liveClone);
+          const pr=firebaseNetGet(clean); WARM_MEMO[clean]={t:Date.now(),p:pr}; pr.catch(()=>{ delete WARM_MEMO[clean]; });
+          return pr.then(liveClone);
+        }
+        return firebaseNetGet(clean);
+      }
+      const isChat=/^ChatHistory/.test(clean);
+      if (!isChat) { LIVE.dirtyUntil=Date.now()+LIVE_DIRTY_MS; WARM_MEMO={}; }
+      const url = `${FIREBASE_URL}/${clean}.json`;
+      const opts = { method, headers:{} };
+      if (data !== null) { opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(data); }
+      const t=performance.now();
+      try {
+        const r = await fetch(url, opts);
+        if (!r.ok) throw new Error(`Firebase ${method} HTTP ${r.status}`);
+        return r.json();
+      } finally { SPEED.db+=performance.now()-t; SPEED.dbN++; if (!isChat) LIVE.dirtyUntil=Date.now()+LIVE_DIRTY_MS; }
+    }
+    async function firebaseParallelGet(paths) {
+      return Promise.all(paths.map(async p=>{
+        const clean=safePath(p), d=liveRead(clean);
+        if (d!==undefined) { SPEED.live++; return Object.keys(d).length?liveClone(d):null; }
+        const t=performance.now();
+        try { const r=await fetch(`${FIREBASE_URL}/${clean}.json`); return r.ok?await r.json():null; }
+        finally { SPEED.db+=performance.now()-t; SPEED.dbN++; }
+      }));
+    }
+    function addInc(updates, path, n) {
+      n = Number(n);
+      if (!isFinite(n) || n===0) return;
+      const cur = updates[path];
+      const base = (cur&&cur[".sv"]) ? (Number(cur[".sv"].increment)||0) : 0;
+      updates[path] = {".sv":{"increment": base+n}};
+    }
+
+    function escapeHtml(str) {
+      const d=document.createElement("div"); d.textContent=str; return d.innerHTML;
+    }
+    function formatText(str) {
+      if (!str) return "";
+      let html = escapeHtml(str);
+      html = html.replace(/\*\*(.*?)\*\*/g, '<b style="color:#fff;">$1</b>');
+      html = html.replace(/\*(.*?)\*/g, '<i>$1</i>');
+      return html;
+    }
+    function quoteHtml(t){ return t?`<div class="quote-block">Replying to: <i>"${escapeHtml(t)}"</i></div>`:"" }
+
+    function readCache(key) {
+      try {
+        const c = localStorage.getItem(key);
+        if (!c) return null;
+        const p = JSON.parse(c);
+        return (Date.now()-p.timestamp < CACHE_TTL) ? p.data : null;
+      } catch(e){ return null; }
+    }
+    function writeCache(key, data) {
+      try { localStorage.setItem(key, JSON.stringify({timestamp:Date.now(), data})); } catch(e){}
+    }
+    async function getCustomersCached() {
+      const live = liveRead("Customers");
+      if (live !== undefined) { SPEED.live++; return liveClone(live); }
+      const cached = readCache(CUSTOMER_CACHE_KEY);
+      if (cached) return cached;
+      const customers = await firebaseRequest("Customers","GET") || {};
+      writeCache(CUSTOMER_CACHE_KEY, customers);
+      return customers;
+    }
+    async function preloadCaches() {
+      liveStart();
+      try { await getCustomersCached(); } catch(e){}
+    }
+    function patchLocalCaches(updates) {
+      try {
+        const pRaw = localStorage.getItem(PRODUCT_CACHE_KEY);
+        const cRaw = localStorage.getItem(CUSTOMER_CACHE_KEY);
+        const pCache = pRaw ? JSON.parse(pRaw) : null;
+        const cCache = cRaw ? JSON.parse(cRaw) : null;
+        if (!pCache && !cCache) return;
+        const pData = pCache?.data, cData = cCache?.data;
+        let pChanged=false, cChanged=false;
+
+        for (const path of Object.keys(updates)) {
+          const parts = path.split('/');
+          if (parts[0]==='Products' && pData) {
+            const k=parts[1];
+            if (!pData[k]) pData[k]={};
+            if (parts[2]==='Stock' && updates[path]?.['.sv']) {
+              pData[k].Stock = (Number(pData[k].Stock)||0) + Number(updates[path]['.sv'].increment);
+            } else if (parts[2] && typeof updates[path]!=='object') {
+              pData[k][parts[2]] = updates[path];
+            } else if (!parts[2]) {
+              pData[k] = updates[path];
+            }
+            pChanged=true;
+          } else if (parts[0]==='Customers' && cData) {
+            const k=parts[1];
+            if (!cData[k]) cData[k]={};
+            if (parts[2]==='Balance' && updates[path]?.['.sv']) {
+              cData[k].Balance = (Number(cData[k].Balance)||0) + Number(updates[path]['.sv'].increment);
+            } else if (parts[2] && typeof updates[path]!=='object') {
+              cData[k][parts[2]] = updates[path];
+            } else if (!parts[2]) {
+              cData[k] = updates[path];
+            }
+            cChanged=true;
+          }
+        }
+        if (pChanged) writeCache(PRODUCT_CACHE_KEY, pData);
+        if (cChanged) writeCache(CUSTOMER_CACHE_KEY, cData);
+      } catch(e){}
+    }
+
+    function nativeDateString(ts) {
+      const d=new Date(ts), D=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      let h=d.getHours(); const ap=h>=12?"PM":"AM"; h=h%12||12;
+      return `${D[d.getDay()]}, ${String(d.getDate()).padStart(2,"0")} ${M[d.getMonth()]} ${String(d.getFullYear()).slice(2)} \u2022 ${String(h).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} ${ap}`;
+    }
+    function itemsLabel(items) {
+      return (items||[]).map(it=>it.is_misc?String(it.product||""):`${formatNumber(it.qty||1)} × ${it.product}`).filter(Boolean).join(", ");
+    }
+    let __curText = "";
+    function rs(n){ return "Rs "+formatNumber(Math.round(Number(n||0)*100)/100); }
+    function itemsLabelX(items){ return (items||[]).map(it=>(it.is_misc||it.qty===undefined)?String(it.product||""):`${formatNumber(it.qty)}x ${it.product}`).filter(Boolean).join(", "); }
+    function actionSummary(t){
+      const who=t.customer||"", lbl=itemsLabelX(t.items);
+      switch(t.type){
+        case "sale": {
+          const pay=t.payment||"credit";
+          if (who && pay==="credit") return `${who} ke khate me ${rs(t.total)} add kar diye${lbl?" ("+lbl+")":""}`;
+          if (who && pay==="split") { const paid=Number(t.paid_amount||0); return `${who} ne ${rs(paid)} naqad diye, baqi ${rs(Number(t.total||0)-paid)} khate me add kar diye${lbl?" ("+lbl+")":""}`; }
+          return `Naqad sale ${rs(t.total)}${who?" ("+who+")":""}${lbl?" - "+lbl:""}`;
+        }
+        case "return": return who ? `${who} ke khate se ${rs(t.total)} kam kar diye${lbl?" (wapsi: "+lbl+")":""}` : `Wapsi ${rs(t.total)}${lbl?" - "+lbl:""}`;
+        case "payment": return `${who} ke khate se ${rs(t.amount)} kam kar diye (${who} ne ada kiye)`;
+        case "cash_out": return `${who} ke khate me ${rs(t.amount)} add kar diye`;
+        case "ledger_entry": return `${who} ke khate me ${rs(t.total)} add kar diye${lbl?" ("+lbl+")":""}`;
+        case "khata_note": return `${who} ke khate me note likh diya${t.note?": "+t.note:""} (balance nahi badla)`;
+        case "supplier_purchase": return `${t.supplier||""} se ${rs(t.total)} ka maal liya${lbl?" ("+lbl+")":""}`;
+        case "supplier_payment": return `${t.supplier||""} ko ${rs(t.amount)} ada kiye`;
+        case "purchase": return `Purchase ${rs(t.total)}${lbl?" ("+lbl+")":""}`;
+        case "expense": return `Kharcha ${rs(t.amount)}${t.category?" ("+t.category+")":""}`;
+      }
+      return "";
+    }
+    function buildDetails(t, userText){
+      const did=actionSummary(t);
+      return did ? "\u2726 "+did : "";
+    }
+    function buildAppMirror(t) {
+      if (!t||!t.id||t.ai_mirror) return null;
+      const ts=t.timestamp||Date.now();
+      let party="", key="", type="", amount=0, desc="";
+      const lbl=itemsLabel(t.items);
+      if (t.type==="sale" && t.customer) {
+        const pay=t.payment||"credit";
+        if (pay==="credit") amount=Number(t.total||0);
+        else if (pay==="split") amount=Number(t.total||0)-Number(t.paid_amount||0);
+        if (!(amount>0)) return null;
+        party="C"; type="gave"; desc=`Sale${lbl?": "+lbl:""}`;
+      } else if (t.type==="return" && t.customer && (t.payment||"credit")==="credit") {
+        amount=Number(t.total||0); party="C"; type="got"; desc=`Return${lbl?": "+lbl:""}`;
+      } else if (t.type==="payment") {
+        amount=Number(t.amount||0); party="C"; type="got"; desc="Cash In (AI)";
+      } else if (t.type==="cash_out") {
+        amount=Number(t.amount||0); party="C"; type="gave"; desc="Cash Out (AI)";
+      } else if (t.type==="ledger_entry") {
+        amount=Number(t.total||0); party="C"; type="gave"; desc=lbl||(t.items||[]).map(i=>i.product).join(", ")||"Khata entry";
+      } else if (t.type==="khata_note") {
+        amount=0; party="C"; type="gave"; desc=`Note: ${t.note||lbl}`;
+      } else if (t.type==="supplier_purchase") {
+        amount=Number(t.total||0); party="S"; type="gave"; desc=`Purchase${lbl?": "+lbl:""}`;
+      } else if (t.type==="supplier_payment") {
+        amount=Number(t.amount||0); party="S"; type="got"; desc="Payment (AI)";
+      } else return null;
+      if (t.details) desc=t.details;
+      key = party==="S" ? (t.supplier_key||sanitizeFirebaseKey(t.supplier||"")) : (t.customer_key||sanitizeFirebaseKey(t.customer||""));
+      if (!key || !isFinite(amount) || amount<0) return null;
+      return {
+        node: party==="S" ? "SupplierTransactions" : "Transactions",
+        parent: party==="S" ? "Suppliers" : "Customers",
+        key, ts,
+        row:{id:"LG_"+t.id,type,description:desc,amount:Math.round(amount),date:nativeDateString(ts),timestamp:ts,customerKey:key,ai_mirror:true,ref:t.id}
+      };
+    }
+    function addAppMirror(updates, txKey) {
+      const t=updates[txKey];
+      if (t && t.type==="void" && t.ref) {
+        updates[`Transactions/LG_${t.ref}`]=null;
+        updates[`SupplierTransactions/LG_${t.ref}`]=null;
+        return;
+      }
+      const m=buildAppMirror(t);
+      if (!m) return;
+      updates[`${m.node}/LG_${t.id}`]=m.row;
+      updates[`${m.parent}/${m.key}/LastTxnTs`]=m.ts;
+    }
+
+    async function commitResult(res) {
+      if (!res?.updates) return res;
+      const txKey = Object.keys(res.updates).find(k=>/^Transactions\/[^/]+$/.test(k));
+      if (txKey) {
+        const existing = await firebaseRequest(`${txKey}/id`,"GET");
+        if (existing) { delete res.updates; return {ok:true,reply:"ℹ️ Yeh entry pehle hi record ho chuki hai."}; }
+      }
+      if (txKey) { const _t=res.updates[txKey]; if (_t && !_t.details && _t.type!=="void") { const d=buildDetails(_t,__curText); if (d) { _t.details=d; } } }
+      if (txKey) { try { addAppMirror(res.updates, txKey); } catch(e){ console.warn("app mirror failed", e); } }
+      await firebaseRequest("","PATCH",res.updates);
+      if (txKey) {
+        const t = res.updates[txKey];
+        if (t && ["sale","return","payment","cash_out","expense","supplier_purchase","supplier_payment","purchase","ledger_entry","custom_op"].includes(t.type))
+          localStorage.setItem(LAST_TXN_KEY, t.id);
+      }
+      patchLocalCaches(res.updates);
+      delete res.updates;
+      res.saved=true;
+      return res;
+    }
+
+    function sanitizeFirebaseKey(key) { return String(key||"").replace(/[.#$[\]\/]/g,"_").trim(); }
+    function custKey(cmd) { return cmd.customer_key||sanitizeFirebaseKey(cmd.customer); }
+    function supKey(cmd)  { return cmd.supplier_key ||sanitizeFirebaseKey(cmd.supplier); }
+    function canonicalName(text) {
+      text=String(text||"");
+      try{text=decodeURIComponent(text);}catch(e){}
+      return text.toLowerCase().trim().replace(/\s+/g," ");
+    }
+    function normMatch(text) { return canonicalName(text).replace(/[^a-z0-9]+/gi," ").replace(/\s+/g," ").trim(); }
+
+    function levenshtein(a,b) {
+      if (!a.length) return b.length; if (!b.length) return a.length;
+      const m=[];
+      for (let i=0;i<=a.length;i++) m[i]=[i];
+      for (let j=0;j<=b.length;j++) m[0][j]=j;
+      for (let i=1;i<=a.length;i++)
+        for (let j=1;j<=b.length;j++) {
+          const c=a[i-1]===b[j-1]?0:1;
+          m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+c);
+        }
+      return m[a.length][b.length];
+    }
+    function simScore(a,b) {
+      a=normMatch(a).replace(/(.)\1+/g,"$1");
+      b=normMatch(b).replace(/(.)\1+/g,"$1");
+      if (!a||!b) return 0; if (a===b) return 100;
+      const mx=Math.max(a.length,b.length);
+      return mx?Math.round((1-levenshtein(a,b)/mx)*100):100;
+    }
+
+    function nameKey(w){ w=w.replace(/(.)\1+/g,"$1"); return w.length<3?"":w[0]+w.slice(1).replace(/[aeiouy]/g,""); }
+    function tokenMatch(qw,dw){
+      if (qw===dw) return 100;
+      const cq=qw.replace(/(.)\1+/g,"$1"), cd=dw.replace(/(.)\1+/g,"$1");
+      if (cq===cd) return 100;
+      const kq=nameKey(qw), kd=nameKey(dw);
+      if (kq&&kq===kd&&kq.length>=2) return 92;
+      if (Math.min(qw.length,dw.length)>=3&&(dw.startsWith(qw)||qw.startsWith(dw))) return 88;
+      const sc=simScore(qw,dw); return sc>=80?sc:0;
+    }
+    function rankNames(searchName, entries) {
+      const nq=normMatch(searchName), qW=nq.split(" ").filter(Boolean);
+      if (!qW.length) return [];
+      const exact=entries.filter(e=>normMatch(e.name)===nq);
+      if (exact.length) return exact.map(e=>({...e,score:100}));
+      const ranked=entries.map(e=>{
+        const n=normMatch(e.name), nW=n.split(" ").filter(Boolean);
+        let sum=0, strong=0;
+        qW.forEach(qw=>{ let best=0; nW.forEach(dw=>{ best=Math.max(best,tokenMatch(qw,dw)); }); sum+=best; if (best>=88) strong++; });
+        let score=sum/qW.length;
+        if (n&&(n.includes(nq)||nq.includes(n))) score=Math.max(score,90);
+        const whole=simScore(nq,n); if (whole>=80) score=Math.max(score,whole);
+        return {...e,score,strong,whole};
+      }).filter(x=>x.strong>0||x.whole>=80);
+      if (!ranked.length) return [];
+      ranked.sort((a,b)=>b.score-a.score||b.strong-a.strong);
+      return ranked.filter(x=>x.score>=ranked[0].score-40);
+    }
+
+    function findProduct(searchName, products) {
+      const query=canonicalName(searchName), nQ=normMatch(searchName);
+      if (!query||!nQ) return {status:"not_found"};
+      const qWords=nQ.split(" ");
+      const exact=[], cands=[];
+
+      for (const k of Object.keys(products||{})) {
+        const p=products[k]||{};
+        const item={...p,_key:k};
+        const pNorm=normMatch(p.Name||k);
+        if (nQ===pNorm||query===canonicalName(p.Name||k)||k===searchName) { exact.push({product:item,score:100}); continue; }
+        const dbW=pNorm.split(" ");
+        let sum=0;
+        qWords.forEach(qw=>{ let best=0; dbW.forEach(dw=>{const s=simScore(qw,dw);if(s>best)best=s;}); sum+=best; });
+        const score=Math.round(Math.max(sum/qWords.length,simScore(nQ,pNorm)));
+        if (score>=60) cands.push({product:item,score});
+      }
+
+      const toMatches=arr=>arr.slice(0,5).map(x=>({key:String(x.product._key),name:String(x.product.Name||x.product._key),price:Number(x.product.Price||0),stock:Number(x.product.Stock||0)}));
+      if (exact.length===1) return {status:"found",product:exact[0].product};
+      if (exact.length>1)   return {status:"multiple",matches:toMatches(exact)};
+      if (!cands.length)    return {status:"not_found"};
+      cands.sort((a,b)=>b.score-a.score);
+      const best=cands[0];
+      const eligible=cands.filter(x=>(best.score-x.score)<=10);
+      if (eligible.length>1) return {status:"multiple",matches:toMatches(eligible)};
+      return {status:"found",product:best.product};
+    }
+
+    function findCustomer(searchName, customers) {
+      if (!searchName) return {status:"not_found"};
+      const query=canonicalName(searchName), nq=normMatch(searchName);
+      if (!nq) return {status:"not_found"};
+      const keys=Object.keys(customers||{});
+      for (const k of keys) {
+        const nm=customers[k]?.Name||k;
+        if (canonicalName(nm)===query||normMatch(nm)===nq) return {status:"found",customer:{_key:k,Name:nm}};
+      }
+      const cands=rankNames(searchName,keys.map(k=>({key:k,name:String(customers[k]?.Name||k),bal:Number(customers[k]?.Balance||0)})));
+      if (!cands.length) return {status:"not_found"};
+      return {status:"multiple",matches:cands.slice(0,8).map(x=>({key:String(x.key),name:x.name,bal:x.bal}))};
+    }
+
+    function findSupplier(searchName, suppliers) {
+      if (!searchName) return {status:"not_found"};
+      const query=canonicalName(searchName), nq=normMatch(searchName);
+      if (!query||!nq) return {status:"not_found"};
+      const keys=Object.keys(suppliers||{});
+      for (const k of keys) {
+        const nm=suppliers[k]?.Name||k;
+        if (canonicalName(nm)===query||normMatch(nm)===nq) return {status:"found",supplier:{_key:k,Name:nm}};
+      }
+      const cands=rankNames(searchName,keys.map(k=>({key:k,name:String(suppliers[k]?.Name||k),bal:Number(suppliers[k]?.Balance||0)})));
+      if (!cands.length) return {status:"not_found"};
+      return {status:"multiple",matches:cands.slice(0,8).map(x=>({key:String(x.key),name:x.name,bal:x.bal}))};
+    }
+
+    function formatNumber(value) {
+      const n=Number(value);if(!isFinite(n))return "0";
+      if (Math.abs(n-Math.round(n))<0.000001) return String(Math.round(n));
+      return n.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+    }
+    function getTodayString() {
+      const d=new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function getStatsBucketPaths(date) {
+      const d=date||new Date();
+      const daily=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      const dC=new Date(d.getTime());dC.setHours(0,0,0,0);dC.setDate(dC.getDate()+3-(dC.getDay()+6)%7);
+      const w1=new Date(dC.getFullYear(),0,4);
+      const weekly=`${dC.getFullYear()}-W${("0"+(1+Math.round(((dC-w1)/86400000-3+(w1.getDay()+6)%7)/7))).slice(-2)}`;
+      const monthly=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+      return {
+        daily:`Stats/Daily/${daily}`,weekly:`Stats/Weekly/${weekly}`,
+        monthly:`Stats/Monthly/${monthly}`,yearly:`Stats/Yearly/${d.getFullYear()}`,
+        lifetime:"Stats/Lifetime/All"
+      };
+    }
+
+    function addStatsDeltas(updates, transaction, reverse=false) {
+      const type=transaction.type;
+      if (!["sale","return","payment","cash_out","expense"].includes(type)) return;
+      const ts=Number(transaction.timestamp||0);if(!ts)return;
+      const dir=reverse?-1:1;
+      const bases=Object.values(getStatsBucketPaths(new Date(ts)));
+      const total=Number(transaction.total||0);
+      const payMode=String(transaction.payment||"").toLowerCase();
+      const isCredit=payMode==="credit", isSplit=payMode==="split";
+      const splitPaid=isSplit?Number(transaction.paid_amount||0):0;
+
+      if (type==="expense") {
+        const amt=Number(transaction.amount||0);
+        bases.forEach(base=>addInc(updates,`${base}/TotalExpense`,dir*amt));
+        return;
+      }
+      if (type==="sale"||type==="return") {
+        const sign=(type==="sale"?1:-1)*dir;
+        let totalCost=0;
+        const lines=(transaction.items||[]).map(item=>{
+          const qty=Number(item.qty||0),cost=Number(item.cost||0);
+          const revenue=Number(item.total!==undefined?item.total:qty*Number(item.price||0));
+          const itemCost=qty*cost; totalCost+=itemCost;
+          return {key:sanitizeFirebaseKey(canonicalName(item.product))||"unknown",name:String(item.product||"").trim(),qty,revenue,itemCost};
+        });
+        bases.forEach(base=>{
+          addInc(updates,`${base}/TotalSales`,sign*total);
+          addInc(updates,`${base}/TotalCost`,sign*totalCost);
+          addInc(updates,`${base}/TotalProfit`,sign*(total-totalCost));
+          if (isSplit) {
+            addInc(updates,`${base}/TotalCash`,sign*splitPaid);
+            addInc(updates,`${base}/TotalCredit`,sign*(total-splitPaid));
+          } else {
+            addInc(updates,`${base}/${isCredit?"TotalCredit":"TotalCash"}`,sign*total);
+          }
+          if (type==="sale") addInc(updates,`${base}/SaleCount`,dir);
+          else { addInc(updates,`${base}/TotalReturns`,dir*total); addInc(updates,`${base}/ReturnCount`,dir); }
+          lines.forEach(l=>{
+            updates[`${base}/Products/${l.key}/Name`]=l.name;
+            addInc(updates,`${base}/Products/${l.key}/Qty`,sign*l.qty);
+            if (type==="sale") addInc(updates,
